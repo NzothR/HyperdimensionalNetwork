@@ -62,4 +62,10 @@ public sealed class XUiC_HyperdimensionalSlot : XUiC_ItemStack
     }
 
     internal void TakeFromNetwork(bool half) => Take(half);
+    internal void MoveFromNetworkToPlayer() => _grid?.TakeToPlayer(_visibleIndex);
+    internal void HandleStackSwapFromNetwork()
+    {
+        if (!Put(false)) Take(false);
+        HandleClickComplete();
+    }
 }

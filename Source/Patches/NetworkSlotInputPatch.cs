@@ -9,8 +9,8 @@ internal static class NetworkSlotInputPatch
     private static bool PartialStackPickupPrefix(XUiC_ItemStack __instance)
     {
         if (__instance is not XUiC_HyperdimensionalSlot slot) return true;
-        NetworkLog.Debug("Partial drag pickup routed through network transaction. slot=" + slot.SlotNumber);
-        slot.TakeFromNetwork(half: true);
+        NetworkLog.Debug("Drag pickup routed through network transaction. slot=" + slot.SlotNumber);
+        slot.TakeFromNetwork(half: false);
         return false;
     }
 
@@ -18,8 +18,17 @@ internal static class NetworkSlotInputPatch
     private static bool PreferredLocationPrefix(XUiC_ItemStack __instance)
     {
         if (__instance is not XUiC_HyperdimensionalSlot slot) return true;
-        NetworkLog.Debug("Preferred-location pickup routed through network transaction. slot=" + slot.SlotNumber);
-        slot.TakeFromNetwork(half: false);
+        NetworkLog.Debug("Preferred-location withdrawal routed to player inventory. slot=" + slot.SlotNumber);
+        slot.MoveFromNetworkToPlayer();
+        return false;
+    }
+
+    [HarmonyPrefix, HarmonyPatch(nameof(XUiC_ItemStack.HandleStackSwap))]
+    private static bool StackSwapPrefix(XUiC_ItemStack __instance)
+    {
+        if (__instance is not XUiC_HyperdimensionalSlot slot) return true;
+        NetworkLog.Debug("Stack swap routed through network transaction. slot=" + slot.SlotNumber);
+        slot.HandleStackSwapFromNetwork();
         return false;
     }
 }

@@ -102,15 +102,11 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
 
     public bool TakeToMouse(int visibleIndex, bool half)
     {
-        int filteredIndex = _page * _pageSize + visibleIndex;
-        if (filteredIndex < 0 || filteredIndex >= _visibleEntries.Count) return false;
+        StoredEntry entry = GetVisibleEntry(visibleIndex);
+        if (entry == null) return false;
         XUiC_DragAndDropWindow drag = xui?.DragAndDropWindow;
         if (drag == null || (drag.CurrentStack != null && !drag.CurrentStack.IsEmpty())) return false;
-        StoredEntry entry = _visibleEntries[filteredIndex];
-        ItemClass itemClass = entry.Value.ItemClass;
-        int stackLimit = Math.Max(1, itemClass?.Stacknumber?.Value ?? 1);
-        int request = (int)Math.Min(Math.Min(entry.Count, stackLimit), int.MaxValue);
-        if (half) request = Math.Max(1, request / 2);
+        int request = GetTakeCount(entry, half);
         NetworkLog.Debug("Network withdrawal requested. mode=" + (half ? "half" : "full") + "; item=" + entry.Value.type + "; requested=" + request + "; available=" + entry.Count + "; slot=" + visibleIndex);
         int removed = NetworkStorage.Remove(xui.playerUI.entityPlayer, entry.Value, request);
         if (removed <= 0)
@@ -125,6 +121,55 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
         SetProjectedCount(entry.Value, remaining);
         NetworkLog.Debug("Network withdrawal completed. item=" + entry.Value.type + "; removed=" + removed + "; remaining=" + remaining + "; slot=" + visibleIndex);
         return true;
+    }
+
+    public bool TakeToPlayer(int visibleIndex)
+    {
+        StoredEntry entry = GetVisibleEntry(visibleIndex);
+        if (entry == null || xui?.PlayerInventory == null) return false;
+        XUiC_DragAndDropWindow drag = xui.DragAndDropWindow;
+        if (drag == null || (drag.CurrentStack != null && !drag.CurrentStack.IsEmpty())) return false;
+        int request = GetTakeCount(entry, half: false);
+        int capacity = xui.PlayerInventory.CountAvailableSpaceForItem(entry.Value, _limitToOneStack: false);
+        request = Math.Min(request, capacity);
+        if (request <= 0)
+        {
+            NetworkLog.Debug("Network quick withdrawal has no player inventory space. item=" + entry.Value.type + "; slot=" + visibleIndex);
+            return false;
+        }
+        NetworkLog.Debug("Network quick withdrawal requested. item=" + entry.Value.type + "; requested=" + request + "; slot=" + visibleIndex);
+        int removed = NetworkStorage.Remove(xui.playerUI.entityPlayer, entry.Value, request);
+        if (removed <= 0) { Reload(); return false; }
+        ItemStack transfer = new ItemStack(entry.Value.Clone(), removed);
+        xui.PlayerInventory.AddItem(transfer);
+        int accepted = removed - Math.Max(0, transfer.count);
+        if (accepted < removed)
+        {
+            int remainder = removed - Math.Max(0, accepted);
+            if (!NetworkStorage.AddStack(xui.playerUI.entityPlayer, new ItemStack(entry.Value.Clone(), remainder)))
+            {
+                drag.SetCurrentStack(new ItemStack(entry.Value.Clone(), remainder));
+                drag.PickUpType = StackLocation;
+                NetworkLog.Error("Network quick withdrawal could not return unaccepted items to storage; remainder retained on cursor. item=" + entry.Value.type + "; count=" + remainder);
+            }
+        }
+        long remaining = NetworkStorage.GetCount(xui.playerUI.entityPlayer, entry.Value);
+        SetProjectedCount(entry.Value, remaining);
+        NetworkLog.Debug("Network quick withdrawal completed. item=" + entry.Value.type + "; accepted=" + accepted + "; remaining=" + remaining + "; slot=" + visibleIndex);
+        return accepted > 0;
+    }
+
+    private StoredEntry GetVisibleEntry(int visibleIndex)
+    {
+        int filteredIndex = _page * _pageSize + visibleIndex;
+        return filteredIndex >= 0 && filteredIndex < _visibleEntries.Count ? _visibleEntries[filteredIndex] : null;
+    }
+
+    private static int GetTakeCount(StoredEntry entry, bool half)
+    {
+        int stackLimit = Math.Max(1, entry.Value.ItemClass?.MaxCount ?? 1);
+        int count = (int)Math.Min(Math.Min(entry.Count, stackLimit), int.MaxValue);
+        return half ? Math.Max(1, count / 2) : count;
     }
 
     private void SetProjectedCount(ItemValue value, long actualCount)
@@ -156,6 +201,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
         _revision = NetworkStorage.GetRevision(xui?.playerUI?.entityPlayer);
         IsDirty = true;
         RefreshPager();
+        RefreshVisible();
         NetworkLog.Debug("Visible inventory reconciled from committed storage count. item=" + key.type + "; count=" + actualCount + "; variants=" + _allEntries.Count + "; revision=" + _revision);
     }
 
