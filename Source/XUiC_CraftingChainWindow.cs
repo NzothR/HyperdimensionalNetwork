@@ -176,7 +176,22 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             }
             _plan = task.Result;
             _startCheckValid = false;
-            RenderPlan();
+            try
+            {
+                RenderPlan();
+            }
+            catch (Exception ex)
+            {
+                NetworkLog.Error("Crafting-chain plan rendering failed. root=" + _trackedRootKey
+                    + "; nodes=" + (_plan?.Nodes?.Count ?? 0)
+                    + "; materials=" + (_plan?.Materials?.Count ?? 0)
+                    + "; exception=" + ex);
+                _plan = null;
+                _startCheckValid = false;
+                SetStartEnabled(false);
+                SetVisible(_emptyHint, false);
+                SetLabel(_status, Localization.Get("HyperdimensionalNetworkCraftingChainPlanFailed"));
+            }
         }
         UpdateOrderPresentation();
         UpdatePanning();
@@ -299,13 +314,23 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         }
         SetVisible(_emptyHint, false);
         BuildLocatedNodes();
+        bool nodeViewProblemLogged = false;
         for (int index = 0; index < Math.Min(_locatedNodes.Count, _nodeButtons.Length); index++)
         {
             LocatedPlanNode located = _locatedNodes[index];
             CraftingChainItemInfo item = GetItem(located.Node.ItemId);
-            SetIcon(_nodeButtons[index], item?.Icon, item?.Name);
-            SetVisible(_nodeButtons[index], true);
-            _nodeButtons[index].ViewComponent.UiTransform.localPosition = located.Position;
+            XUiC_Button nodeButton = _nodeButtons[index];
+            SetIcon(nodeButton, item?.Icon, item?.Name);
+            SetVisible(nodeButton, true);
+            if (nodeButton?.ViewComponent?.UiTransform == null && !nodeViewProblemLogged)
+            {
+                nodeViewProblemLogged = true;
+                NetworkLog.Error("Crafting-chain node view is missing its UI transform. slot=" + index
+                    + "; itemId=" + located.Node.ItemId
+                    + "; controller=" + (nodeButton?.GetType().Name ?? "<missing>")
+                    + "; view=" + (nodeButton?.ViewComponent?.GetType().Name ?? "<missing>"));
+            }
+            SetPosition(nodeButton, located.Position);
             SetLabel(_nodeCounts[index], located.Node.Batches > 0 ? "×" + located.Node.Batches : string.Empty);
             SetPosition(_nodeCounts[index], located.Position + new Vector3(22f, -25f, 0f));
             SetVisible(_nodeCounts[index], located.Node.Batches > 0);
