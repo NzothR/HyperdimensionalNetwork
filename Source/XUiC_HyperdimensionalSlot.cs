@@ -30,6 +30,7 @@ public sealed class XUiC_HyperdimensionalSlot : XUiC_ItemStack
 
     private bool TryHandleMousePut()
     {
+        if (_grid?.IsMutationPending == true) { ResetPressState(); return true; }
         if (!xui || !isOver || IsLocked || StackLock) { ResetPressState(); return false; }
         CursorControllerAbs cursor = xui.playerUI.CursorController;
         if (cursor.GetMouseButtonDown(UICamera.MouseButton.LeftButton)) _leftDown = true;

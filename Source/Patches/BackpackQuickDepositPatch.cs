@@ -64,6 +64,25 @@ internal static class BackpackQuickDepositPatch
         }
         ItemStack deposit = source.Clone();
         deposit.count = amount;
+        if (NetworkRemoteClient.IsRemoteClient)
+        {
+            bool toolbeltSource = sourceGrid is XUiC_Toolbelt;
+            bool queued = NetworkRemoteClient.DepositPlayerSlot(player, toolbeltSource, instance.SlotNumber, deposit.itemValue, amount, result =>
+            {
+                if (!result.Success)
+                {
+                    NetworkLog.Debug("Remote shift deposit rejected. item=" + deposit.itemValue.type + "; count=" + amount + "; error=" + result.Error + "; requestId=" + result.RequestId);
+                    return;
+                }
+                if (!NetworkInventorySync.Apply(player as EntityPlayerLocal, result)) return;
+                if (sourceGrid is XUiC_Backpack backpack) backpack.RefreshBackpackSlots();
+                else if (sourceGrid is XUiC_Toolbelt toolbelt) toolbelt.PlayerInventory_OnToolbeltItemsChanged();
+                NetworkLog.Debug("Remote shift deposit confirmed. source=" + sourceGrid.GetType().Name + "; item=" + deposit.itemValue.type + "; count=" + result.Amount + "; requestId=" + result.RequestId);
+                (instance.xui.GetChildByType<XUiC_HyperdimensionalGrid>())?.Reload();
+            });
+            if (!queued) NetworkLog.Error("Remote shift deposit could not be queued; source inventory was left unchanged. item=" + deposit.itemValue.type + "; count=" + amount);
+            return true;
+        }
         if (!NetworkStorage.AddStack(player, deposit))
         {
             NetworkLog.Debug("Shift deposit failed. item=" + source.itemValue.type + "; count=" + amount + "; half=" + half);

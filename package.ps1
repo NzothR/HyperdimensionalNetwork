@@ -10,9 +10,14 @@ if (-not $stage.StartsWith($repoFullPath, [System.StringComparison]::OrdinalIgno
 if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
 $mod = Join-Path $stage 'HyperdimensionalNetwork'
 New-Item -ItemType Directory -Path $mod -Force | Out-Null
-foreach ($fileName in @('HyperdimensionalNetwork.dll', 'HyperdimensionalNetwork.json', 'ModInfo.xml')) {
+foreach ($fileName in @('HyperdimensionalNetwork.dll', 'ModInfo.xml')) {
     Copy-Item -LiteralPath (Join-Path $repoRoot $fileName) -Destination (Join-Path $mod $fileName) -Force
 }
+@'
+{
+  "DebugLog": false
+}
+'@ | Set-Content -LiteralPath (Join-Path $mod 'HyperdimensionalNetwork.json') -Encoding utf8
 foreach ($directoryName in @('Config', 'UIAtlases')) {
     $source = Join-Path $repoRoot $directoryName
     if (Test-Path -LiteralPath $source) { Copy-Item -LiteralPath $source -Destination $mod -Recurse -Force }

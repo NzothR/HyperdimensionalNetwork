@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 
 namespace HyperdimensionalNetwork;
 
@@ -15,12 +16,19 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
     private int _page;
     private long _revision = -1;
     private int _pageSize;
+    private int _filteredTotalEntries;
+    private int _remoteQueryToken;
+    private float _nextRemoteRefreshAt;
+    private bool _remoteQueryPending;
+    private bool _remoteRefreshQueued;
+    private bool _mutationPending;
 
-    public int EntryCount => _allEntries.Count;
-    public int PageCount => Math.Max(1, (_visibleEntries.Count + Math.Max(1, _pageSize) - 1) / Math.Max(1, _pageSize));
-    public int PagingElementCount => Math.Max(_pageSize, _visibleEntries.Count);
+    public int EntryCount => NetworkRemoteClient.IsRemoteClient ? _filteredTotalEntries : _allEntries.Count;
+    public int PageCount => Math.Max(1, ((NetworkRemoteClient.IsRemoteClient ? _filteredTotalEntries : _visibleEntries.Count) + Math.Max(1, _pageSize) - 1) / Math.Max(1, _pageSize));
+    public int PagingElementCount => Math.Max(_pageSize, NetworkRemoteClient.IsRemoteClient ? _filteredTotalEntries : _visibleEntries.Count);
     public int VisibleSlotCount => _pageSize;
     public int Page => _page;
+    internal bool IsMutationPending => _mutationPending;
 
     public override XUiC_ItemStack.StackLocationTypes StackLocation => XUiC_ItemStack.StackLocationTypes.ToolBelt;
 
@@ -52,8 +60,15 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
     {
         if (ViewComponent != null && ViewComponent.IsVisible)
         {
-            long currentRevision = NetworkStorage.GetRevision(xui?.playerUI?.entityPlayer);
-            if (currentRevision != _revision) Reload();
+            if (NetworkRemoteClient.IsRemoteClient)
+            {
+                if (!_remoteQueryPending && Time.realtimeSinceStartup >= _nextRemoteRefreshAt) QueryRemotePage();
+            }
+            else
+            {
+                long currentRevision = NetworkStorage.GetRevision(xui?.playerUI?.entityPlayer);
+                if (currentRevision != _revision) Reload();
+            }
             if (IsDirty) { RefreshVisible(); IsDirty = false; }
         }
         base.Update(_dt);
@@ -65,32 +80,75 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
     {
         EntityPlayer player = xui?.playerUI?.entityPlayer;
         if (!(bool)player) { NetworkLog.Debug("Grid reload skipped because player is unavailable."); return; }
+        if (NetworkRemoteClient.IsRemoteClient)
+        {
+            QueryRemotePage();
+            return;
+        }
         _allEntries.Clear();
         _allEntries.AddRange(NetworkStorage.GetEntries(player));
         _entryIndex.Clear();
         foreach (StoredEntry entry in _allEntries) _entryIndex[entry.Value] = entry;
         _revision = NetworkStorage.GetRevision(player);
         RebuildFiltered();
+        _filteredTotalEntries = _visibleEntries.Count;
         IsDirty = true;
         NetworkLog.Debug("Grid projection refreshed. variants=" + _allEntries.Count + "; filtered=" + _visibleEntries.Count + "; revision=" + _revision + "; page=" + _page);
     }
 
-    public void SetCategory(string category) { _category = category ?? string.Empty; _page = 0; RebuildFiltered(); RefreshPager(); }
-    public void SetSearch(string search) { _search = (search ?? string.Empty).Trim(); _page = 0; RebuildFiltered(); RefreshPager(); }
+    public void SetCategory(string category)
+    {
+        _category = category ?? string.Empty;
+        _page = 0;
+        if (NetworkRemoteClient.IsRemoteClient) QueryRemotePage();
+        else { RebuildFiltered(); _filteredTotalEntries = _visibleEntries.Count; RefreshPager(); }
+    }
+
+    public void SetSearch(string search)
+    {
+        _search = (search ?? string.Empty).Trim();
+        _page = 0;
+        if (NetworkRemoteClient.IsRemoteClient) QueryRemotePage();
+        else { RebuildFiltered(); _filteredTotalEntries = _visibleEntries.Count; RefreshPager(); }
+    }
 
     public void SetPage(int page)
     {
         _page = Math.Max(0, Math.Min(page, PageCount - 1));
+        if (NetworkRemoteClient.IsRemoteClient) { QueryRemotePage(); return; }
         IsDirty = true;
         RefreshPager();
     }
 
     public bool AddFromMouse(ItemStack mouseStack, bool single)
     {
+        if (NetworkRemoteClient.IsRemoteClient && _mutationPending) return true;
         if (mouseStack == null || mouseStack.IsEmpty()) return false;
         int requested = single ? 1 : Math.Max(1, mouseStack.count);
         ItemStack insertion = mouseStack.Clone();
         insertion.count = requested;
+        if (NetworkRemoteClient.IsRemoteClient)
+        {
+            if (_mutationPending) return true;
+            EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
+            XUiC_DragAndDropWindow remoteDrag = xui?.DragAndDropWindow;
+            _mutationPending = true;
+            bool sent = NetworkRemoteClient.DepositCursor(player, insertion.itemValue, requested, remoteDrag?.PickUpType ?? XUiC_ItemStack.StackLocationTypes.None, result =>
+            {
+                _mutationPending = false;
+                if (result.Success)
+                {
+                    remoteDrag?.SetCurrentStack(result.UpdatedSourceCount > 0
+                        ? new ItemStack(result.Value.Clone(), result.UpdatedSourceCount) : ItemStack.Empty.Clone());
+                    if (remoteDrag != null) remoteDrag.PickUpType = StackLocation;
+                    NetworkLog.Debug("Remote cursor deposit confirmed. item=" + result.Value?.type + "; moved=" + result.Amount + "; cursorRemaining=" + result.UpdatedSourceCount + "; requestId=" + result.RequestId);
+                }
+                else NetworkLog.Debug("Remote cursor deposit rejected. error=" + result.Error + "; requestId=" + result.RequestId);
+                Reload();
+            });
+            if (!sent) { _mutationPending = false; NetworkLog.Error("Remote cursor deposit could not be queued; item was left unchanged."); }
+            return true;
+        }
         if (!NetworkStorage.AddStack(xui.playerUI.entityPlayer, insertion)) return false;
         mouseStack.count -= requested;
         XUiC_DragAndDropWindow drag = xui?.DragAndDropWindow;
@@ -102,6 +160,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
 
     public bool TakeToMouse(int visibleIndex, bool half)
     {
+        if (NetworkRemoteClient.IsRemoteClient && _mutationPending) return true;
         StoredEntry entry = GetVisibleEntry(visibleIndex);
         if (entry == null) return false;
         XUiC_DragAndDropWindow drag = xui?.DragAndDropWindow;
@@ -113,6 +172,31 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
             return false;
         }
         NetworkLog.Debug("Network withdrawal requested. mode=" + (half ? "half" : "full") + "; item=" + entry.Value.type + "; requested=" + request + "; available=" + entry.Count + "; slot=" + visibleIndex);
+        if (NetworkRemoteClient.IsRemoteClient)
+        {
+            if (_mutationPending) return true;
+            EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
+            _mutationPending = true;
+            bool sent = NetworkRemoteClient.Withdraw(player, entry.Value, request, toBackpack: false, result =>
+            {
+                _mutationPending = false;
+                if (result.Success && (drag.CurrentStack == null || drag.CurrentStack.IsEmpty()))
+                {
+                    drag.SetCurrentStack(new ItemStack(result.Value.Clone(), result.Amount));
+                    drag.PickUpType = StackLocation;
+                    NetworkLog.Debug("Remote cursor withdrawal confirmed. item=" + result.Value.type + "; moved=" + result.Amount + "; requestId=" + result.RequestId);
+                }
+                else if (result.Success)
+                {
+                    NetworkLog.Error("Remote withdrawal completed while cursor was occupied; returning the stack to the network. requestId=" + result.RequestId + "; item=" + result.Value.type + "; count=" + result.Amount);
+                    ReturnUnacceptedWithdrawal(player, result, result.Amount);
+                }
+                else NetworkLog.Debug("Remote cursor withdrawal rejected. error=" + result.Error + "; requestId=" + result.RequestId);
+                Reload();
+            });
+            if (!sent) { _mutationPending = false; NetworkLog.Error("Remote cursor withdrawal could not be queued."); }
+            return true;
+        }
         int removed = NetworkStorage.Remove(xui.playerUI.entityPlayer, entry.Value, request);
         if (removed <= 0)
         {
@@ -130,6 +214,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
 
     public bool TakeToPlayer(int visibleIndex)
     {
+        if (NetworkRemoteClient.IsRemoteClient && _mutationPending) return true;
         StoredEntry entry = GetVisibleEntry(visibleIndex);
         if (entry == null || xui?.PlayerInventory == null) return false;
         XUiC_DragAndDropWindow drag = xui.DragAndDropWindow;
@@ -145,6 +230,33 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
             return false;
         }
         NetworkLog.Debug("Network quick withdrawal requested. item=" + entry.Value.type + "; requested=" + request + "; slot=" + visibleIndex);
+        if (NetworkRemoteClient.IsRemoteClient)
+        {
+            if (_mutationPending) return true;
+            EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
+            _mutationPending = true;
+            bool sent = NetworkRemoteClient.Withdraw(player, entry.Value, request, toBackpack: true, result =>
+            {
+                _mutationPending = false;
+                if (!result.Success)
+                {
+                    NetworkLog.Debug("Remote quick withdrawal rejected. error=" + result.Error + "; requestId=" + result.RequestId);
+                    Reload();
+                    return;
+                }
+                if (result.BagData == null || !NetworkInventorySync.Apply(player, result))
+                {
+                    NetworkLog.Error("Server confirmed a backpack withdrawal but its inventory snapshot could not be applied locally. requestId=" + result.RequestId + "; item=" + result.Value.type + "; count=" + result.Amount);
+                    Reload();
+                    return;
+                }
+                xui?.GetChildByType<XUiC_Backpack>()?.RefreshBackpackSlots();
+                NetworkLog.Debug("Remote quick withdrawal confirmed. item=" + result.Value.type + "; accepted=" + result.Amount + "; requestId=" + result.RequestId);
+                Reload();
+            });
+            if (!sent) { _mutationPending = false; NetworkLog.Error("Remote quick withdrawal could not be queued."); }
+            return true;
+        }
         int removed = NetworkStorage.Remove(xui.playerUI.entityPlayer, entry.Value, request);
         if (removed <= 0) { Reload(); return false; }
         int accepted = 0;
@@ -184,6 +296,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
         // The grid is row-major. Fill every compatible partial stack before using empty slots.
         for (int i = 0; i < backpack.SlotCount && remaining > 0; i++)
         {
+            if (backpack.LockedSlots != null && i < backpack.LockedSlots.Length && backpack.LockedSlots[i]) continue;
             ItemStack current = backpack.ItemGrid[i];
             if (current.IsEmpty() || !NetworkStorage.NormalizeKey(current.itemValue).Equals(key)
                 || !current.CanStackPartlyWith(incoming, out int canAdd)) continue;
@@ -193,7 +306,8 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
         }
         for (int i = 0; i < backpack.SlotCount && remaining > 0; i++)
         {
-            if (!backpack.ItemGrid[i].IsEmpty()) continue;
+            if (backpack.LockedSlots != null && i < backpack.LockedSlots.Length && backpack.LockedSlots[i]) continue;
+            if (backpack.ItemGrid[i] != null && !backpack.ItemGrid[i].IsEmpty()) continue;
             int count = Math.Min(remaining, stackLimit);
             placements.Add(new KeyValuePair<int, int>(i, count));
             remaining -= count;
@@ -205,6 +319,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
 
     private StoredEntry GetVisibleEntry(int visibleIndex)
     {
+        if (NetworkRemoteClient.IsRemoteClient) return visibleIndex >= 0 && visibleIndex < _visibleEntries.Count ? _visibleEntries[visibleIndex] : null;
         int filteredIndex = _page * _pageSize + visibleIndex;
         return filteredIndex >= 0 && filteredIndex < _visibleEntries.Count ? _visibleEntries[filteredIndex] : null;
     }
@@ -270,7 +385,17 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
     private static int CompareOrder(ItemValue left, ItemValue right)
     {
         int type = left.type.CompareTo(right.type);
-        return type != 0 ? type : left.Quality.CompareTo(right.Quality);
+        if (type != 0) return type;
+        int quality = left.Quality.CompareTo(right.Quality);
+        if (quality != 0) return quality;
+        int seed = left.Seed.CompareTo(right.Seed);
+        if (seed != 0) return seed;
+        int useTimes = left.UseTimes.CompareTo(right.UseTimes);
+        if (useTimes != 0) return useTimes;
+        int meta = left.Meta.CompareTo(right.Meta);
+        if (meta != 0) return meta;
+        int ammo = left.SelectedAmmoTypeIndex.CompareTo(right.SelectedAmmoTypeIndex);
+        return ammo != 0 ? ammo : left.Activated.CompareTo(right.Activated);
     }
 
     private void RebuildFiltered()
@@ -299,7 +424,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
     {
         for (int i = 0; i < itemControllers.Length; i++)
         {
-            int index = _page * _pageSize + i;
+            int index = NetworkRemoteClient.IsRemoteClient ? i : _page * _pageSize + i;
             ItemStack projection = ItemStack.Empty.Clone();
             if (index < _visibleEntries.Count)
             {
@@ -312,6 +437,66 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
             XUiC_HyperdimensionalSlot slot = itemControllers[i] as XUiC_HyperdimensionalSlot;
             slot?.SetVisibleIndex(i);
         }
+    }
+
+    private void QueryRemotePage()
+    {
+        EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
+        if (!(bool)player) return;
+        if (_remoteQueryPending) { _remoteRefreshQueued = true; return; }
+        int token = ++_remoteQueryToken;
+        string requestedCategory = _category;
+        string requestedSearch = _search;
+        int requestedPage = _page;
+        _remoteRefreshQueued = false;
+        _remoteQueryPending = true;
+        _nextRemoteRefreshAt = Time.realtimeSinceStartup + 2f;
+        bool sent = NetworkRemoteClient.RequestPage(player, requestedCategory, requestedSearch, requestedPage, _pageSize, result =>
+        {
+            if (token != _remoteQueryToken) return;
+            _remoteQueryPending = false;
+            if (_remoteRefreshQueued || requestedPage != _page
+                || !string.Equals(requestedCategory, _category, StringComparison.Ordinal)
+                || !string.Equals(requestedSearch, _search, StringComparison.Ordinal))
+            {
+                QueryRemotePage();
+                return;
+            }
+            if (!result.Success)
+            {
+                NetworkLog.Debug("Remote page query rejected. page=" + _page + "; error=" + result.Error + "; requestId=" + result.RequestId);
+                return;
+            }
+            _page = Math.Max(0, result.Page);
+            _revision = result.Revision;
+            _filteredTotalEntries = Math.Max(0, result.TotalEntries);
+            _allEntries.Clear();
+            _allEntries.AddRange(result.Entries);
+            _visibleEntries.Clear();
+            _visibleEntries.AddRange(result.Entries);
+            _entryIndex.Clear();
+            foreach (StoredEntry entry in _visibleEntries) _entryIndex[entry.Value] = entry;
+            IsDirty = true;
+            RefreshPager();
+            NetworkLog.Debug("Remote page applied. page=" + _page + "; pageSize=" + result.PageSize + "; entries=" + _visibleEntries.Count + "; total=" + _filteredTotalEntries + "; revision=" + _revision + "; requestId=" + result.RequestId);
+        });
+        if (!sent)
+        {
+            _remoteQueryPending = false;
+            NetworkLog.Error("Remote page query could not be queued. page=" + _page);
+        }
+    }
+
+    private void ReturnUnacceptedWithdrawal(EntityPlayer player, NetworkRemoteResult withdrawal, int count)
+    {
+        bool sent = NetworkRemoteClient.ReturnWithdrawal(player, withdrawal.RequestId, withdrawal.Value, count, result =>
+        {
+            if (!result.Success)
+                NetworkLog.Error("Could not return an unaccepted withdrawal to the network. originalRequestId=" + withdrawal.RequestId + "; amount=" + count + "; error=" + result.Error);
+            else NetworkLog.Debug("Unaccepted withdrawal return confirmed. originalRequestId=" + withdrawal.RequestId + "; amount=" + result.Amount + "; returnRequestId=" + result.RequestId);
+            Reload();
+        });
+        if (!sent) NetworkLog.Error("Could not queue the return of an unaccepted withdrawal. originalRequestId=" + withdrawal.RequestId + "; amount=" + count + "; item=" + withdrawal.Value?.type);
     }
 
     private static bool MatchesSearch(ItemValue value, string text)

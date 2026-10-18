@@ -19,18 +19,56 @@ internal static class ContainerDepositPatch
     private static void DepositLoot(XUiC_LootWindow window)
     {
         XUiC_LootContainer grid = window?.GetChildByType<XUiC_LootContainer>();
+        EntityPlayer player = window?.xui?.playerUI?.entityPlayer;
+        if (NetworkRemoteClient.IsRemoteClient && grid?.localTileEntity != null && (bool)player)
+        {
+            bool queued = NetworkRemoteClient.DepositLootAll(player, grid.localTileEntity.ToWorldPos(), result =>
+            {
+                bool moved = result.Success && result.Amount > 0;
+                if (!result.Success) NetworkLog.Debug("Remote loot deposit rejected. error=" + result.Error + "; requestId=" + result.RequestId);
+                else NetworkLog.Debug("Remote loot deposit confirmed. amount=" + result.Amount + "; requestId=" + result.RequestId);
+                XUiC_ContainerStandardControls remoteControls = window?.GetChildByType<XUiC_ContainerStandardControls>();
+                if (remoteControls?.MoveAllDone != null) remoteControls.MoveAllDone(true, moved);
+                NetworkLog.Debug("Quick deposit from container completed. moved=" + moved);
+            });
+            if (!queued)
+            {
+                XUiC_ContainerStandardControls failedControls = window.GetChildByType<XUiC_ContainerStandardControls>();
+                if (failedControls?.MoveAllDone != null) failedControls.MoveAllDone(true, false);
+                NetworkLog.Error("Remote loot deposit could not be queued; container was left unchanged.");
+            }
+            return;
+        }
         bool moved = DepositGrid(window?.xui, grid, null);
         XUiC_ContainerStandardControls controls = window?.GetChildByType<XUiC_ContainerStandardControls>();
         if (controls?.MoveAllDone != null) controls.MoveAllDone(true, moved);
-        NetworkLog.Info("Quick deposit from container completed. moved=" + moved);
+        NetworkLog.Debug("Quick deposit from container completed. moved=" + moved);
     }
 
     private static void DepositBackpack(XUiC_BackpackWindow window)
     {
         XUiC_Backpack grid = window?.GetChildByType<XUiC_Backpack>();
         PackedBoolArray locked = window?.xui?.playerUI?.entityPlayer?.bag?.LockedSlots;
+        EntityPlayer player = window?.xui?.playerUI?.entityPlayer;
+        if (NetworkRemoteClient.IsRemoteClient && (bool)player)
+        {
+            bool queued = NetworkRemoteClient.DepositBackpackAll(player, result =>
+            {
+                bool moved = result.Success && result.Amount > 0;
+                if (result.Success)
+                {
+                    if (NetworkInventorySync.Apply(player as EntityPlayerLocal, result)) grid?.RefreshBackpackSlots();
+                    (window?.xui?.GetChildByType<XUiC_HyperdimensionalGrid>())?.Reload();
+                    NetworkLog.Debug("Remote backpack deposit confirmed. amount=" + result.Amount + "; requestId=" + result.RequestId);
+                }
+                else NetworkLog.Debug("Remote backpack deposit rejected. error=" + result.Error + "; requestId=" + result.RequestId);
+                NetworkLog.Debug("Quick deposit from backpack completed. moved=" + moved);
+            });
+            if (!queued) NetworkLog.Error("Remote backpack deposit could not be queued; backpack was left unchanged.");
+            return;
+        }
         bool moved = DepositGrid(window?.xui, grid, locked);
-        NetworkLog.Info("Quick deposit from backpack completed. moved=" + moved);
+        NetworkLog.Debug("Quick deposit from backpack completed. moved=" + moved);
     }
 
     private static bool DepositGrid(XUi xui, XUiC_ItemStackGrid source, PackedBoolArray locked)
