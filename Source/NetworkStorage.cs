@@ -244,7 +244,7 @@ internal static class NetworkStorage
 
     private static long SafeAdd(long left, long right) => right > long.MaxValue - left ? long.MaxValue : left + right;
 
-    private static ItemValue NormalizeKey(ItemValue value)
+    internal static ItemValue NormalizeKey(ItemValue value)
     {
         ItemValue key = value.Clone();
         // The game creates a random Seed for newly constructed values. For stackable definitions

@@ -121,7 +121,8 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
 
     private void ApplyLocalDelta(ItemValue value, long delta)
     {
-        if (_entryIndex.TryGetValue(value, out StoredEntry entry))
+        ItemValue key = NetworkStorage.NormalizeKey(value);
+        if (_entryIndex.TryGetValue(key, out StoredEntry entry))
         {
             entry.Count = Math.Max(0, entry.Count + delta);
             if (entry.Count == 0)
@@ -139,7 +140,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
         }
         else if (delta > 0)
         {
-            entry = new StoredEntry { Value = value.Clone(), Count = delta };
+            entry = new StoredEntry { Value = key, Count = delta };
             _entryIndex[entry.Value] = entry;
             InsertSorted(_allEntries, entry);
             if (MatchesFilters(entry.Value)) InsertSorted(_visibleEntries, entry);
@@ -147,7 +148,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
         _revision = NetworkStorage.GetRevision(xui?.playerUI?.entityPlayer);
         IsDirty = true;
         RefreshPager();
-        NetworkLog.Debug("Visible inventory updated from transaction delta. item=" + value.type + "; delta=" + delta + "; variants=" + _allEntries.Count + "; revision=" + _revision);
+        NetworkLog.Debug("Visible inventory updated from transaction delta. item=" + key.type + "; delta=" + delta + "; variants=" + _allEntries.Count + "; revision=" + _revision);
     }
 
     private bool MatchesFilters(ItemValue value)
@@ -209,7 +210,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
                 projection = new ItemStack(entry.Value.Clone(), displayed);
             }
             if (i < items.Length) items[i] = projection;
-            itemControllers[i].ItemStack = projection;
+            itemControllers[i].ForceSetItemStack(projection);
             XUiC_HyperdimensionalSlot slot = itemControllers[i] as XUiC_HyperdimensionalSlot;
             slot?.SetVisibleIndex(i);
         }
