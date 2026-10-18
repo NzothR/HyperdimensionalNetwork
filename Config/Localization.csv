@@ -1,0 +1,10 @@
+Key,english,schinese
+
+HyperdimensionalNetworkTitle,Hyperdimensional Network,超维网络
+HyperdimensionalNetworkOpen,Open Hyperdimensional Network,打开超维网络
+HyperdimensionalNetworkQuickDeposit,Move all items into Hyperdimensional Network,将全部物品存入超维网络
+HyperdimensionalNetworkCategoryAll,All,全部
+HyperdimensionalNetworkStressTest,Hyperdimensional Network Stress Test,超维网络压力测试
+HyperdimensionalNetworkStressTestDesc,Adds every registered item variant to your network up to its current stack limit. Quality items are added at every exposed quality level.,将当前注册的所有物品变体按各自堆叠上限加入网络；有品质的物品会加入其全部可用等级。
+HyperdimensionalNetworkStressTestMax,Hyperdimensional Network Extreme Stress Test,超维网络极限压力测试
+HyperdimensionalNetworkStressTestMaxDesc,Adds every registered item variant. Stackable items are added at int32 maximum quantity per variant and will create an extremely large storage journal.,将当前注册的所有物品变体加入网络；可堆叠物品的每个变体加入 int32 最大数量，会产生极端规模的数据。

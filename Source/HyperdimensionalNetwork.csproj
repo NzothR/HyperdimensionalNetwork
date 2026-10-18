@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>HyperdimensionalNetwork</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp"><HintPath>..\..\Lib\refs\Assembly-CSharp.dll</HintPath></Reference>
+    <Reference Include="0Harmony"><HintPath>..\..\Lib\refs\0Harmony.dll</HintPath></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>..\..\Lib\refs\UnityEngine.CoreModule.dll</HintPath></Reference>
+    <Reference Include="NGUI"><HintPath>..\..\Lib\refs\NGUI.dll</HintPath></Reference>
+    <Reference Include="LogLibrary"><HintPath>..\..\Lib\refs\LogLibrary.dll</HintPath></Reference>
+    <Reference Include="System.Core" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <PackageReference Include="System.Memory" Version="4.6.3" ExcludeAssets="runtime" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Memory"><HintPath>$(NuGetPackageRoot)system.memory\4.6.3\lib\net462\System.Memory.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="netstandard"><HintPath>..\..\Lib\refs\netstandard.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="System.Runtime"><HintPath>..\..\Lib\refs\System.Runtime.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>

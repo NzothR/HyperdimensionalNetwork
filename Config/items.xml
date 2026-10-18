@@ -1,0 +1,46 @@
+<config>
+  <append xpath="/items">
+    <item name="HyperdimensionalNetworkStressTest">
+      <property name="Tags" value="HyperdimensionalNetworkStressTest" />
+      <property name="DescriptionKey" value="HyperdimensionalNetworkStressTestDesc" />
+      <property name="CustomIcon" value="bookFiremansAlmanacHeat" />
+      <property name="HoldType" value="45" />
+      <property name="Meshfile" value="@:Other/Items/Misc/sackPrefab.prefab" />
+      <property name="DropMeshfile" value="@:Other/Items/Misc/sack_droppedPrefab.prefab" />
+      <property name="Material" value="Mglass" />
+      <property name="Weight" value="1" />
+      <property name="Stacknumber" value="1" />
+      <property name="EconomicValue" value="1" />
+      <property name="Group" value="Science" />
+      <property name="SoundPickup" value="jars2_grab" />
+      <property name="SoundPlace" value="jars2_place" />
+      <property class="Action0">
+        <property name="Class" value="Eat" />
+        <property name="Delay" value="0" />
+        <property name="Consume" value="false" />
+        <property name="UseAnimation" value="false" />
+      </property>
+    </item>
+    <item name="HyperdimensionalNetworkStressTestMax">
+      <property name="Tags" value="HyperdimensionalNetworkStressTestMax" />
+      <property name="DescriptionKey" value="HyperdimensionalNetworkStressTestMaxDesc" />
+      <property name="CustomIcon" value="bookFiremansAlmanacHeat" />
+      <property name="HoldType" value="45" />
+      <property name="Meshfile" value="@:Other/Items/Misc/sackPrefab.prefab" />
+      <property name="DropMeshfile" value="@:Other/Items/Misc/sack_droppedPrefab.prefab" />
+      <property name="Material" value="Mglass" />
+      <property name="Weight" value="1" />
+      <property name="Stacknumber" value="1" />
+      <property name="EconomicValue" value="1" />
+      <property name="Group" value="Science" />
+      <property name="SoundPickup" value="jars2_grab" />
+      <property name="SoundPlace" value="jars2_place" />
+      <property class="Action0">
+        <property name="Class" value="Eat" />
+        <property name="Delay" value="0" />
+        <property name="Consume" value="false" />
+        <property name="UseAnimation" value="false" />
+      </property>
+    </item>
+  </append>
+</config>

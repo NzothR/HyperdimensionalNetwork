@@ -1,0 +1,6 @@
+Source/bin/
+Source/obj/
+PackageStage/
+*.pdb
+*.user
+*.suo

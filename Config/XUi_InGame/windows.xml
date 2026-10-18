@@ -1,0 +1,62 @@
+<configs>
+  <append xpath="/windows">
+    <window name="windowHyperdimensionalNetwork" width="629" height="805" panel="Left" anchor_side="bottomright" normal_color="[iconColor]" cursor_area="true" controller="XUiC_HyperdimensionalNetworkWindow,HyperdimensionalNetwork">
+      <rect pos="0,0" name="content">
+        <panel name="header" height="43" depth="0" disableautobackground="true">
+          <sprite depth="1" name="headerbackground" sprite="ui_game_panel_header" />
+          <sprite depth="2" name="windowicon" style="icon32px" pos="4,-5" sprite="ui_game_symbol_book" />
+          <label name="hyperdimensionalNetworkTitle" style="header.name" text_key="HyperdimensionalNetworkTitle" width="560" />
+        </panel>
+        <rect depth="2" name="searchControls" width="522" height="43" pos="101,-49">
+          <sprite depth="1" name="background" color="[darkGrey]" type="sliced" pos="-1,0" width="524" height="49" />
+          <sprite depth="8" name="backgroundMain" sprite="menu_empty3px" pos="-3,3" width="528" height="52" color="[black]" type="sliced" fillcenter="false" />
+          <panel pos="22,0" width="200" disableautobackground="true">
+            <sprite depth="4" name="searchIcon" style="icon30px" pos="0,-22" sprite="ui_game_symbol_search" pivot="center" />
+            <textfield depth="5" pos="22,-7" width="160" height="30" name="searchInput" focus_on_open="true" search_field="true" close_group_on_tab="true" clear_button="true" />
+          </panel>
+          <panel pos="405,0" width="104" height="43" disableautobackground="true">
+            <pager name="pager" pos="4,-6" contents_parent="content" />
+          </panel>
+        </rect>
+        <rect depth="2" name="categoryBar" width="92" height="718" pos="3,-49">
+          <sprite depth="1" name="background" color="[darkGrey]" type="sliced" pos="-1,0" width="97" height="722" />
+          <sprite depth="8" name="backgroundMain" sprite="menu_empty3px" pos="-3,3" width="101" height="727" color="[black]" type="sliced" fillcenter="false" />
+          <grid depth="10" name="categories" pos="24,-22" rows="16" cols="2" width="86" height="675" cell_width="43" cell_height="43" arrangement="horizontal" repeat_content="false" controller="CategoryList" allow_unselect="true" allow_key_paging="false">
+            <category_icon categoryname="" spritename="ui_game_symbol_loot_sack" displayname_key="HyperdimensionalNetworkCategoryAll" />
+            <category_icon categoryname="Blocks" spritename="ui_game_symbol_all_blocks" displayname_key="HyperdimensionalNetworkCategoryBlocks" />
+            <category_icon categoryname="Items" spritename="ui_game_symbol_backpack" displayname_key="xuiItems" />
+            <category_icon categoryname="Resources" spritename="ui_game_symbol_resource" displayname_key="lblCategoryResources" />
+            <category_icon categoryname="Tools/Traps" spritename="ui_game_symbol_tool" displayname_key="lblCategoryTools" />
+            <category_icon categoryname="Melee Weapons" spritename="ui_game_symbol_knife" displayname_key="lblCategoryMeleeWeapons" />
+            <category_icon categoryname="Ranged Weapons" spritename="ui_game_symbol_rifle" displayname_key="lblCategoryRangeWeapons" />
+            <category_icon categoryname="Tool/Weapon Mods" spritename="ui_game_symbol_assemble" displayname_key="lblCategoryToolWeaponMods" />
+            <category_icon categoryname="Robotics" spritename="ui_game_symbol_junk_turret" displayname_key="lblCategoryRobotics" />
+            <category_icon categoryname="Ammo" spritename="ui_game_symbol_shape_ammo" displayname_key="lblCategoryAmmo" />
+            <category_icon categoryname="Armor" spritename="ui_game_symbol_armor_iron" displayname_key="lblCategoryArmor" />
+            <category_icon categoryname="Food/Cooking" spritename="ui_game_symbol_fork" displayname_key="lblCategoryFoodCooking" />
+            <category_icon categoryname="Science" spritename="ui_game_symbol_science" displayname_key="lblCategoryScience" />
+            <category_icon categoryname="BooksOnly" spritename="ui_game_symbol_book" displayname_key="lblCategoryBooksOnly" />
+            <category_icon categoryname="SchematicsOnly" spritename="ui_game_symbol_shape_schematics" displayname_key="lblCategorySchematicsOnly" />
+            <category_icon categoryname="Special Items" spritename="ui_game_symbol_quest" displayname_key="lblCategorySpecialItems" />
+          </grid>
+        </rect>
+        <grid depth="10" name="queue" rows="9" cols="7" pos="101,-97" cell_width="75" cell_height="75" repeat_content="true" controller="XUiC_HyperdimensionalGrid,HyperdimensionalNetwork">
+          <item_stack name="0" controller="XUiC_HyperdimensionalSlot,HyperdimensionalNetwork" on_scroll="true" allow_dropping="true" prefix_id="true" show_favorites="true" />
+        </grid>
+        <sprite depth="8" name="backgroundMain" pos="98,-97" width="528" height="675" sprite="menu_empty3px" color="[black]" type="sliced" fillcenter="false" on_press="true" gamepad_selectable="false" />
+      </rect>
+    </window>
+  </append>
+  <append xpath="/windows/window[@name='windowLooting']/rect[@name='header']/rect[@controller='ContainerStandardControls']">
+    <button depth="3" name="btnHyperdimensionalLootAll" sprite="ui_game_symbol_book" tooltip_key="HyperdimensionalNetworkQuickDeposit" pos="114,-22" style="icon32px, press, hover" pivot="center" sound="[paging_click]" />
+  </append>
+  <append xpath="/windows/window[@name='windowBackpack']/rect[@name='header']/rect[@controller='ContainerStandardControls']">
+    <button depth="3" name="btnHyperdimensionalBackpackAll" sprite="ui_game_symbol_book" tooltip_key="HyperdimensionalNetworkQuickDeposit" pos="200,-22" style="icon32px, press, hover" pivot="center" sound="[paging_click]" />
+  </append>
+  <append xpath="/windows/window[@name='windowPagingHeader']">
+    <sprite depth="-2" name="hyperdimensionalNetworkAddonBgShadow" pos="-115,-2" width="42" height="42" sprite="menu_empty3px" color="0,0,0,170" type="sliced" fillcenter="true" />
+    <sprite depth="-1" name="hyperdimensionalNetworkAddonBg" pos="-117,0" width="42" height="42" sprite="menu_empty3px" color="48,38,28,235" type="sliced" fillcenter="true" />
+    <sprite depth="0" name="hyperdimensionalNetworkAddonBorder" pos="-117,0" width="42" height="42" sprite="menu_empty3px" color="210,160,80,230" type="sliced" fillcenter="false" />
+    <iconbutton pos="-96,-21" depth="3" selectable="true" collider_scale="1.5" name="hyperdimensionalNetwork" sprite="ui_game_symbol_book" tooltip_key="HyperdimensionalNetworkOpen" snap="false" gamepad_selectable="false" />
+  </append>
+</configs>
