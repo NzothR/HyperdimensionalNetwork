@@ -21,6 +21,7 @@ internal sealed class CraftingChainWorkstationPosition
 internal static class CraftingChainWorkstationService
 {
     public const float SearchRange = 64f;
+    public const int MaxTrackedWorkstations = 16;
     private static readonly FieldInfo ModuleFlags = typeof(TileEntityWorkstation).GetField("isModuleUsed",
         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
@@ -66,7 +67,7 @@ internal static class CraftingChainWorkstationService
                 candidates = new List<CraftingChainWorkstationPosition>();
                 result[candidate.Item2.Area] = candidates;
             }
-            if (candidates.Count < LockManager.MaxLocksPerPlayer) candidates.Add(candidate.Item2);
+            if (candidates.Count < MaxTrackedWorkstations) candidates.Add(candidate.Item2);
         }
         NetworkLog.Debug("Crafting-chain workstation snapshot captured. player=" + player.entityId + "; range=" + SearchRange
             + "; loadedCandidates=" + found.Count + "; areas=" + result.Count);

@@ -11,13 +11,3 @@ internal static class CraftingChainOrderPumpPatch
         CraftingChainOrderService.Update(__instance?.xui);
     }
 }
-
-[HarmonyPatch(typeof(XUiC_RecipeStack), nameof(XUiC_RecipeStack.ForceCancel))]
-internal static class CraftingChainQueueCancelPatch
-{
-    [HarmonyPrefix]
-    private static bool Prefix(XUiC_RecipeStack __instance)
-    {
-        return !CraftingChainOrderService.TryHandleQueueCancellation(__instance);
-    }
-}

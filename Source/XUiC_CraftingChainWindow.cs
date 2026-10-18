@@ -503,12 +503,12 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             return;
         }
 
-        for (int index = 0; index < Math.Min(_plan.Materials.Count, _materialButtons.Length); index++)
+        for (int index = 0; index < Math.Min(_plan.DisplayMaterials.Count, _materialButtons.Length); index++)
         {
-            CraftingChainPlanMaterial material = _plan.Materials[index];
+            CraftingChainPlanMaterial material = _plan.DisplayMaterials[index];
             CraftingChainItemInfo item = GetItem(material.ItemId);
             float materialX = 12f + (index % 8) * 107f;
-            bool compact = _plan.Materials.Count > 16;
+            bool compact = _plan.DisplayMaterials.Count > 16;
             float materialY = -4f - (index / 8) * (compact ? 35f : 55f);
             int iconSize = compact ? 30 : 42;
             if (_materialButtons[index]?.ViewComponent != null)
@@ -520,7 +520,9 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             SetVisible(_materialButtons[index], true);
             SetPosition(_materialButtons[index], new Vector3(materialX, materialY, 0f));
             SetLabel(_materialCounts[index], material.Required + "/" + material.Available);
-            SetLabelColor(_materialCounts[index], material.Required > material.Available ? Color.red : Color.white);
+            bool missing = _plan.Materials.Any(required => required.ItemId == material.ItemId
+                && required.ForgeOnly == material.ForgeOnly && required.Required > required.Available);
+            SetLabelColor(_materialCounts[index], missing ? Color.red : Color.white);
             SetPosition(_materialCounts[index], new Vector3(materialX + (compact ? 29f : 38f), materialY - 6f, 0f));
             SetVisible(_materialCounts[index], true);
             if (material.ForgeOnly)
@@ -540,7 +542,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         SetLabel(_status, status);
         UpdateStartAvailability();
         ApplyCanvasTransform();
-        NetworkLog.Debug("Crafting-chain plan rendered. nodes=" + _locatedNodes.Count + "; materials=" + _plan.Materials.Count
+        NetworkLog.Debug("Crafting-chain plan rendered. nodes=" + _locatedNodes.Count + "; materials=" + _plan.DisplayMaterials.Count
             + "; missing=" + _plan.MissingMaterials + "; zoom=" + _zoom.ToString("F2"));
     }
 
@@ -847,9 +849,10 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             xui?.playerUI?.windowManager?.Close("hyperdimensionalCraftingChain");
             return;
         }
-        bool accepted = CraftingChainOrderService.RequestCancel(player);
-        NetworkLog.Debug("Crafting-chain cancel button pressed. player=" + player.entityId + "; accepted=" + accepted);
-        if (accepted) UpdateOrderPresentation();
+        if (CraftingChainOrderService.TryGetStatus(player, out _, out _, out _, out bool cancellationPending)
+            && cancellationPending) return;
+        SetVisible(_confirmCancelPanel, true);
+        NetworkLog.Debug("Crafting-chain cancellation confirmation opened. player=" + player.entityId);
     }
 
     private void OnConfirmCancelPressed(XUiController sender, int mouseButton)
@@ -907,9 +910,9 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             SetVisible(_startLabel, false);
             SetVisible(_cancelButton, true);
             SetVisible(_cancelLabel, true);
-            SetLabel(_cancelLabel, Localization.Get("HyperdimensionalNetworkCraftingChainCancel"));
-            SetVisible(_cancelButton, !cancellationPending);
-            SetVisible(_cancelLabel, !cancellationPending);
+            SetLabel(_cancelLabel, Localization.Get(cancellationPending
+                ? "HyperdimensionalNetworkCraftingChainCancelling" : "HyperdimensionalNetworkCraftingChainCancel"));
+            SetButtonColor(_cancelButton, cancellationPending ? new Color32(95, 100, 105, 255) : Color.white);
             return;
         }
 
@@ -970,10 +973,11 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             CraftingChainOrderService.StageProgress stage = stages.FirstOrDefault(candidate =>
                 ReferenceEquals(candidate.Node, located.RecipeNode));
             bool active = stage?.Active == true;
+            bool error = active && !string.IsNullOrEmpty(stage.ErrorKey);
             bool warning = active && !string.IsNullOrEmpty(stage.WarningKey);
-            Color frameColor = warning ? new Color32(255, 198, 48, 255)
+            Color frameColor = error ? new Color32(245, 65, 65, 255) : warning ? new Color32(255, 198, 48, 255)
                 : active ? new Color32(82, 222, 245, 255) : new Color32(99, 105, 113, 255);
-            Color iconColor = warning ? new Color32(255, 236, 145, 255)
+            Color iconColor = error ? new Color32(255, 155, 155, 255) : warning ? new Color32(255, 236, 145, 255)
                 : active ? Color.white : new Color32(145, 150, 155, 255);
             SetSpriteColor(_nodeFrames[index], frameColor);
             SetButtonColor(_nodeButtons[index], iconColor);
@@ -983,6 +987,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
                     + string.Format(Localization.Get("HyperdimensionalNetworkCraftingChainNodeElapsed"),
                         FormatElapsed(Math.Max(0f, Time.realtimeSinceStartup - stage.StartedAt)));
                 if (warning) tooltip += "\n" + Localization.Get(stage.WarningKey);
+                if (error) tooltip += "\n" + Localization.Get(stage.ErrorKey);
                 if (_nodeButtons[index].ViewComponent.ToolTip != tooltip)
                     _nodeButtons[index].ViewComponent.ToolTip = tooltip;
             }

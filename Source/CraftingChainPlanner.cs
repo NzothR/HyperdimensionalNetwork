@@ -118,6 +118,7 @@ internal sealed class CraftingChainPlan
     public List<CraftingChainItemInfo> Items = new List<CraftingChainItemInfo>();
     public List<CraftingChainPlanNode> Nodes = new List<CraftingChainPlanNode>();
     public List<CraftingChainPlanMaterial> Materials = new List<CraftingChainPlanMaterial>();
+    public List<CraftingChainPlanMaterial> DisplayMaterials = new List<CraftingChainPlanMaterial>();
     public List<CraftingChainPlanMaterial> ReservedSupplies = new List<CraftingChainPlanMaterial>();
     public long MissingMaterials;
     public string Error = string.Empty;
@@ -257,7 +258,7 @@ internal static class CraftingChainPlanner
                 Id = id,
                 Type = key.type,
                 Quality = key.Quality,
-                Name = itemClass?.GetLocalizedItemName() ?? key.type.ToString(),
+                Name = GetDisplayItemName(itemClass, key.type),
                 Icon = itemClass?.GetIconName() ?? string.Empty
             });
             return id;
@@ -492,6 +493,18 @@ internal static class CraftingChainPlanner
         plan.PlannedOutput = (int)Math.Min(int.MaxValue, networkRoot + (rootNode?.OutputCount ?? 0));
         plan.Materials = state.Materials.Values.OrderBy(material => GetItemName(input, material.ItemId), StringComparer.CurrentCulture)
             .ThenBy(material => material.ForgeOnly).ToList();
+        Dictionary<Tuple<int, bool>, long> leaves = new Dictionary<Tuple<int, bool>, long>();
+        foreach (CraftingChainPlanNode root in plan.Nodes) CollectDisplayLeaves(root, leaves);
+        plan.DisplayMaterials = leaves.Select(entry => new CraftingChainPlanMaterial
+        {
+            ItemId = entry.Key.Item1,
+            ForgeOnly = entry.Key.Item2,
+            Required = entry.Value,
+            Available = input.Supplies.Where(supply => supply.ItemId == entry.Key.Item1
+                && (supply.Source == CraftingChainSupplySource.Forge) == entry.Key.Item2)
+                .Sum(supply => Math.Max(0L, supply.Count))
+        }).OrderBy(material => GetItemName(input, material.ItemId), StringComparer.CurrentCulture)
+          .ThenBy(material => material.ForgeOnly).ToList();
         plan.ReservedSupplies = Enumerable.Range(0, input.Supplies.Count)
             .Select(index => new
             {
@@ -507,7 +520,7 @@ internal static class CraftingChainPlanner
                 Available = group.Sum(entry => entry.Supply.Count),
                 ForgeOnly = group.Key.ForgeOnly
             }).ToList();
-        if (state.LimitExceeded || plan.Materials.Count > 24)
+        if (state.LimitExceeded || plan.DisplayMaterials.Count > 24)
         {
             plan.Error = "PlanTooLarge";
             NetworkLog.Debug("Crafting-chain plan exceeded a safe view limit. nodes=" + state.CreatedNodes + "; materials=" + plan.Materials.Count
@@ -519,6 +532,27 @@ internal static class CraftingChainPlanner
             + "; networkRoot=" + plan.AvailableOutput
             + "; plannedCraftNodes=" + state.CreatedNodes + "; baseMaterials=" + plan.Materials.Count + "; missing=" + plan.MissingMaterials);
         return plan;
+    }
+
+    private static void CollectDisplayLeaves(CraftingChainPlanNode node, Dictionary<Tuple<int, bool>, long> leaves)
+    {
+        if (node == null) return;
+        foreach (CraftingChainPlanDisplayChild child in node.DisplayChildren)
+        {
+            if (child.RecipeNode != null) { CollectDisplayLeaves(child.RecipeNode, leaves); continue; }
+            Tuple<int, bool> key = Tuple.Create(child.ItemId, child.ForgeOnly);
+            leaves[key] = SafeAdd(leaves.TryGetValue(key, out long count) ? count : 0L, child.RequiredCount);
+        }
+    }
+
+    private static string GetDisplayItemName(ItemClass itemClass, int type)
+    {
+        if (itemClass == null) return type.ToString();
+        string name = itemClass.GetLocalizedItemName();
+        if (!string.IsNullOrEmpty(name) && !name.StartsWith("unit_", StringComparison.OrdinalIgnoreCase)) return name;
+        string replacement = itemClass.ReplaceResourceUnit;
+        ItemClass visible = string.IsNullOrEmpty(replacement) ? null : ItemClass.GetItem(replacement)?.ItemClass;
+        return visible?.GetLocalizedItemName() ?? name ?? type.ToString();
     }
 
     private static CraftingChainPlanNode ResolveDemand(PlannerContext context, PlannerState state, CraftingChainIngredientInfo demand,

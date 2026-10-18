@@ -18,6 +18,7 @@ internal static class CraftingChainOrderService
         public bool Completed;
         public float StartedAt;
         public string WarningKey = string.Empty;
+        public string ErrorKey = string.Empty;
     }
 
     private sealed class WorkstationTask
@@ -55,6 +56,9 @@ internal static class CraftingChainOrderService
         public List<ItemStack> ReservedInputs = new List<ItemStack>();
         public List<ItemStack> ReservedNetworkInputs = new List<ItemStack>();
         public int CollectedOutput;
+        public long NetworkBaseline;
+        public float NextNetworkCheck;
+        public string ErrorKey = string.Empty;
     }
 
     private sealed class Order
@@ -78,14 +82,6 @@ internal static class CraftingChainOrderService
         public long ReservationRequestId;
         public int StageIndex;
         public bool PendingReservation;
-        public bool PendingLocks;
-        public float LockStartedAt;
-        public int LockResponseCount;
-        public bool LockResponseFailed;
-        public bool LocksAcquired;
-        public bool LocksReleaseRequested;
-        public readonly List<TileEntityWorkstation> LockTargets = new List<TileEntityWorkstation>();
-        public readonly HashSet<TileEntityWorkstation> LockResponses = new HashSet<TileEntityWorkstation>();
         public List<ItemStack> ReservationRequirements = new List<ItemStack>();
         public bool ReturnPending;
         public bool ReturnInFlight;
@@ -187,16 +183,6 @@ internal static class CraftingChainOrderService
             }
             preparedStages.Add(stage);
         }
-        int requiredLockTargets = preparedStages.SelectMany(stage => stage.WorkstationTasks)
-            .Select(task => task.Workstation).Where(workstation => workstation != null).Distinct().Count();
-        if (requiredLockTargets > LockManager.MaxLocksPerPlayer)
-        {
-            error = "HyperdimensionalNetworkCraftingChainWorkstationUnavailable";
-            NetworkLog.Debug("Crafting-chain plan needs more workstations than the vanilla lock request can reserve. player="
-                + player.entityId + "; targets=" + requiredLockTargets + "; maximum=" + LockManager.MaxLocksPerPlayer);
-            return false;
-        }
-
         return true;
     }
 
@@ -248,94 +234,8 @@ internal static class CraftingChainOrderService
     private static void BeginOrderStart(Order order)
     {
         if (order == null) return;
-        order.LockTargets.AddRange(order.Stages.SelectMany(stage => stage.WorkstationTasks)
-            .Select(task => task.Workstation).Where(workstation => workstation != null).Distinct());
-        if (order.LockTargets.Count > LockManager.MaxLocksPerPlayer)
-        {
-            FailBeforeReservation(order, "HyperdimensionalNetworkCraftingChainWorkstationUnavailable",
-                "current-game-lock-api-can-reserve-at-most-five-workstations-per-request");
-            return;
-        }
-        if (order.LockTargets.Count == 0)
-        {
-            BeginOrderReservation(order);
-            return;
-        }
-
-        LockManager lockManager = LockManager.Instance;
-        if (lockManager == null || lockManager.playersWithLocks.Contains(order.player.entityId))
-        {
-            FailBeforeReservation(order, "HyperdimensionalNetworkCraftingChainWorkstationUnavailable",
-                "player-already-holds-an-unrelated-vanilla-lock");
-            return;
-        }
-        order.PendingLocks = true;
-        order.LockStartedAt = UnityEngine.Time.realtimeSinceStartup;
-        order.Status = Localization.Get("HyperdimensionalNetworkCraftingChainReserving");
-        NetworkLog.Debug("Crafting-chain requesting vanilla workstation locks. player=" + order.player.entityId
-            + "; targets=" + string.Join(";", order.LockTargets.Select(target => target.ToWorldPos().ToString())));
-        try
-        {
-            Array.Clear(lockManager.requestTargets, 0, lockManager.requestTargets.Length);
-            for (int index = 0; index < order.LockTargets.Count; index++)
-                lockManager.requestTargets[index] = order.LockTargets[index];
-            System.Reflection.MethodInfo request = typeof(LockManager).GetMethod("LockRequestLocal",
-                new[] { typeof(int), typeof(ushort) });
-            if (request == null) throw new MissingMethodException("LockManager.LockRequestLocal(int, ushort)");
-            request.Invoke(lockManager, new object[] { order.LockTargets.Count, (ushort)0 });
-        }
-        catch (Exception exception)
-        {
-            NetworkLog.Debug("Crafting-chain workstation lock request failed: " + exception);
-            order.PendingLocks = false;
-            FailBeforeReservation(order, "HyperdimensionalNetworkCraftingChainWorkstationUnavailable",
-                "vanilla-workstation-lock-request-exception");
-        }
-    }
-
-    internal static bool IsWorkstationLockPending(TileEntityWorkstation workstation)
-        => workstation != null && Orders.Values.Any(order => order.PendingLocks && order.LockTargets.Contains(workstation));
-
-    internal static bool ShouldAllowVanillaLockRequest(int playerId, ILockTarget[] targets, int count)
-    {
-        if (!Orders.TryGetValue(playerId, out Order order) || order.LockTargets.Count == 0) return true;
-        if (order.LocksReleaseRequested) return targets != null && count >= 0 && count <= targets.Length
-            && !targets.Take(count).Any(target => order.LockTargets.Contains(target));
-        if (!order.PendingLocks || count != order.LockTargets.Count
-            || targets == null || count > targets.Length) return false;
-        for (int index = 0; index < count; index++)
-            if (!ReferenceEquals(targets[index], order.LockTargets[index])) return false;
-        return true;
-    }
-
-    internal static bool HandleWorkstationLockResponse(TileEntityWorkstation workstation, bool success)
-    {
-        if (workstation == null) return false;
-        Order order = Orders.Values.FirstOrDefault(candidate => candidate.PendingLocks
-            && candidate.LockTargets.Contains(workstation));
-        if (order == null || !order.LockResponses.Add(workstation)) return order != null;
-        order.LockResponseCount++;
-        order.LockResponseFailed |= !success;
-        NetworkLog.Debug("Crafting-chain workstation lock response. player=" + order.player.entityId + "; position="
-            + workstation.ToWorldPos() + "; success=" + success + "; responses=" + order.LockResponseCount + "/" + order.LockTargets.Count);
-        if (order.LockResponseCount < order.LockTargets.Count) return true;
-
-        order.PendingLocks = false;
-        if (order.LockResponseFailed)
-        {
-            if (order.CancelRequested)
-            {
-                CancelOrder(order, "cancelled-while-acquiring-workstation-locks");
-            }
-            else FailBeforeReservation(order, "HyperdimensionalNetworkCraftingChainWorkstationUnavailable",
-                "vanilla-workstation-lock-rejected");
-            return true;
-        }
-
-        order.LocksAcquired = true;
-        if (order.CancelRequested) CancelOrder(order, "cancelled-after-workstation-locks");
-        else BeginOrderReservation(order);
-        return true;
+        NetworkLog.Debug("Crafting-chain starts without reserving workstation interaction. player=" + order.player.entityId);
+        BeginOrderReservation(order);
     }
 
     private static void BeginOrderReservation(Order order)
@@ -367,23 +267,6 @@ internal static class CraftingChainOrderService
         }
         if (!BeginReservedOrder(order, requirements, 0, order.NetworkId))
             NetworkLog.Error("Crafting-chain local order could not complete its initial reservation. player=" + order.player.entityId);
-    }
-
-    private static void ReleaseWorkstationLocks(Order order)
-    {
-        if (order == null || !order.LocksAcquired || order.LocksReleaseRequested) return;
-        order.LocksReleaseRequested = true;
-        order.LocksAcquired = false;
-        try
-        {
-            LockManager.Instance?.UnlockRequestLocal();
-            NetworkLog.Debug("Crafting-chain released its vanilla workstation locks. player=" + order.player.entityId
-                + "; stations=" + order.LockTargets.Count);
-        }
-        catch (Exception ex)
-        {
-            NetworkLog.Error("Crafting-chain could not release workstation locks. player=" + order.player.entityId + "; exception=" + ex);
-        }
     }
 
     public static bool IsActive(EntityPlayer player)
@@ -439,7 +322,8 @@ internal static class CraftingChainOrderService
                 Node = stage.Node,
                 Active = stage.IsActive,
                 Completed = stage.IsCompleted,
-                StartedAt = stage.StartedAt
+                StartedAt = stage.StartedAt,
+                ErrorKey = stage.ErrorKey
             };
             if (stage.IsActive)
                 foreach (WorkstationTask task in stage.WorkstationTasks)
@@ -464,20 +348,12 @@ internal static class CraftingChainOrderService
     public static bool RequestCancel(EntityPlayer player)
     {
         if (!(bool)player || !Orders.TryGetValue(player.entityId, out Order order)) return false;
-        if (order.ReturnPending || order.ReturnInFlight) return false;
+        if (order.CancelRequested || order.ReturnPending || order.ReturnInFlight) return false;
         order.CancelRequested = true;
         order.Status = Localization.Get("HyperdimensionalNetworkCraftingChainCancelling");
-        if (order.PendingReservation || order.PendingLocks) return true;
+        if (order.PendingReservation) return true;
         CancelOrder(order, "user-cancel");
         return true;
-    }
-
-    public static bool TryHandleQueueCancellation(XUiC_RecipeStack stack)
-    {
-        if (stack == null) return false;
-        Order order = Orders.Values.FirstOrDefault(candidate => candidate.Stages.Any(stage => stage.IsActive
-            && ReferenceEquals(stage.QueueStack, stack)));
-        return order != null && RequestCancel(order.player);
     }
 
     public static void CancelIfTrackingChanged(EntityPlayer player, string currentRootRecipeKey)
@@ -488,7 +364,7 @@ internal static class CraftingChainOrderService
         {
             order.CancelRequested = true;
             order.Status = Localization.Get("HyperdimensionalNetworkCraftingChainCancelling");
-            if (!order.PendingReservation && !order.PendingLocks) CancelOrder(order, "tracking-changed");
+            if (!order.PendingReservation) CancelOrder(order, "tracking-changed");
         }
     }
 
@@ -500,13 +376,7 @@ internal static class CraftingChainOrderService
         LastPumpFrameByPlayer[player.entityId] = UnityEngine.Time.frameCount;
         if (order.CancelRequested)
         {
-            if (!order.PendingReservation && !order.PendingLocks) CancelOrder(order, "cancel-requested");
-            return;
-        }
-        if (order.PendingLocks)
-        {
-            if (UnityEngine.Time.realtimeSinceStartup - order.LockStartedAt > 30f)
-                FailBeforeReservation(order, "HyperdimensionalNetworkCraftingChainWorkstationUnavailable", "vanilla-workstation-lock-response-timeout");
+            if (!order.PendingReservation) CancelOrder(order, "cancel-requested");
             return;
         }
         if (order.PendingReservation) return;
@@ -534,6 +404,14 @@ internal static class CraftingChainOrderService
 
     private static bool UpdateActiveStage(Order order, Stage stage)
     {
+        TryCollectNetworkOutput(order, stage);
+        if (stage.CollectedOutput >= stage.ExpectedOutput)
+        {
+            StopCurrentStage(order, "network-output-satisfied", stage);
+            CompleteStage(order, stage);
+            return true;
+        }
+        if (!string.IsNullOrEmpty(stage.ErrorKey)) return false;
         if (stage.WorkstationTasks.Count > 0)
         {
             bool pendingWorkstationTask = false;
@@ -544,7 +422,7 @@ internal static class CraftingChainOrderService
                 TileEntityWorkstation live = GameManager.Instance?.World?.GetTileEntity(workstationTask.Workstation.ToWorldPos()) as TileEntityWorkstation;
                 if (!ReferenceEquals(live, workstationTask.Workstation))
                 {
-                    FailOrder(order, "HyperdimensionalNetworkCraftingChainOutputLost", "registered-workstation-unloaded-or-replaced");
+                    SetStageError(order, stage, "registered-workstation-unloaded-or-replaced");
                     return false;
                 }
                 RecipeQueueItem[] workstationQueue = workstationTask.Workstation.Queue;
@@ -555,7 +433,7 @@ internal static class CraftingChainOrderService
                 {
                     if (!ReferenceEquals(task.Recipe, stage.QueueRecipe) || task.StartingEntityId != order.player.entityId)
                     {
-                        FailOrder(order, "HyperdimensionalNetworkCraftingChainOutputLost", "registered-workstation-task-was-replaced");
+                        SetStageError(order, stage, "registered-workstation-task-was-replaced");
                         return false;
                     }
                     completedBatches = Math.Max(0, workstationTask.Batches - Math.Max(0, (int)task.Multiplier));
@@ -567,7 +445,7 @@ internal static class CraftingChainOrderService
                 if (completedOutput > workstationTask.CollectedOutput
                     && !CollectWorkstationTaskOutput(order, stage, workstationTask, completedOutput))
                 {
-                    FailOrder(order, "HyperdimensionalNetworkCraftingChainOutputLost",
+                    SetStageError(order, stage,
                         "completed-workstation-output-could-not-be-collected-at-" + workstationTask.Workstation.ToWorldPos());
                     return false;
                 }
@@ -575,46 +453,62 @@ internal static class CraftingChainOrderService
             if (pendingWorkstationTask) return false;
             if (expectedCollectedOutput != stage.ExpectedOutput || stage.CollectedOutput != stage.ExpectedOutput)
             {
-                FailOrder(order, "HyperdimensionalNetworkCraftingChainOutputLost", "completed-workstation-output-count-mismatch");
+                SetStageError(order, stage, "completed-workstation-output-count-mismatch");
                 return false;
             }
         }
         else if (stage.QueueStack == null)
         {
-            FailOrder(order, "HyperdimensionalNetworkCraftingChainOutputLost", "registered-vanilla-queue-entry-disappeared");
+            SetStageError(order, stage, "registered-vanilla-queue-entry-disappeared");
             return false;
         }
         else if (stage.QueueStack.HasRecipe())
         {
             if (!ReferenceEquals(stage.QueueStack.GetRecipe(), stage.QueueRecipe))
             {
-                FailOrder(order, "HyperdimensionalNetworkCraftingChainOutputLost", "registered-vanilla-queue-entry-was-replaced");
+                SetStageError(order, stage, "registered-vanilla-queue-entry-was-replaced");
                 return false;
             }
             int completedBatches = Math.Max(0, stage.Node.Batches - Math.Max(0, stage.QueueStack.GetRecipeCount()));
             int completedOutput = (int)Math.Min(int.MaxValue, (long)completedBatches * stage.QueueRecipe.count);
             if (completedOutput > stage.CollectedOutput && !CollectOutputsToEscrow(order, stage, completedOutput))
             {
-                FailOrder(order, "HyperdimensionalNetworkCraftingChainOutputLost", "completed-player-queue-output-could-not-be-collected");
+                SetStageError(order, stage, "completed-player-queue-output-could-not-be-collected");
                 return false;
             }
             return false;
         }
         if (!CollectOutputsToEscrow(order, stage, stage.ExpectedOutput))
         {
-            FailOrder(order, "HyperdimensionalNetworkCraftingChainOutputLost", "completed-stage-output-could-not-be-collected");
+            SetStageError(order, stage, "completed-stage-output-could-not-be-collected");
             return false;
         }
+        CompleteStage(order, stage);
+        return true;
+    }
+
+    private static void CompleteStage(Order order, Stage stage)
+    {
         stage.ReservedInputs.Clear();
         stage.ReservedNetworkInputs.Clear();
+        stage.ErrorKey = string.Empty;
         stage.IsActive = false;
         stage.IsCompleted = true;
         order.StageIndex++;
         order.Status = string.Format(Localization.Get("HyperdimensionalNetworkCraftingChainStepProgress"),
             Math.Min(order.StageIndex + 1, order.Stages.Count), order.Stages.Count, GetItemName(stage));
-        NetworkLog.Debug("Crafting-chain vanilla step completed. player=" + order.player.entityId + "; completedSteps=" + order.StageIndex
+        NetworkLog.Debug("Crafting-chain stage completed. player=" + order.player.entityId + "; completedSteps=" + order.StageIndex
             + "; recipe=" + stage.SourceRecipe.GetName() + "; output=" + stage.ExpectedOutput);
-        return true;
+    }
+
+    private static void SetStageError(Order order, Stage stage, string reason)
+    {
+        if (!string.IsNullOrEmpty(stage.ErrorKey)) return;
+        stage.ErrorKey = "HyperdimensionalNetworkCraftingChainNodeError";
+        order.Status = Localization.Get(stage.ErrorKey);
+        NetworkLog.Error("Crafting-chain stage needs network output to resume. player=" + order.player.entityId
+            + "; recipe=" + stage.SourceRecipe.GetName() + "; missing=" + (stage.ExpectedOutput - stage.CollectedOutput)
+            + "; reason=" + reason);
     }
 
     private static List<ItemStack> BuildOrderRequirements(CraftingChainPlanInput input, CraftingChainPlan plan)
@@ -681,8 +575,22 @@ internal static class CraftingChainOrderService
                 using (Patches.PlayerInventoryConsumePatch.PreferNetworkForChainReservation())
                     order.xui.PlayerInventory.RemoveItems(requirements, 1, removed);
             }
-            else using (Patches.PlayerInventoryConsumePatch.PreferNetworkForChainReservation())
-                order.xui.PlayerInventory.RemoveItems(requirements, 1, removed);
+            else
+            {
+                using (NetworkRemoteClient.CaptureCraftingChainNetworkConsumption(order.player, networkRemoved))
+                using (Patches.PlayerInventoryConsumePatch.PreferNetworkForChainReservation())
+                    order.xui.PlayerInventory.RemoveItems(requirements, 1, removed);
+            }
+        }
+        bool physicalAlreadyInNetwork = false;
+        if (!NetworkRemoteClient.IsRemoteClient
+            && !TransitInitialPhysicalInputs(order, removed, networkRemoved, out physicalAlreadyInNetwork))
+        {
+            AddEscrowItems(order, physicalAlreadyInNetwork ? networkRemoved : removed);
+            AddNetworkEscrowItems(order, networkRemoved);
+            order.TerminalStatus = Localization.Get("HyperdimensionalNetworkCraftingChainReturnFailed");
+            TryReturnEscrow(order);
+            return false;
         }
         AddEscrowItems(order, removed);
         AddNetworkEscrowItems(order, networkRemoved);
@@ -700,11 +608,7 @@ internal static class CraftingChainOrderService
             return true;
         }
         if (order.Stages.Count == 0) CompleteOrder(order);
-        else
-        {
-            StartNextStage(order);
-            if (Orders.ContainsKey(order.player.entityId)) ReleaseWorkstationLocks(order);
-        }
+        else StartNextStage(order);
         return true;
     }
 
@@ -727,6 +631,30 @@ internal static class CraftingChainOrderService
             }
             if (remaining > 0) return false;
         }
+        return true;
+    }
+
+    private static bool TransitInitialPhysicalInputs(Order order, IEnumerable<ItemStack> removed,
+        IEnumerable<ItemStack> networkRemoved, out bool physicalAlreadyInNetwork)
+    {
+        physicalAlreadyInNetwork = false;
+        List<ItemStack> physical = removed?.Where(item => item != null && !item.IsEmpty())
+            .Select(item => item.Clone()).ToList() ?? new List<ItemStack>();
+        foreach (ItemStack network in networkRemoved ?? Enumerable.Empty<ItemStack>())
+            TakeExactFromList(physical, network.itemValue, network.count, null);
+        if (physical.Count == 0) return true;
+        List<StorageAddition> batch = physical.Select(item => new StorageAddition
+            { Value = item.itemValue.Clone(), Count = item.count }).ToList();
+        if (!NetworkStorage.AddBatch(order.player, batch)) return false;
+        if (!NetworkStorage.RemoveBatch(order.player, batch))
+        {
+            physicalAlreadyInNetwork = true;
+            NetworkLog.Error("Crafting-chain physical reservation entered network but could not enter escrow. player="
+                + order.player.entityId + "; variants=" + batch.Count);
+            return false;
+        }
+        NetworkLog.Debug("Crafting-chain physical inputs passed through network before escrow. player="
+            + order.player.entityId + "; variants=" + batch.Count);
         return true;
     }
 
@@ -868,7 +796,6 @@ internal static class CraftingChainOrderService
     private static void FailBeforeReservation(Order order, string statusKey, string reason)
     {
         if (order == null) return;
-        ReleaseWorkstationLocks(order);
         order.Status = Localization.Get(statusKey);
         LastStatuses[order.player.entityId] = order.Status;
         DetachTrackingHandler(order);
@@ -899,17 +826,18 @@ internal static class CraftingChainOrderService
             else
             {
                 if (stage.WorkstationTasks.Any(task => activeWorkstations.Contains(task.Workstation))) continue;
+                bool unavailable = false;
                 foreach (WorkstationTask task in stage.WorkstationTasks)
                 {
                     TileEntityWorkstation live = GameManager.Instance?.World?.GetTileEntity(task.Workstation.ToWorldPos()) as TileEntityWorkstation;
                     if (!ReferenceEquals(live, task.Workstation) || task.Workstation.IsUserAccessing()
                         || !CraftingChainWorkstationService.IsQueueIdle(task.Workstation))
                     {
-                        FailOrder(order, "HyperdimensionalNetworkCraftingChainWorkstationUnavailable",
-                            "ready-stage-workstation-became-unavailable-" + task.Workstation.ToWorldPos());
-                        return;
+                        unavailable = true;
+                        break;
                     }
                 }
+                if (unavailable) continue;
             }
             QueueStage(order, stage);
             if (!Orders.ContainsKey(order.player.entityId)) return;
@@ -1089,6 +1017,7 @@ internal static class CraftingChainOrderService
             }
             stage.IsActive = true;
             stage.StartedAt = UnityEngine.Time.realtimeSinceStartup;
+            stage.NetworkBaseline = NetworkStorage.GetMatchingCount(order.player, BuildStageOutputValue(stage));
             order.Status = string.Format(Localization.Get("HyperdimensionalNetworkCraftingChainStepProgress"),
                 order.StageIndex + 1, order.Stages.Count, GetItemName(stage));
             NetworkLog.Debug("Crafting-chain vanilla step queued. player=" + order.player.entityId + "; step=" + (order.StageIndex + 1)
@@ -1262,7 +1191,7 @@ internal static class CraftingChainOrderService
             }
             int maxTasks = string.Equals(recipe.craftingArea, "forge", StringComparison.OrdinalIgnoreCase)
                 ? Math.Min(1, available.Count)
-                : Math.Min(Math.Min(available.Count, Math.Max(1, node.Batches)), LockManager.MaxLocksPerPlayer);
+                : Math.Min(Math.Min(available.Count, Math.Max(1, node.Batches)), CraftingChainWorkstationService.MaxTrackedWorkstations);
             for (int taskCount = maxTasks; taskCount > 0 && workstationTasks.Count == 0; taskCount--)
             {
                 List<TileEntityWorkstation> selected = available.Take(taskCount).ToList();
@@ -1379,9 +1308,65 @@ internal static class CraftingChainOrderService
     private static bool QueueIsIdle(XUiC_CraftingQueue queue)
         => queue != null && queue.GetRecipesToCraft().All(stack => stack == null || !stack.HasRecipe());
 
+    private static bool TransitOutputToEscrow(Order order, Stage stage, ItemValue output, int count,
+        out bool waitingInNetwork)
+    {
+        waitingInNetwork = false;
+        if (count <= 0) return true;
+        if (NetworkRemoteClient.IsRemoteClient)
+        {
+            // Remote workstation output is still synchronized by the vanilla tile entity.
+            // Keep existing orders usable until a server-authoritative transfer RPC is added.
+            AddEscrowItem(order, new ItemStack(output.Clone(), count));
+            NetworkLog.Debug("Crafting-chain remote output collected with legacy escrow path. player=" + order.player.entityId
+                + "; recipe=" + stage.SourceRecipe.GetName() + "; count=" + count);
+            return true;
+        }
+        StorageAddition transfer = new StorageAddition { Value = output.Clone(), Count = count };
+        if (!NetworkStorage.AddBatch(order.player, new[] { transfer })) return false;
+        if (!NetworkStorage.RemoveBatch(order.player, new[] { transfer }))
+        {
+            waitingInNetwork = true;
+            NetworkLog.Error("Crafting-chain output entered network but could not enter escrow. player="
+                + order.player.entityId + "; item=" + output.type + "; count=" + count);
+            return true;
+        }
+        AddEscrowItem(order, new ItemStack(output.Clone(), count));
+        return true;
+    }
+
+    private static void TryCollectNetworkOutput(Order order, Stage stage)
+    {
+        if (NetworkRemoteClient.IsRemoteClient || stage.CollectedOutput >= stage.ExpectedOutput) return;
+        float now = UnityEngine.Time.realtimeSinceStartup;
+        if (now < stage.NextNetworkCheck) return;
+        stage.NextNetworkCheck = now + 0.5f;
+        ItemValue output = BuildStageOutputValue(stage);
+        long current = NetworkStorage.GetMatchingCount(order.player, output);
+        long newlyDeposited = Math.Max(0L, current - stage.NetworkBaseline);
+        int take = (int)Math.Min(Math.Min(newlyDeposited, int.MaxValue), stage.ExpectedOutput - stage.CollectedOutput);
+        bool withdrawalFailed = false;
+        if (take > 0)
+        {
+            StorageAddition withdrawal = new StorageAddition { Value = output.Clone(), Count = take };
+            if (NetworkStorage.RemoveBatch(order.player, new[] { withdrawal }))
+            {
+                AddEscrowItem(order, new ItemStack(output.Clone(), take));
+                stage.CollectedOutput += take;
+                current -= take;
+                NetworkLog.Debug("Crafting-chain accepted matching network deposit. player=" + order.player.entityId
+                    + "; recipe=" + stage.SourceRecipe.GetName() + "; accepted=" + take
+                    + "; remaining=" + (stage.ExpectedOutput - stage.CollectedOutput));
+            }
+            else withdrawalFailed = true;
+        }
+        if (!withdrawalFailed) stage.NetworkBaseline = current;
+    }
+
     private static bool CollectOutputsToEscrow(Order order, Stage stage, int expectedCount)
     {
-        int remaining = Math.Max(0, expectedCount - stage.CollectedOutput);
+        int remaining = Math.Max(0, Math.Min(expectedCount - stage.CollectedOutput,
+            stage.ExpectedOutput - stage.CollectedOutput));
         if (remaining == 0) return true;
         ItemValue output = stage.OutputQuality > 0
             ? new ItemValue(stage.OutputItemType, stage.OutputQuality, stage.OutputQuality)
@@ -1409,7 +1394,12 @@ internal static class CraftingChainOrderService
                 remaining -= take;
                 if (stack.count <= 0) updated[index] = ItemStack.Empty.Clone();
             }
-            if (collected > 0) stage.Workstation.Output = updated;
+            if (collected > 0)
+            {
+                if (!TransitOutputToEscrow(order, stage, output, collected, out bool waitingInNetwork)) return false;
+                stage.Workstation.Output = updated;
+                if (waitingInNetwork) return false;
+            }
         }
         else if (stage.OutputGrid != null)
         {
@@ -1427,21 +1417,29 @@ internal static class CraftingChainOrderService
             }
             if (collected > 0)
             {
+                if (!TransitOutputToEscrow(order, stage, output, collected, out bool waitingInNetwork)) return false;
                 stage.OutputGrid.SetSlots(updated);
                 stage.OutputGrid.UpdateData(updated);
                 stage.OutputGrid.IsDirty = true;
+                if (waitingInNetwork) return false;
             }
         }
         else
         {
             collected = RemovePhysical(order.player, output, remaining);
             remaining -= collected;
+            bool waitingInNetwork = false;
+            if (collected > 0 && !TransitOutputToEscrow(order, stage, output, collected, out waitingInNetwork))
+            {
+                order.xui.PlayerInventory.AddItemNoPartial(new ItemStack(output.Clone(), collected), _playCollectSound: false);
+                return false;
+            }
+            if (collected > 0 && waitingInNetwork) return false;
         }
         if (collected > 0)
         {
             stage.CollectedOutput += collected;
-            AddEscrowItem(order, new ItemStack(output, collected));
-            NetworkLog.Debug("Crafting-chain output moved into private order escrow. player=" + order.player.entityId
+            NetworkLog.Debug("Crafting-chain output moved through network into order escrow. player=" + order.player.entityId
                 + "; recipe=" + stage.SourceRecipe.GetName() + "; collected=" + collected + "; remaining=" + remaining);
         }
         if (remaining > 0)
@@ -1457,7 +1455,8 @@ internal static class CraftingChainOrderService
     private static bool CollectWorkstationTaskOutput(Order order, Stage stage, WorkstationTask task, int expectedCount)
     {
         if (order == null || stage == null || task?.Workstation == null) return false;
-        int remaining = Math.Max(0, expectedCount - task.CollectedOutput);
+        int remaining = Math.Max(0, Math.Min(expectedCount - task.CollectedOutput,
+            stage.ExpectedOutput - stage.CollectedOutput));
         if (remaining == 0) return true;
         ItemValue output = BuildStageOutputValue(stage);
         ItemStack[] slots = task.Workstation.Output ?? Array.Empty<ItemStack>();
@@ -1481,11 +1480,12 @@ internal static class CraftingChainOrderService
         }
         if (collected > 0)
         {
+            if (!TransitOutputToEscrow(order, stage, output, collected, out bool waitingInNetwork)) return false;
             task.Workstation.Output = updated;
+            if (waitingInNetwork) return false;
             task.CollectedOutput += collected;
             stage.CollectedOutput += collected;
-            AddEscrowItem(order, new ItemStack(output, collected));
-            NetworkLog.Debug("Crafting-chain workstation output moved into private escrow. player=" + order.player.entityId
+            NetworkLog.Debug("Crafting-chain workstation output moved through network into order escrow. player=" + order.player.entityId
                 + "; recipe=" + stage.SourceRecipe.GetName() + "; position=" + task.Workstation.ToWorldPos()
                 + "; collected=" + collected + "; remaining=" + remaining);
         }
@@ -1574,7 +1574,6 @@ internal static class CraftingChainOrderService
     {
         if (order == null || order.ReturnPending || order.ReturnInFlight) return;
         StopCurrentStage(order, reason);
-        ReleaseWorkstationLocks(order);
         order.CancelRequested = false;
         order.TerminalStatus = Localization.Get("HyperdimensionalNetworkCraftingChainCancelled");
         NetworkLog.Debug("Crafting-chain order cancelled. player=" + order.player.entityId + "; root=" + order.RootRecipeKey
@@ -1589,15 +1588,14 @@ internal static class CraftingChainOrderService
         NetworkLog.Error("Crafting-chain order failed safely. player=" + order.player.entityId + "; root=" + order.RootRecipeKey
             + "; step=" + (order.StageIndex + 1) + "; reason=" + reason);
         StopCurrentStage(order, reason);
-        ReleaseWorkstationLocks(order);
         order.CancelRequested = false;
         TryReturnEscrow(order);
     }
 
-    private static void StopCurrentStage(Order order, string reason)
+    private static void StopCurrentStage(Order order, string reason, Stage onlyStage = null)
     {
         foreach (Stage stage in order.Stages.Where(candidate => candidate.IsActive || (!candidate.IsCompleted && candidate.QueueSubmitted)
-            || candidate.ReservedInputs.Count > 0).ToList())
+            || candidate.ReservedInputs.Count > 0).Where(candidate => onlyStage == null || ReferenceEquals(candidate, onlyStage)).ToList())
         {
             if (stage.ReservedInputs.Count == 0 && !stage.QueueSubmitted) continue;
             try
@@ -1760,7 +1758,6 @@ internal static class CraftingChainOrderService
     private static void TryReturnEscrow(Order order)
     {
         if (order == null || order.ReturnInFlight) return;
-        ReleaseWorkstationLocks(order);
         if (order.EscrowItems.Count == 0)
         {
             FinishOrder(order);
