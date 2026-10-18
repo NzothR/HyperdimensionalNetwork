@@ -81,6 +81,15 @@ internal sealed class CraftingChainPlanNode
     public int OutputCount;
     public CraftingChainRecipeOption[] RecipeOptions = Array.Empty<CraftingChainRecipeOption>();
     public List<CraftingChainPlanNode> Children = new List<CraftingChainPlanNode>();
+    public List<CraftingChainPlanDisplayChild> DisplayChildren = new List<CraftingChainPlanDisplayChild>();
+}
+
+internal sealed class CraftingChainPlanDisplayChild
+{
+    public int ItemId;
+    public long RequiredCount;
+    public bool ForgeOnly;
+    public CraftingChainPlanNode RecipeNode;
 }
 
 internal sealed class CraftingChainPlanMaterial
@@ -592,6 +601,13 @@ internal static class CraftingChainPlanner
             if (ingredientCount <= 0) continue;
             CraftingChainPlanNode child = ResolveDemand(context, state, ingredient, ingredientCount, ancestors, depth + 1);
             if (child != null) node.Children.Add(child);
+            node.DisplayChildren.Add(new CraftingChainPlanDisplayChild
+            {
+                ItemId = ingredient.ItemId,
+                RequiredCount = ingredientCount,
+                ForgeOnly = ingredient.ForgeOnly,
+                RecipeNode = child
+            });
         }
         return node;
     }

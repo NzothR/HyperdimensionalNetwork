@@ -9,7 +9,7 @@ namespace HyperdimensionalNetwork;
 
 public sealed class XUiC_CraftingChainWindow : XUiController
 {
-    private const int NodeSlotCount = 48;
+    private const int NodeSlotCount = 128;
     private const int MaterialSlotCount = 24;
     private const int OptionSlotCount = 8;
     private XUiController _treeViewport;
@@ -22,15 +22,15 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     private XUiController _confirmCancelPanel;
     private XUiController _startLabel;
     private XUiController _cancelLabel;
-    private XUiC_Button _startButton;
-    private XUiC_Button _cancelButton;
-    private XUiC_Button[] _nodeButtons;
+    private XUiController _startButton;
+    private XUiController _cancelButton;
+    private XUiController[] _nodeButtons;
     private XUiController[] _nodeCounts;
     private XUiController[] _edges;
-    private XUiC_Button[] _materialButtons;
+    private XUiController[] _materialButtons;
     private XUiController[] _materialCounts;
     private XUiController[] _forgeIcons;
-    private XUiC_Button[] _optionButtons;
+    private XUiController[] _optionButtons;
     private XUiController[] _optionLabels;
     private Recipe _trackedRecipe;
     private CraftingChainPlanInput _planInput;
@@ -51,13 +51,18 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     private float _zoom = 1f;
     private Vector2 _pan;
     private string _trackedRootKey = string.Empty;
+    private bool _treeTruncated;
     private readonly List<LocatedPlanNode> _locatedNodes = new List<LocatedPlanNode>();
 
     private sealed class LocatedPlanNode
     {
-        public CraftingChainPlanNode Node;
+        public CraftingChainPlanNode RecipeNode;
+        public int ItemId;
+        public long Count;
+        public bool ForgeOnly;
         public int Depth;
         public int ParentIndex;
+        public float LeafX;
         public Vector3 Position;
     }
 
@@ -74,10 +79,10 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         _confirmCancelPanel = GetChildById("craftingChainConfirmCancel");
         _startLabel = GetChildById("craftingChainStartLabel");
         _cancelLabel = GetChildById("craftingChainCancelLabel");
-        _startButton = GetChildById("btnCraftingChainStart") as XUiC_Button;
-        _cancelButton = GetChildById("btnCraftingChainCancel") as XUiC_Button;
+        _startButton = GetChildById("btnCraftingChainStart");
+        _cancelButton = GetChildById("btnCraftingChainCancel");
 
-        _nodeButtons = new XUiC_Button[NodeSlotCount];
+        _nodeButtons = new XUiController[NodeSlotCount];
         _nodeCounts = new XUiController[NodeSlotCount];
         _edges = new XUiController[NodeSlotCount - 1];
         for (int index = 0; index < _edges.Length; index++)
@@ -85,27 +90,27 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         for (int index = 0; index < NodeSlotCount; index++)
         {
             int slot = index;
-            _nodeButtons[index] = GetChildById("craftingChainNode" + index.ToString("00")) as XUiC_Button;
+            _nodeButtons[index] = GetChildById("craftingChainNode" + index.ToString("00"));
             _nodeCounts[index] = GetChildById("craftingChainNodeCount" + index.ToString("00"));
             if (_nodeButtons[index] != null) _nodeButtons[index].OnPress += (sender, mouseButton) => OnNodePressed(slot);
         }
 
-        _materialButtons = new XUiC_Button[MaterialSlotCount];
+        _materialButtons = new XUiController[MaterialSlotCount];
         _materialCounts = new XUiController[MaterialSlotCount];
         _forgeIcons = new XUiController[MaterialSlotCount];
         for (int index = 0; index < MaterialSlotCount; index++)
         {
-            _materialButtons[index] = GetChildById("craftingChainMaterial" + index.ToString("00")) as XUiC_Button;
+            _materialButtons[index] = GetChildById("craftingChainMaterial" + index.ToString("00"));
             _materialCounts[index] = GetChildById("craftingChainMaterialCount" + index.ToString("00"));
             _forgeIcons[index] = GetChildById("craftingChainForgeIcon" + index.ToString("00"));
         }
 
-        _optionButtons = new XUiC_Button[OptionSlotCount];
+        _optionButtons = new XUiController[OptionSlotCount];
         _optionLabels = new XUiController[OptionSlotCount];
         for (int index = 0; index < OptionSlotCount; index++)
         {
             int slot = index;
-            _optionButtons[index] = GetChildById("craftingChainRecipeOption" + index.ToString("00")) as XUiC_Button;
+            _optionButtons[index] = GetChildById("craftingChainRecipeOption" + index.ToString("00"));
             _optionLabels[index] = GetChildById("craftingChainRecipeOptionLabel" + index.ToString("00"));
             if (_optionButtons[index] != null) _optionButtons[index].OnPress += (sender, mouseButton) => OnRecipeOptionPressed(slot);
         }
@@ -122,7 +127,9 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         ClearNodeSlots();
         ClearMaterialSlots();
         SetStartEnabled(false);
-        NetworkLog.Debug("Crafting-chain view initialized. nodeSlots=" + _nodeButtons.Length + "; materialSlots=" + _materialButtons.Length);
+        NetworkLog.Debug("Crafting-chain view initialized. nodeSlots=" + _nodeButtons.Length + "; materialSlots=" + _materialButtons.Length
+            + "; firstNode=" + (_nodeButtons[0]?.GetType().Name ?? "<missing>")
+            + "; firstMaterial=" + (_materialButtons[0]?.GetType().Name ?? "<missing>"));
     }
 
     public override void OnOpen()
@@ -314,26 +321,32 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         }
         SetVisible(_emptyHint, false);
         BuildLocatedNodes();
+        if (_treeTruncated)
+        {
+            SetStartEnabled(false);
+            SetLabel(_status, Localization.Get("HyperdimensionalNetworkCraftingChainPlanTooLarge"));
+            return;
+        }
         bool nodeViewProblemLogged = false;
         for (int index = 0; index < Math.Min(_locatedNodes.Count, _nodeButtons.Length); index++)
         {
             LocatedPlanNode located = _locatedNodes[index];
-            CraftingChainItemInfo item = GetItem(located.Node.ItemId);
-            XUiC_Button nodeButton = _nodeButtons[index];
+            CraftingChainItemInfo item = GetItem(located.ItemId);
+            XUiController nodeButton = _nodeButtons[index];
             SetIcon(nodeButton, item?.Icon, item?.Name);
             SetVisible(nodeButton, true);
-            if (nodeButton?.ViewComponent?.UiTransform == null && !nodeViewProblemLogged)
+            if (nodeButton?.ViewComponent == null && !nodeViewProblemLogged)
             {
                 nodeViewProblemLogged = true;
-                NetworkLog.Error("Crafting-chain node view is missing its UI transform. slot=" + index
-                    + "; itemId=" + located.Node.ItemId
+                NetworkLog.Error("Crafting-chain node view is missing. slot=" + index
+                    + "; itemId=" + located.ItemId
                     + "; controller=" + (nodeButton?.GetType().Name ?? "<missing>")
                     + "; view=" + (nodeButton?.ViewComponent?.GetType().Name ?? "<missing>"));
             }
             SetPosition(nodeButton, located.Position);
-            SetLabel(_nodeCounts[index], located.Node.Batches > 0 ? "×" + located.Node.Batches : string.Empty);
-            SetPosition(_nodeCounts[index], located.Position + new Vector3(22f, -25f, 0f));
-            SetVisible(_nodeCounts[index], located.Node.Batches > 0);
+            SetLabel(_nodeCounts[index], "×" + located.Count);
+            SetPosition(_nodeCounts[index], located.Position + new Vector3(18f, -42f, 0f));
+            SetVisible(_nodeCounts[index], true);
         }
         RenderEdges();
 
@@ -374,24 +387,51 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     private void BuildLocatedNodes()
     {
         _locatedNodes.Clear();
-        foreach (CraftingChainPlanNode root in _plan.Nodes) AddLocatedNode(root, 0);
-        Dictionary<int, int> countsByDepth = _locatedNodes.GroupBy(node => node.Depth).ToDictionary(group => group.Key, group => group.Count());
-        Dictionary<int, int> rowsByDepth = new Dictionary<int, int>();
+        _treeTruncated = false;
+        float nextLeaf = 0f;
+        foreach (CraftingChainPlanNode root in _plan.Nodes)
+            AddLocatedNode(root, root.ItemId, root.OutputCount, false, 0, -1, ref nextLeaf);
+        if (_locatedNodes.Count == 0 && _planInput != null)
+            AddLocatedNode(null, _planInput.RootOutputItemId, _plan.RequestedOutput, false, 0, -1, ref nextLeaf);
+        float centerLeaf = (nextLeaf - 1f) * 0.5f;
         foreach (LocatedPlanNode node in _locatedNodes)
         {
-            int row = rowsByDepth.TryGetValue(node.Depth, out int current) ? current : 0;
-            rowsByDepth[node.Depth] = row + 1;
-            float centeredRow = row - ((countsByDepth[node.Depth] - 1) / 2f);
-            node.Position = new Vector3(760f - node.Depth * 145f, -210f - centeredRow * 82f, 0f);
+            node.Position = new Vector3(415f + (node.LeafX - centerLeaf) * 102f, -25f - node.Depth * 108f, 0f);
         }
+        if (_treeTruncated)
+            NetworkLog.Debug("Crafting-chain tree reached the visible node limit. limit=" + NodeSlotCount + "; root=" + _trackedRootKey);
     }
 
-    private void AddLocatedNode(CraftingChainPlanNode node, int depth, int parentIndex = -1)
+    private int AddLocatedNode(CraftingChainPlanNode recipeNode, int itemId, long count, bool forgeOnly,
+        int depth, int parentIndex, ref float nextLeaf)
     {
-        if (node == null || _locatedNodes.Count >= NodeSlotCount) return;
+        if (_locatedNodes.Count >= NodeSlotCount)
+        {
+            _treeTruncated = true;
+            return -1;
+        }
         int index = _locatedNodes.Count;
-        _locatedNodes.Add(new LocatedPlanNode { Node = node, Depth = depth, ParentIndex = parentIndex });
-        foreach (CraftingChainPlanNode child in node.Children) AddLocatedNode(child, depth + 1, index);
+        LocatedPlanNode located = new LocatedPlanNode
+        {
+            RecipeNode = recipeNode, ItemId = itemId, Count = count, ForgeOnly = forgeOnly,
+            Depth = depth, ParentIndex = parentIndex
+        };
+        _locatedNodes.Add(located);
+        float firstChildX = 0f;
+        float lastChildX = 0f;
+        int childCount = 0;
+        if (recipeNode != null)
+            foreach (CraftingChainPlanDisplayChild child in recipeNode.DisplayChildren)
+            {
+                int childIndex = AddLocatedNode(child.RecipeNode, child.ItemId, child.RequiredCount,
+                    child.ForgeOnly, depth + 1, index, ref nextLeaf);
+                if (childIndex < 0) break;
+                float childX = _locatedNodes[childIndex].LeafX;
+                if (childCount++ == 0) firstChildX = childX;
+                lastChildX = childX;
+            }
+        located.LeafX = childCount > 0 ? (firstChildX + lastChildX) * 0.5f : nextLeaf++;
+        return index;
     }
 
     private void RenderEdges()
@@ -401,15 +441,15 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         {
             LocatedPlanNode child = _locatedNodes[childIndex];
             if (child.ParentIndex < 0 || child.ParentIndex >= _locatedNodes.Count) continue;
-            Vector3 start = _locatedNodes[child.ParentIndex].Position;
-            Vector3 end = child.Position;
+            Vector3 start = _locatedNodes[child.ParentIndex].Position + new Vector3(30f, -60f, 0f);
+            Vector3 end = child.Position + new Vector3(30f, 0f, 0f);
             Vector3 delta = end - start;
             XUiController edge = _edges[childIndex - 1];
-            SetPosition(edge, (start + end) * 0.5f);
-            if (edge?.ViewComponent?.UiTransform != null)
+            SetPosition(edge, start);
+            if (edge?.ViewComponent != null)
             {
-                edge.ViewComponent.UiTransform.localScale = new Vector3(Mathf.Max(0.1f, delta.magnitude / 100f), 1f, 1f);
-                edge.ViewComponent.UiTransform.localEulerAngles = new Vector3(0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
+                edge.ViewComponent.Width = Math.Max(1, Mathf.RoundToInt(delta.magnitude));
+                edge.ViewComponent.Rotation = Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg;
             }
             SetVisible(edge, true);
         }
@@ -419,8 +459,8 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     {
         if (_plan == null || slot < 0 || slot >= _locatedNodes.Count) return;
         LocatedPlanNode located = _locatedNodes[slot];
-        _selectedItemId = located.Node.ItemId;
-        ShowRecipeOptions(located.Node.RecipeOptions, located.Position);
+        _selectedItemId = located.ItemId;
+        ShowRecipeOptions(located.RecipeNode?.RecipeOptions, located.Position);
     }
 
     private void ShowRecipeOptions(CraftingChainRecipeOption[] options, Vector3 nodePosition)
@@ -517,7 +557,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         if (!_startCheckValid || Time.realtimeSinceStartup >= _nextStartCheck)
         {
             _nextStartCheck = Time.realtimeSinceStartup + 0.5f;
-            _startAvailable = _plan != null && _planInput != null
+            _startAvailable = !_treeTruncated && _plan != null && _planInput != null
                 && CraftingChainOrderService.CanStart(xui, xui?.playerUI?.entityPlayer, _planInput, _plan, out _);
             _startCheckValid = true;
         }
@@ -697,7 +737,8 @@ public sealed class XUiC_CraftingChainWindow : XUiController
 
     private static void SetPosition(XUiController controller, Vector3 position)
     {
-        if (controller?.ViewComponent?.UiTransform != null) controller.ViewComponent.UiTransform.localPosition = position;
+        if (controller?.ViewComponent != null)
+            controller.ViewComponent.Position = new Vector2i(Mathf.RoundToInt(position.x), Mathf.RoundToInt(position.y));
     }
 
     private static void SetVisible(XUiController controller, bool visible)
