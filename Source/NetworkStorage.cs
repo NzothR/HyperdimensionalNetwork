@@ -53,6 +53,46 @@ internal static class NetworkStorage
         return data.TryGetValue(NormalizeKey(value), out long count) ? count : 0;
     }
 
+    public static long GetMatchingCount(EntityPlayer player, ItemValue requirement, bool includeModded = false)
+    {
+        if (!(bool)player || requirement == null) return 0;
+        long total = 0;
+        foreach (KeyValuePair<ItemValue, long> entry in GetStorage(player))
+        {
+            if (!NetworkItemMatcher.Matches(entry.Key, requirement, includeModded)) continue;
+            total = SafeAdd(total, entry.Value);
+        }
+        return total;
+    }
+
+    public static bool RemoveBatch(EntityPlayer player, IEnumerable<StorageAddition> removals)
+    {
+        if (!(bool)player || removals == null) return false;
+        string path = GetPath(player);
+        if (UnsafePaths.Contains(path)) return false;
+        Dictionary<ItemValue, long> current = GetStorage(player);
+        Dictionary<ItemValue, long> deltas = new Dictionary<ItemValue, long>(ItemValueComparer.Instance);
+        foreach (StorageAddition removal in removals)
+        {
+            if (removal?.Value == null || removal.Count <= 0) return false;
+            ItemValue key = NormalizeKey(removal.Value);
+            long old = deltas.TryGetValue(key, out long count) ? count : 0;
+            if (old > long.MaxValue - removal.Count) return false;
+            deltas[key] = old + removal.Count;
+        }
+        if (deltas.Count == 0) return true;
+        foreach (KeyValuePair<ItemValue, long> delta in deltas)
+        {
+            if (!current.TryGetValue(delta.Key, out long available) || available < delta.Value) return false;
+        }
+        Dictionary<ItemValue, long> negative = deltas.ToDictionary(pair => pair.Key, pair => -pair.Value, ItemValueComparer.Instance);
+        if (!AppendTransaction(path, negative)) return false;
+        Apply(current, negative);
+        BumpRevision(path);
+        NetworkLog.Debug("Network material batch consumed. variants=" + negative.Count + "; revision=" + Revisions[path]);
+        return true;
+    }
+
     public static bool AddStack(EntityPlayer player, ItemStack stack)
     {
         if (stack == null || stack.IsEmpty()) return false;
