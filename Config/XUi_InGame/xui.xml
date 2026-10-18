@@ -1,6 +1,6 @@
 <configs>
   <append xpath="/xui">
-    <window_group name="hyperdimensionalNetwork" controller="XUiC_HyperdimensionalNetworkWindowGroup,HyperdimensionalNetwork" open_backpack_on_open="true" defaultselected="queue">
+    <window_group name="hyperdimensionalNetwork" controller="HyperdimensionalNetwork.XUiC_HyperdimensionalNetworkWindowGroup,HyperdimensionalNetwork" open_backpack_on_open="true" defaultselected="queue">
       <window name="windowHyperdimensionalNetwork" />
     </window_group>
   </append>

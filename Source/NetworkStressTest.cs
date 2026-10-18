@@ -78,6 +78,9 @@ internal static class NetworkStressTest
         add.Stop();
         total.Stop();
         NetworkLog.Info("Stress test finished. mode=" + (extreme ? "int32-max-stackable" : "native-stack-limit") + "; player=" + player.PlayerDisplayName + "; itemClassEntries=" + classes.Length + "; itemClasses=" + candidates + "; qualityClasses=" + qualityClasses + "; variantsAdded=" + variants + "; fallbackQualityMax=" + fallbackQualityMax + "; skipped=" + skipped + "; unitsRequested=" + units + "; buildMs=" + build.Elapsed.TotalMilliseconds.ToString("F2") + "; transactionMs=" + add.Elapsed.TotalMilliseconds.ToString("F2") + "; totalMs=" + total.Elapsed.TotalMilliseconds.ToString("F2") + "; saved=" + saved + "; revision=" + NetworkStorage.GetRevision(player));
+        GameManager.ShowTooltip(player, saved
+            ? "超维网络压力测试完成：加入 " + variants.ToString("N0") + " 种物品变体。"
+            : "超维网络压力测试未能写入，请检查游戏日志。");
         if (fallbackQualityMax > 0) NetworkLog.Info("Some item classes did not expose a quality maximum; stress test used native fallback maximum 6 for those classes.");
     }
 
