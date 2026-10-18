@@ -14,8 +14,8 @@ internal enum RestockSettingKey : byte
 
 internal enum RestockTargetMode : byte
 {
-    LockedBackpackStacks = 0,
-    AllBackpackStacks = 1,
+    ToolbeltAndLockedBackpackStacks = 0,
+    LockedBackpackOnly = 1,
     ToolbeltOnly = 2
 }
 
@@ -74,11 +74,11 @@ internal static class RestockSettingsService
     private sealed class PlayerSettings
     {
         public bool AutoRestockEnabled;
-        public RestockTargetMode TargetMode = RestockTargetMode.LockedBackpackStacks;
+        public RestockTargetMode TargetMode = RestockTargetMode.ToolbeltAndLockedBackpackStacks;
     }
 
     private const int FileMagic = 0x31545352; // RST1
-    private const int FileVersion = 1;
+    private const int FileVersion = 2;
     private const int MaximumPlayers = 100000;
     private static readonly object Sync = new object();
     private static readonly Dictionary<string, PlayerSettings> Settings = new Dictionary<string, PlayerSettings>(StringComparer.Ordinal);
@@ -135,8 +135,8 @@ internal static class RestockSettingsService
                     updated.AutoRestockEnabled = value == 1;
                     break;
                 case RestockSettingKey.AutoRestockTarget:
-                    if (value != (int)RestockTargetMode.LockedBackpackStacks
-                        && value != (int)RestockTargetMode.AllBackpackStacks
+                    if (value != (int)RestockTargetMode.ToolbeltAndLockedBackpackStacks
+                        && value != (int)RestockTargetMode.LockedBackpackOnly
                         && value != (int)RestockTargetMode.ToolbeltOnly)
                     { error = "InvalidSettingValue"; return false; }
                     updated.TargetMode = (RestockTargetMode)value;
@@ -188,7 +188,7 @@ internal static class RestockSettingsService
 
     private static RestockSettingsSnapshot Defaults()
     {
-        return new RestockSettingsSnapshot { TargetMode = RestockTargetMode.LockedBackpackStacks, AutoRestockCooldownMs = AutoRestockCooldownMs };
+        return new RestockSettingsSnapshot { TargetMode = RestockTargetMode.ToolbeltAndLockedBackpackStacks, AutoRestockCooldownMs = AutoRestockCooldownMs };
     }
 
     private static RestockSettingsSnapshot Snapshot(PlayerSettings value, bool isAdmin)
@@ -216,25 +216,45 @@ internal static class RestockSettingsService
         _loaded = true;
         _unsafe = false;
         if (!File.Exists(path)) return true;
+        bool migratedSettings = false;
         try
         {
             using (FileStream stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read))
             using (BinaryReader reader = new BinaryReader(stream))
             {
-                if (reader.ReadInt32() != FileMagic || reader.ReadInt32() != FileVersion)
-                    throw new InvalidDataException("Unrecognized restock settings file header.");
+                if (reader.ReadInt32() != FileMagic) throw new InvalidDataException("Unrecognized restock settings file magic.");
+                int version = reader.ReadInt32();
+                if (version != 1 && version != FileVersion) throw new InvalidDataException("Unsupported restock settings file version: " + version);
+                migratedSettings = version == 1;
                 int count = reader.ReadInt32();
                 if (count < 0 || count > MaximumPlayers) throw new InvalidDataException("Invalid restock settings player count: " + count);
                 for (int i = 0; i < count; i++)
                 {
                     string playerId = reader.ReadString();
                     bool enabled = reader.ReadBoolean();
-                    RestockTargetMode mode = (RestockTargetMode)reader.ReadByte();
+                    byte storedMode = reader.ReadByte();
+                    RestockTargetMode mode;
+                    if (version == 1)
+                    {
+                        // Old mode 0 was hotbar + locked slots; old mode 1 included every backpack slot.
+                        // Both migrate to the closest safe supported range, hotbar + locked slots.
+                        if (storedMode == 0 || storedMode == 1) mode = RestockTargetMode.ToolbeltAndLockedBackpackStacks;
+                        else if (storedMode == 2) mode = RestockTargetMode.ToolbeltOnly;
+                        else throw new InvalidDataException("Invalid legacy restock target mode: " + storedMode);
+                    }
+                    else
+                    {
+                        mode = (RestockTargetMode)storedMode;
+                    }
                     if (string.IsNullOrWhiteSpace(playerId) || mode > RestockTargetMode.ToolbeltOnly || Settings.ContainsKey(playerId))
                         throw new InvalidDataException("Invalid or duplicate restock settings record.");
                     Settings.Add(playerId, new PlayerSettings { AutoRestockEnabled = enabled, TargetMode = mode });
                 }
                 if (stream.Position != stream.Length) throw new InvalidDataException("Unexpected trailing restock settings data.");
+            }
+            if (migratedSettings)
+            {
+                if (Save()) NetworkLog.Debug("Personal restock settings migrated to the three supported target ranges. path=" + _path);
             }
             NetworkLog.Debug("Personal restock settings loaded. players=" + Settings.Count + "; path=" + _path);
             return true;

@@ -56,7 +56,7 @@
           <label depth="34" name="labelAutoRestockValue" pos="270,-128" width="190" height="32" font_size="21" color="255,255,255,255" justify="center" text_key="HyperdimensionalNetworkSettingOff" />
           <label depth="32" name="labelAutoRestockTarget" pos="30,-202" width="220" height="54" font_size="22" text_key="HyperdimensionalNetworkSettingAutoRestockTarget" />
           <button depth="33" name="btnCycleAutoRestockTarget" pos="270,-205" width="190" height="50" style="press, hover" sprite="menu_empty3px" defaultcolor="65,52,40,245" hovercolor="112,82,48,255" selectedcolor="130,92,52,255" disabledcolor="55,48,40,180" sound="[paging_click]" />
-          <label depth="34" name="labelAutoRestockTargetValue" pos="275,-210" width="180" height="40" font_size="18" color="255,255,255,255" justify="center" text_key="HyperdimensionalNetworkSettingLocked" />
+          <label depth="34" name="labelAutoRestockTargetValue" pos="275,-210" width="180" height="40" font_size="18" color="255,255,255,255" justify="center" text_key="HyperdimensionalNetworkSettingHotbarAndLocked" />
           <label depth="32" name="restockSettingsStatus" pos="20,-275" width="470" height="40" font_size="18" justify="center" text_key="HyperdimensionalNetworkSettingsReady" />
         </rect>
       </rect>

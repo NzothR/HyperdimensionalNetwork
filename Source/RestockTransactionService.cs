@@ -25,7 +25,6 @@ internal static class RestockTransactionService
         if (automatic)
         {
             if (!settings.AutoRestockEnabled) return Failure(request, "AutoRestockDisabled");
-            if (!TryStartCooldown(player, request, settings.AutoRestockCooldownMs)) return Failure(request, "AutoRestockCoolingDown");
         }
 
         if (!(bool)player) return Failure(request, "PlayerUnavailable");
@@ -56,8 +55,11 @@ internal static class RestockTransactionService
             backpackSlots = ValidSlots(request.RestockBackpackSlots, bag.SlotCount);
             if (settings.TargetMode == RestockTargetMode.ToolbeltOnly)
                 backpackSlots.Clear();
-            else if (settings.TargetMode == RestockTargetMode.LockedBackpackStacks)
+            else
+            {
                 backpackSlots.RemoveAll(index => !IsLocked(bag, index));
+                if (settings.TargetMode == RestockTargetMode.LockedBackpackOnly) toolbeltSlots.Clear();
+            }
         }
         else
         {
@@ -67,7 +69,12 @@ internal static class RestockTransactionService
 
         List<ItemStack> requirements = CollectTargets(toolbelt, toolbeltSlots, bag, backpackSlots);
         if (requirements.Count == 0)
+        {
+            if (automatic)
+                NetworkLog.Debug("Automatic restock found no occupied target stacks. player=" + player.entityId + "; requestId=" + request.RequestId
+                    + "; mode=" + settings.TargetMode + "; toolbeltTargets=" + toolbeltSlots.Count + "; backpackTargets=" + backpackSlots.Count);
             return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Amount = 0 };
+        }
 
         List<StoredEntry> available;
         try { available = NetworkStorage.GetEntriesForRequirements(player, requirements); }
@@ -82,7 +89,19 @@ internal static class RestockTransactionService
         PlanGrid(toolbelt, toolbeltSlots, isToolbelt: true, available, fills, removals);
         PlanGrid(bag.ItemGrid, backpackSlots, isToolbelt: false, available, fills, removals);
         long total = fills.Sum(fill => (long)fill.Count);
-        if (total <= 0) return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Amount = 0 };
+        if (total <= 0)
+        {
+            if (automatic)
+                NetworkLog.Debug("Automatic restock found no replenishable capacity; cooldown was not started. player=" + player.entityId
+                    + "; requestId=" + request.RequestId + "; mode=" + settings.TargetMode + "; requirements=" + requirements.Count
+                    + "; availableEntries=" + available.Count + "; toolbeltTargets=" + toolbeltSlots.Count + "; backpackTargets=" + backpackSlots.Count);
+            return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Amount = 0 };
+        }
+
+        // Unrelated inventory changes often point at full stacks. Only successful refill candidates should
+        // consume the per-player cooldown; otherwise they can suppress the next real consumption event.
+        if (automatic && !TryStartCooldown(player, request, settings.AutoRestockCooldownMs))
+            return Failure(request, "AutoRestockCoolingDown");
 
         if (!NetworkStorage.RemoveBatch(player, removals))
         {

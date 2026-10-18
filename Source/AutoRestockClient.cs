@@ -26,6 +26,7 @@ internal static class AutoRestockClient
         public int CooldownMs = 1000;
         public float NextSettingsRequestAt;
         public float NextAutomaticRestockAt;
+        public bool AutomaticRequestPending;
         public readonly HashSet<int> PendingToolbeltSlots = new HashSet<int>();
         public readonly HashSet<int> PendingBackpackSlots = new HashSet<int>();
         public readonly HashSet<int> AuthorizedToolbeltSlots = new HashSet<int>();
@@ -293,6 +294,7 @@ internal static class AutoRestockClient
             ClearPending(state);
             return;
         }
+        if (state.AutomaticRequestPending) return;
 
         bool hasAuthorizedTargets = state.AuthorizedToolbeltSlots.Count > 0 || state.AuthorizedBackpackSlots.Count > 0;
         if (NetworkRemoteClient.IsRemoteClient && hasAuthorizedTargets && NetworkRemoteClient.IsAuthorizedConsumption(state.Player)) return;
@@ -327,26 +329,33 @@ internal static class AutoRestockClient
 
         if (NetworkRemoteClient.IsRemoteClient)
         {
+            state.AutomaticRequestPending = true;
             bool sent = NetworkRemoteClient.RequestRestock(state.Player, automatic: true, toolbelt, backpack,
                 result =>
                 {
-                    if (!result.Success)
+                    state.AutomaticRequestPending = false;
+                    if (result == null || !result.Success)
                     {
-                        NetworkLog.Debug("Remote automatic restock did not complete. player=" + state.Player.entityId + "; requestId=" + result.RequestId + "; error=" + result.Error);
+                        NetworkLog.Debug("Remote automatic restock did not complete. player=" + state.Player.entityId + "; requestId=" + (result?.RequestId ?? 0)
+                            + "; error=" + (result?.Error ?? "NoResult"));
                         return;
                     }
+                    if (result.Amount > 0)
+                        state.NextAutomaticRestockAt = UnityEngine.Time.realtimeSinceStartup + Math.Max(0, state.CooldownMs) / 1000f;
                     ApplyRemoteResult(state.Player, result);
                 });
             if (sent)
             {
-                state.NextAutomaticRestockAt = now + Math.Max(0, state.CooldownMs) / 1000f;
                 NetworkLog.Debug("Automatic restock request sent. player=" + state.Player.entityId + "; toolbeltSlots=" + toolbelt.Count + "; backpackSlots=" + backpack.Count);
             }
-            else NetworkLog.Debug("Automatic restock targets dropped because the request could not be sent. player=" + state.Player.entityId);
+            else
+            {
+                state.AutomaticRequestPending = false;
+                NetworkLog.Debug("Automatic restock targets dropped because the request could not be sent. player=" + state.Player.entityId);
+            }
             return;
         }
 
-        state.NextAutomaticRestockAt = now + Math.Max(0, state.CooldownMs) / 1000f;
         NetworkRemoteRequest request = NewLocalRequest(state.Player, NetworkRequestOperation.AutomaticRestock);
         request.RestockToolbeltSlots = toolbelt;
         request.RestockBackpackSlots = backpack;
@@ -354,7 +363,11 @@ internal static class AutoRestockClient
         if (!localResult.Success) NetworkLog.Debug("Local automatic restock did not complete. player=" + state.Player.entityId + "; error=" + localResult.Error);
         else
         {
-            if (localResult.Amount > 0) RefreshInventoryViews(state.Player);
+            if (localResult.Amount > 0)
+            {
+                state.NextAutomaticRestockAt = UnityEngine.Time.realtimeSinceStartup + Math.Max(0, state.CooldownMs) / 1000f;
+                RefreshInventoryViews(state.Player);
+            }
             NetworkLog.Debug("Local automatic restock completed. player=" + state.Player.entityId + "; amount=" + localResult.Amount);
         }
     }

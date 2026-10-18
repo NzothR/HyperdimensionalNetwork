@@ -13,9 +13,9 @@ HyperdimensionalNetworkSettingAutoRestock,Automatic restock,自动补货
 HyperdimensionalNetworkSettingAutoRestockTarget,Restock range,补货范围
 HyperdimensionalNetworkSettingOn,On,开启
 HyperdimensionalNetworkSettingOff,Off,关闭
-HyperdimensionalNetworkSettingAll,Toolbelt + all backpack stacks,快捷栏+全部背包
-HyperdimensionalNetworkSettingLocked,Toolbelt + locked slots,快捷栏+锁定格
-HyperdimensionalNetworkSettingToolbeltOnly,Toolbelt only,仅快捷栏
+HyperdimensionalNetworkSettingHotbarAndLocked,Toolbelt + locked slots,快捷栏+锁定格
+HyperdimensionalNetworkSettingLockedOnly,Locked backpack slots only,仅锁定格
+HyperdimensionalNetworkSettingHotbarOnly,Toolbelt only,仅快捷栏
 HyperdimensionalNetworkSettingsReady,Settings saved. Cooldown,设置已保存。冷却时间
 HyperdimensionalNetworkSettingsLoading,Loading settings...,正在读取设置……
 HyperdimensionalNetworkSettingsUnavailable,Could not load settings,无法读取设置

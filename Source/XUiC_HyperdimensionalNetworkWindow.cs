@@ -111,11 +111,11 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     private void OnCycleRestockTargetPressed(XUiController sender, int mouseButton)
     {
         if (_settings == null || _settingsRequestPending) return;
-        int next = _settings.TargetMode == RestockTargetMode.LockedBackpackStacks
-            ? (int)RestockTargetMode.AllBackpackStacks
-            : _settings.TargetMode == RestockTargetMode.AllBackpackStacks
-                ? (int)RestockTargetMode.ToolbeltOnly
-                : (int)RestockTargetMode.LockedBackpackStacks;
+        int next = _settings.TargetMode == RestockTargetMode.ToolbeltOnly
+            ? (int)RestockTargetMode.LockedBackpackOnly
+            : _settings.TargetMode == RestockTargetMode.LockedBackpackOnly
+                ? (int)RestockTargetMode.ToolbeltAndLockedBackpackStacks
+                : (int)RestockTargetMode.ToolbeltOnly;
         SetSetting(RestockSettingKey.AutoRestockTarget, next);
     }
 
@@ -170,11 +170,11 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         if (_settings == null) return;
         SetLabel(_autoRestockValue, Localization.Get(_settings.AutoRestockEnabled
             ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
-        string targetKey = _settings.TargetMode == RestockTargetMode.AllBackpackStacks
-            ? "HyperdimensionalNetworkSettingAll"
-            : _settings.TargetMode == RestockTargetMode.ToolbeltOnly
-                ? "HyperdimensionalNetworkSettingToolbeltOnly"
-                : "HyperdimensionalNetworkSettingLocked";
+        string targetKey = _settings.TargetMode == RestockTargetMode.ToolbeltAndLockedBackpackStacks
+            ? "HyperdimensionalNetworkSettingHotbarAndLocked"
+            : _settings.TargetMode == RestockTargetMode.LockedBackpackOnly
+                ? "HyperdimensionalNetworkSettingLockedOnly"
+                : "HyperdimensionalNetworkSettingHotbarOnly";
         SetLabel(_autoRestockTargetValue, Localization.Get(targetKey));
         string status = Localization.Get("HyperdimensionalNetworkSettingsReady");
         if (_settings.AutoRestockCooldownMs > 0)
