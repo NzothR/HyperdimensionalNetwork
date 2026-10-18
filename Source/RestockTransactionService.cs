@@ -94,7 +94,9 @@ internal static class RestockTransactionService
             if (automatic)
                 NetworkLog.Debug("Automatic restock found no replenishable capacity; cooldown was not started. player=" + player.entityId
                     + "; requestId=" + request.RequestId + "; mode=" + settings.TargetMode + "; requirements=" + requirements.Count
-                    + "; availableEntries=" + available.Count + "; toolbeltTargets=" + toolbeltSlots.Count + "; backpackTargets=" + backpackSlots.Count);
+                    + "; availableEntries=" + available.Count + "; targetTypes=" + string.Join(",", requirements.Select(item => item.itemValue.type).Distinct())
+                    + "; availableTypes=" + string.Join(",", available.Select(entry => entry.Value.type).Distinct())
+                    + "; toolbeltTargets=" + toolbeltSlots.Count + "; backpackTargets=" + backpackSlots.Count);
             return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Amount = 0 };
         }
 

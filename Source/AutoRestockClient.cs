@@ -17,6 +17,7 @@ internal static class AutoRestockClient
         public ItemStack[] ToolbeltSnapshot;
         public ItemStack[] BackpackSnapshot;
         public bool HasSnapshot;
+        public bool HasUpdateBaseline;
         public int SuppressDepth;
         public bool SettingsLoaded;
         public bool SettingsPending;
@@ -83,6 +84,19 @@ internal static class AutoRestockClient
         }
         if (NetworkRemoteClient.IsRemoteClient) RequestSettingsIfNeeded(state, force: false);
         else if (!state.SettingsLoaded) ApplySettings(state, RestockSettingsService.Get(player));
+
+        // Some vanilla inventory paths change a stack without raising SlotChanged.
+        // Compare the small player grids once per update so those changes can still trigger restock.
+        if (!state.HasUpdateBaseline)
+        {
+            Capture(state);
+            state.HasUpdateBaseline = true;
+        }
+        else
+        {
+            ScanGridForChanges(state, toolbelt: true);
+            ScanGridForChanges(state, toolbelt: false);
+        }
 
         ProcessAutomaticRestock(state);
     }
@@ -396,6 +410,22 @@ internal static class AutoRestockClient
         if (!(bool)state?.Player) return;
         state.ToolbeltSnapshot = CaptureGrid(state.Player.inventory.ItemGrid);
         state.BackpackSnapshot = CaptureGrid(state.Player.bag.ItemGrid);
+    }
+
+    private static void ScanGridForChanges(PlayerState state, bool toolbelt)
+    {
+        ItemStackGrid grid = toolbelt ? state.ToolbeltGrid : state.BackpackGrid;
+        ItemStack[] snapshot = toolbelt ? state.ToolbeltSnapshot : state.BackpackSnapshot;
+        if (grid == null || snapshot == null || snapshot.Length != grid.Length) return;
+        for (int index = 0; index < grid.Length; index++)
+        {
+            ItemStack current = grid[index];
+            if (!HasStackChanged(snapshot[index], current)) continue;
+            NetworkLog.Debug("Automatic restock detected an inventory change without a slot event. player=" + state.Player.entityId
+                + "; toolbelt=" + toolbelt + "; slot=" + index + "; before=" + (snapshot[index]?.count ?? 0)
+                + "; after=" + (current?.count ?? 0) + "; item=" + (current?.itemValue?.type ?? 0));
+            OnSlotChanged(state, toolbelt, index);
+        }
     }
 
     private static ItemStack[] CaptureGrid(ItemStackGrid grid)
