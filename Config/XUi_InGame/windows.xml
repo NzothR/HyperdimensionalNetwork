@@ -727,7 +727,9 @@
                 <label depth="7" name="craftingChainNodeCount126" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
                 <button depth="6" name="craftingChainNode127" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount127" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-              <rect depth="30" name="craftingChainRecipeDropdown" width="208" height="296" visible="false">
+            </rect>
+            <sprite depth="3" name="craftingChainTreeFrame" pos="0,0" width="890" height="505" sprite="menu_empty2px" color="45,125,160,255" type="sliced" fillcenter="false" />
+              <rect depth="30" name="craftingChainRecipeDropdown" on_hover="true" width="208" height="296" visible="false">
                 <sprite depth="1" name="recipeDropdownBackground" width="208" height="296" sprite="menu_empty" color="10,20,32,255" type="sliced" foregroundlayer="true" globalopacitymod="0" />
                 <sprite depth="2" name="recipeDropdownFrame" width="208" height="296" sprite="menu_empty2px" color="60,155,190,255" type="sliced" fillcenter="false" />
                   <button depth="3" name="craftingChainRecipeOption00" pos="0,0" width="194" height="32" visible="false" on_hover="true" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
@@ -747,7 +749,7 @@
                   <button depth="3" name="craftingChainRecipeOption07" pos="0,0" width="194" height="32" visible="false" on_hover="true" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
                   <label depth="4" name="craftingChainRecipeOptionLabel07" pos="0,0" width="178" height="28" visible="false" font_size="17" />
               </rect>
-              <rect depth="31" name="craftingChainRecipePreview" pos="230,-16" width="430" height="416" visible="false">
+              <rect depth="31" name="craftingChainRecipePreview" on_hover="true" pos="230,-16" width="430" height="416" visible="false">
                 <sprite depth="1" name="recipePreviewBackground" width="430" height="416" sprite="menu_empty" color="15,24,35,255" type="sliced" foregroundlayer="true" globalopacitymod="0" />
                 <sprite depth="2" name="recipePreviewFrame" width="430" height="416" sprite="menu_empty2px" color="90,145,170,255" type="sliced" fillcenter="false" />
                 <label depth="3" name="craftingChainRecipePreviewTitle" pos="14,-9" width="402" height="28" font_size="19" color="170,225,240,255" />
@@ -792,8 +794,6 @@
                 <label depth="4" name="craftingChainPreviewName09" pos="53,-370" width="295" height="30" visible="false" font_size="17" />
                 <label depth="4" name="craftingChainPreviewCount09" pos="348,-370" width="64" height="30" visible="false" font_size="17" justify="right" />
               </rect>
-            </rect>
-            <sprite depth="3" name="craftingChainTreeFrame" pos="0,0" width="890" height="505" sprite="menu_empty2px" color="45,125,160,255" type="sliced" fillcenter="false" />
             <label depth="12" name="craftingChainEmptyHint" pos="0,-252" width="890" height="80" font_size="22" justify="center" color="170,205,220,255" effect="Outline8" effect_color="0,0,0,255" effect_distance="1,1" text_key="HyperdimensionalNetworkCraftingChainNoTarget" />
           </panel>
           <sprite depth="3" name="materialsBackground" pos="5,-554" width="890" height="156" sprite="menu_empty" color="10,20,32,255" type="sliced" foregroundlayer="true" globalopacitymod="0" />
@@ -873,11 +873,11 @@
               <label depth="3" name="craftingChainMaterialCount23" pos="0,0" width="60" height="24" visible="false" font_size="15" />
               <sprite depth="4" name="craftingChainForgeIcon23" pos="0,0" width="16" height="16" visible="false" />
           </rect>
-          <label depth="8" name="craftingChainStatus" pos="20,-716" width="860" height="30" font_size="18" justify="center" />
-          <button depth="9" name="btnCraftingChainStart" pos="360,-766" width="170" height="42" style="press, hover" sprite="menu_empty3px" defaultcolor="20,58,75,255" hovercolor="35,105,132,255" selectedcolor="50,135,162,255" disabledcolor="35,45,55,180" sound="[paging_click]" tooltip_key="HyperdimensionalNetworkCraftingChainStart" />
-          <label depth="10" name="craftingChainStartLabel" pos="360,-770" width="170" height="34" font_size="20" justify="center" text_key="HyperdimensionalNetworkCraftingChainStart" color="190,240,250,255" effect="Outline8" effect_color="0,0,0,255" effect_distance="1,1" />
-          <button depth="9" name="btnCraftingChainCancel" pos="540,-766" width="170" height="42" style="press, hover" sprite="menu_empty3px" defaultcolor="54,32,43,255" hovercolor="120,52,68,255" selectedcolor="145,65,82,255" disabledcolor="50,45,50,180" sound="[paging_click]" tooltip_key="xuiClose" />
-          <label depth="10" name="craftingChainCancelLabel" pos="540,-770" width="170" height="34" font_size="20" justify="center" text_key="xuiClose" color="255,220,215,255" effect="Outline8" effect_color="0,0,0,255" effect_distance="1,1" />
+          <label depth="8" name="craftingChainStatus" pos="20,-716" width="610" height="30" font_size="18" justify="center" />
+          <button depth="9" name="btnCraftingChainStart" pos="650,-716" width="104" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="20,58,75,255" hovercolor="35,105,132,255" selectedcolor="50,135,162,255" disabledcolor="35,45,55,180" sound="[paging_click]" tooltip_key="HyperdimensionalNetworkCraftingChainStart" />
+          <label depth="10" name="craftingChainStartLabel" pos="650,-720" width="104" height="27" font_size="19" justify="center" text_key="HyperdimensionalNetworkCraftingChainStart" color="190,240,250,255" effect="Outline8" effect_color="0,0,0,255" effect_distance="1,1" />
+          <button depth="9" name="btnCraftingChainCancel" pos="766,-716" width="104" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="54,32,43,255" hovercolor="120,52,68,255" selectedcolor="145,65,82,255" disabledcolor="50,45,50,180" sound="[paging_click]" tooltip_key="xuiClose" />
+          <label depth="10" name="craftingChainCancelLabel" pos="766,-720" width="104" height="27" font_size="19" justify="center" text_key="xuiClose" color="255,220,215,255" effect="Outline8" effect_color="0,0,0,255" effect_distance="1,1" />
           <rect depth="40" name="craftingChainConfirmCancel" pos="290,-275" width="320" height="180" visible="false">
             <sprite depth="1" name="confirmCancelBackground" width="320" height="180" sprite="menu_empty" color="8,16,27,255" type="sliced" foregroundlayer="true" globalopacitymod="0" />
             <sprite depth="2" name="confirmCancelFrame" width="320" height="180" sprite="menu_empty2px" color="55,145,180,255" type="sliced" fillcenter="false" />

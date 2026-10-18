@@ -59,6 +59,15 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     private bool _orderWasActive;
     private float _nextNetworkSnapshotCheck;
     private float _nextStartCheck;
+    private float _nextPresentationCheck;
+    private int _recipePopupOpenedFrame = -1;
+    private int _recipePopupDismissedFrame = -1;
+    private float _recipePreviewX;
+    private float _recipePopupY;
+    private float _nextPerformanceLog;
+    private float _maxObservedFrameTime;
+    private float _observedFrameTimeTotal;
+    private int _observedFrames;
     private bool _startCheckValid;
     private bool _startAvailable;
     private float _zoom = 1f;
@@ -171,6 +180,10 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     public override void OnOpen()
     {
         base.OnOpen();
+        _nextPerformanceLog = Time.realtimeSinceStartup + 30f;
+        _maxObservedFrameTime = 0f;
+        _observedFrameTimeTotal = 0f;
+        _observedFrames = 0;
         CraftingChainOrderService.ClearLastStatus(xui?.playerUI?.entityPlayer);
         _orderWasActive = CraftingChainOrderService.IsActive(xui?.playerUI?.entityPlayer);
         _viewState = CraftingChainCacheService.Load(xui?.playerUI?.entityPlayer);
@@ -194,6 +207,22 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     public override void Update(float _dt)
     {
         base.Update(_dt);
+        float frameTime = Time.unscaledDeltaTime;
+        _maxObservedFrameTime = Mathf.Max(_maxObservedFrameTime, frameTime);
+        _observedFrameTimeTotal += frameTime;
+        _observedFrames++;
+        if (Time.realtimeSinceStartup >= _nextPerformanceLog)
+        {
+            NetworkLog.Debug("Crafting-chain view frame sample. frames=" + _observedFrames
+                + "; averageMs=" + (_observedFrameTimeTotal * 1000f / Math.Max(1, _observedFrames)).ToString("F1")
+                + "; maxMs=" + (_maxObservedFrameTime * 1000f).ToString("F1")
+                + "; managedMB=" + (GC.GetTotalMemory(false) / 1048576L)
+                + "; nodes=" + _locatedNodes.Count + "; popup=" + (_recipeDropdown?.ViewComponent?.IsVisible == true));
+            _nextPerformanceLog = Time.realtimeSinceStartup + 30f;
+            _maxObservedFrameTime = 0f;
+            _observedFrameTimeTotal = 0f;
+            _observedFrames = 0;
+        }
         if (_waitingForNetworkSnapshot && Time.realtimeSinceStartup >= _nextNetworkSnapshotCheck)
         {
             _nextNetworkSnapshotCheck = Time.realtimeSinceStartup + 0.25f;
@@ -236,7 +265,12 @@ public sealed class XUiC_CraftingChainWindow : XUiController
                 SetLabel(_status, Localization.Get("HyperdimensionalNetworkCraftingChainPlanFailed"));
             }
         }
-        UpdateOrderPresentation();
+        if (Time.realtimeSinceStartup >= _nextPresentationCheck)
+        {
+            _nextPresentationCheck = Time.realtimeSinceStartup + 0.2f;
+            UpdateOrderPresentation();
+        }
+        UpdateRecipePopupDismissal();
         UpdatePanning();
     }
 
@@ -264,6 +298,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         _selectedItemId = -1;
         _activeOptions = Array.Empty<CraftingChainRecipeOption>();
         SetVisible(_recipeDropdown, false);
+        SetVisible(_recipePreview, false);
         ClearNodeSlots();
         ClearMaterialSlots();
 
@@ -515,10 +550,23 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         if (_plan == null || slot < 0 || slot >= _locatedNodes.Count) return;
         LocatedPlanNode located = _locatedNodes[slot];
         _selectedItemId = located.ItemId;
-        ShowRecipeOptions(located.RecipeNode?.RecipeOptions);
+        CraftingChainRecipeOption[] options = located.RecipeNode?.RecipeOptions;
+        if (options == null || options.Length == 0)
+            options = _planInput?.Recipes.Where(recipe => recipe.OutputItemId == located.ItemId)
+                .Select(recipe => new CraftingChainRecipeOption
+                {
+                    Key = recipe.Key,
+                    CraftingArea = recipe.CraftingArea,
+                    Ingredients = recipe.Ingredients.Select(ingredient => new CraftingChainRecipeOptionIngredient
+                    {
+                        ItemId = ingredient.ItemId,
+                        Count = ingredient.Count
+                    }).ToArray()
+                }).ToArray();
+        ShowRecipeOptions(options, located.Position);
     }
 
-    private void ShowRecipeOptions(CraftingChainRecipeOption[] options)
+    private void ShowRecipeOptions(CraftingChainRecipeOption[] options, Vector3 nodePosition)
     {
         ClearRecipeOptions();
         if (options == null || options.Length == 0)
@@ -526,8 +574,13 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             SetVisible(_recipeDropdown, false);
             return;
         }
-        SetPosition(_recipeDropdown, new Vector3(16f, -16f, 0f));
         int listHeight = Math.Min(options.Length, _optionButtons.Length) * 36 + 8;
+        float x = Mathf.Clamp((nodePosition.x + 76f) * _zoom + _pan.x + 8f, 4f, 890f - 208f - 4f);
+        float y = Mathf.Clamp(nodePosition.y * _zoom + _pan.y, -505f + listHeight + 4f, -4f);
+        SetPosition(_recipeDropdown, new Vector3(x, y, 0f));
+        _recipePreviewX = Mathf.Clamp(x + 216f + 430f <= 886f ? x + 216f : x - 438f, 4f, 456f);
+        _recipePopupY = y;
+        SetPosition(_recipePreview, new Vector3(_recipePreviewX, Mathf.Clamp(y, -89f, -4f), 0f));
         SetHeight(_recipeDropdown, listHeight);
         SetHeight(_recipeDropdownBackground, listHeight);
         SetHeight(_recipeDropdownFrame, listHeight);
@@ -541,7 +594,30 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             SetPosition(_optionLabels[index], new Vector3(18f, -10f - index * 36f, 0f));
         }
         _activeOptions = options;
+        _recipePopupOpenedFrame = Time.frameCount;
         SetVisible(_recipeDropdown, true);
+        NetworkLog.Debug("Crafting-chain recipe choices opened. item=" + _selectedItemId + "; choices=" + options.Length
+            + "; position=" + Mathf.RoundToInt(x) + "," + Mathf.RoundToInt(y));
+    }
+
+    private void UpdateRecipePopupDismissal()
+    {
+        if (_recipeDropdown?.ViewComponent?.IsVisible != true || xui?.playerUI?.CursorController == null) return;
+        CursorControllerAbs cursor = xui.playerUI.CursorController;
+        if (Time.frameCount == _recipePopupOpenedFrame || !cursor.GetMouseButtonDown(UICamera.MouseButton.LeftButton)) return;
+        if (IsPointerInside(_recipeDropdown) || IsPointerInside(_recipePreview)) return;
+        SetVisible(_recipeDropdown, false);
+        SetVisible(_recipePreview, false);
+        _activeOptions = Array.Empty<CraftingChainRecipeOption>();
+        _recipePopupDismissedFrame = Time.frameCount;
+        NetworkLog.Debug("Crafting-chain recipe choices dismissed by outside click.");
+    }
+
+    private static bool IsPointerInside(XUiController controller)
+    {
+        GameObject hovered = UICamera.hoveredObject;
+        Transform root = controller?.ViewComponent?.UiTransform;
+        return hovered != null && root != null && hovered.transform.IsChildOf(root);
     }
 
     private void OnRecipeOptionHovered(int slot, bool isOver)
@@ -554,6 +630,8 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         CraftingChainRecipeOption option = _activeOptions[slot];
         SetLabel(_recipePreviewTitle, GetCraftingAreaName(option.CraftingArea));
         int previewHeight = 48 + Math.Min(option.Ingredients.Length, _previewRows.Length) * 36;
+        SetPosition(_recipePreview, new Vector3(_recipePreviewX,
+            Mathf.Clamp(_recipePopupY, -505f + previewHeight + 4f, -4f), 0f));
         SetHeight(_recipePreview, previewHeight);
         SetHeight(_recipePreviewBackground, previewHeight);
         SetHeight(_recipePreviewFrame, previewHeight);
@@ -699,7 +777,8 @@ public sealed class XUiC_CraftingChainWindow : XUiController
 
     private void OnTreeScroll(XUiController sender, float delta)
     {
-        if (_treeViewport?.ViewComponent?.UiTransformIsHovered != true || delta == 0f) return;
+        if (!IsPointerInside(_treeViewport) || IsPointerInside(_recipeDropdown)
+            || IsPointerInside(_recipePreview) || delta == 0f) return;
         _zoom = Mathf.Clamp(_zoom + Mathf.Sign(delta) * 0.12f, 0.55f, 1.8f);
         ApplyCanvasTransform();
         NetworkLog.Debug("Crafting-chain tree zoom changed. zoom=" + _zoom.ToString("F2"));
@@ -707,7 +786,9 @@ public sealed class XUiC_CraftingChainWindow : XUiController
 
     private void UpdatePanning()
     {
-        if (xui?.playerUI?.CursorController == null || _treeViewport?.ViewComponent?.UiTransformIsHovered != true)
+        if (xui?.playerUI?.CursorController == null || !IsPointerInside(_treeViewport)
+            || IsPointerInside(_recipeDropdown) || IsPointerInside(_recipePreview)
+            || Time.frameCount == _recipePopupDismissedFrame)
         {
             _isPanning = false;
             return;
@@ -722,6 +803,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         if (_isPanning && cursor.GetMouseButton(UICamera.MouseButton.LeftButton))
         {
             Vector3 delta = current - _lastMousePosition;
+            if (delta.sqrMagnitude < 0.01f) return;
             float scale = Mathf.Max(0.5f, Screen.height / 1080f);
             _pan += new Vector2(delta.x / scale, delta.y / scale);
             _lastMousePosition = current;
@@ -822,7 +904,9 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     {
         if (controller?.ViewComponent is XUiV_Label label)
         {
-            label.Text = text ?? string.Empty;
+            string value = text ?? string.Empty;
+            if (label.Text == value) return;
+            label.Text = value;
             controller.IsDirty = true;
         }
     }
@@ -849,12 +933,14 @@ public sealed class XUiC_CraftingChainWindow : XUiController
 
     private static void SetVisible(XUiController controller, bool visible)
     {
-        if (controller?.ViewComponent != null) controller.ViewComponent.IsVisible = visible;
+        if (controller?.ViewComponent != null && controller.ViewComponent.IsVisible != visible)
+            controller.ViewComponent.IsVisible = visible;
     }
 
     private void SetStartEnabled(bool enabled)
     {
-        if (_startButton?.ViewComponent != null) _startButton.ViewComponent.Enabled = enabled;
+        if (_startButton?.ViewComponent != null && _startButton.ViewComponent.Enabled != enabled)
+            _startButton.ViewComponent.Enabled = enabled;
     }
 
     private void BindPress(string id, XUiEvent_OnPressEventHandler handler)

@@ -224,7 +224,10 @@ internal static class CraftingChainPlanner
         if (xui == null || !(bool)player || rootRecipe == null) return null;
 
         List<Recipe> recipes = (CraftingManager.recipes ?? new List<Recipe>())
-            .Where(recipe => recipe != null && !recipe.IsScrap && recipe.IsTrackable && recipe.ingredients != null
+            .Where(recipe => recipe != null && !recipe.IsScrap && recipe.ingredients != null
+                && recipe.ingredients.Any(ingredient => ingredient != null && !ingredient.IsEmpty())
+                && (recipe.IsTrackable || string.Equals(recipe.craftingArea, "forge", StringComparison.OrdinalIgnoreCase))
+                && IsActiveForgeRecipe(recipe)
                 && recipe.GetOutputItemClass() != null && recipe.GetOutputItemClass().Id > 0 && recipe.IsUnlocked(player))
             .Distinct()
             .ToList();
@@ -233,6 +236,9 @@ internal static class CraftingChainPlanner
         recipes = recipes.Where(recipe => string.IsNullOrEmpty(recipe.craftingArea)
             || workstationMap.ContainsKey(recipe.craftingArea) && workstationMap[recipe.craftingArea].Count > 0).ToList();
         if (!recipes.Contains(rootRecipe)) recipes.Add(rootRecipe);
+        NetworkLog.Debug("Crafting-chain usable recipe snapshot captured. recipes=" + recipes.Count
+            + "; forgeRecipes=" + recipes.Count(recipe => string.Equals(recipe.craftingArea, "forge", StringComparison.OrdinalIgnoreCase))
+            + "; smelterDisabled=" + XUiM_Recipes.DisableSmelter);
 
         Dictionary<ItemValue, int> itemIds = new Dictionary<ItemValue, int>(ItemValueKeyComparer.Instance);
         Dictionary<int, ItemValue> mainThreadItemValues = new Dictionary<int, ItemValue>();
@@ -694,6 +700,14 @@ internal static class CraftingChainPlanner
                 Count = ingredient.Count
             }).ToArray()
         }).ToArray();
+    }
+
+    private static bool IsActiveForgeRecipe(Recipe recipe)
+    {
+        if (!string.Equals(recipe.craftingArea, "forge", StringComparison.OrdinalIgnoreCase)) return true;
+        if (XUiM_Recipes.DisableSmelter && recipe.tags.Test_AnySet(XUiM_Recipes.useSmelterTag)) return false;
+        if (!XUiM_Recipes.DisableSmelter && recipe.tags.Test_AnySet(XUiM_Recipes.replaceSmelterTag)) return false;
+        return true;
     }
 
     private static int SourcePriority(CraftingChainSupplySource source, bool forgeOnly)

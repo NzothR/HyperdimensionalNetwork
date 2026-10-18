@@ -1261,6 +1261,8 @@ internal static class CraftingChainOrderService
                 craftingTime = XUiM_Recipes.GetRecipeCraftTime(xui, source),
                 craftingToolType = source.craftingToolType,
                 craftingTier = outputQuality,
+                materialBasedRecipe = source.materialBasedRecipe,
+                wildcardForgeCategory = source.wildcardForgeCategory,
                 IsScrap = source.IsScrap,
                 isQuest = source.isQuest,
                 isChallenge = source.isChallenge,
