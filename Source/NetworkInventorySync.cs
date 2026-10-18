@@ -5,9 +5,10 @@ namespace HyperdimensionalNetwork;
 
 internal static class NetworkInventorySync
 {
-    public static bool Apply(EntityPlayerLocal player, NetworkRemoteResult result)
+    public static bool Apply(EntityPlayerLocal player, NetworkRemoteResult result, bool suppressRestockEvents = false)
     {
         if (!(bool)player || result == null) return false;
+        IDisposable suppression = suppressRestockEvents ? AutoRestockClient.SuppressInventoryEvents(player) : null;
         try
         {
             if (result.BagData != null)
@@ -26,6 +27,8 @@ internal static class NetworkInventorySync
             NetworkLog.Debug("Confirmed player inventory snapshot applied. entity=" + player.entityId
                 + "; bag=" + (result.BagData?.Length ?? 0) + "; toolbelt=" + (result.InventoryData?.Length ?? 0)
                 + "; requestId=" + result.RequestId);
+            if (suppressRestockEvents) AutoRestockClient.RefreshBaseline(player);
+            else AutoRestockClient.OnInventorySnapshotApplied(player, result.BagData != null, result.InventoryData != null);
             return true;
         }
         catch (Exception ex)
@@ -34,5 +37,6 @@ internal static class NetworkInventorySync
                 + "; requestId=" + result.RequestId + "; exception=" + ex);
             return false;
         }
+        finally { suppression?.Dispose(); }
     }
 }

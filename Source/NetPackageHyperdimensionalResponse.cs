@@ -51,6 +51,11 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         }
         _result.BagData = ReadBoundedBlob(reader);
         _result.InventoryData = ReadBoundedBlob(reader);
+        _result.RestockSettingsLoaded = reader.ReadBoolean();
+        _result.AutoRestockEnabled = reader.ReadBoolean();
+        _result.RestockTargetMode = (RestockTargetMode)reader.ReadByte();
+        _result.IsNetworkAdministrator = reader.ReadBoolean();
+        _result.AutoRestockCooldownMs = reader.ReadInt32();
     }
 
     public override void write(PooledBinaryWriter writer)
@@ -84,6 +89,11 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         }
         WriteBoundedBlob(binary, result.BagData);
         WriteBoundedBlob(binary, result.InventoryData);
+        binary.Write(result.RestockSettingsLoaded);
+        binary.Write(result.AutoRestockEnabled);
+        binary.Write((byte)result.RestockTargetMode);
+        binary.Write(result.IsNetworkAdministrator);
+        binary.Write(result.AutoRestockCooldownMs);
     }
 
     public override void ProcessPackage(World world, GameManager callbacks)
@@ -103,7 +113,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         int entries = _result?.Entries?.Count ?? 0;
         if (entries > 4096) throw new InvalidDataException("Network response entry count exceeds the protocol limit: " + entries);
         int bytes = (_result?.BagData?.Length ?? 0) + (_result?.InventoryData?.Length ?? 0);
-        return 96 + entries * 512 + bytes + Encoding.UTF8.GetByteCount(_result?.Error ?? string.Empty) + Encoding.UTF8.GetByteCount(_result?.NetworkId ?? string.Empty);
+        return 104 + entries * 512 + bytes + Encoding.UTF8.GetByteCount(_result?.Error ?? string.Empty) + Encoding.UTF8.GetByteCount(_result?.NetworkId ?? string.Empty);
     }
 
     private static string ReadBoundedString(BinaryReader reader, int maximumBytes)

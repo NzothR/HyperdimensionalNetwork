@@ -22,7 +22,11 @@ internal enum NetworkRequestOperation : byte
     ConsumeRequirements = 11,
     VehicleRefuel = 12,
     VehicleRepair = 13,
-    ReturnAuthorization = 14
+    ReturnAuthorization = 14,
+    QueryRestockSettings = 15,
+    SetRestockSetting = 16,
+    ManualRestock = 17,
+    AutomaticRestock = 18
 }
 
 internal enum NetworkConsumptionSource : byte
@@ -47,6 +51,11 @@ internal sealed class NetworkRemoteResult
     public List<StoredEntry> Entries = new List<StoredEntry>();
     public byte[] BagData;
     public byte[] InventoryData;
+    public bool RestockSettingsLoaded;
+    public bool AutoRestockEnabled;
+    public RestockTargetMode RestockTargetMode;
+    public bool IsNetworkAdministrator;
+    public int AutoRestockCooldownMs;
 }
 
 internal sealed class NetworkRemoteRequest
@@ -67,6 +76,10 @@ internal sealed class NetworkRemoteRequest
     public Vector3i Position;
     public NetworkConsumptionSource ConsumptionSource;
     public List<ItemStack> Requirements = new List<ItemStack>();
+    public RestockSettingKey RestockSetting;
+    public int RestockSettingValue;
+    public List<int> RestockToolbeltSlots = new List<int>();
+    public List<int> RestockBackpackSlots = new List<int>();
 }
 
 internal static class NetworkRemoteClient
@@ -272,6 +285,31 @@ internal static class NetworkRemoteClient
             if (result.Success) NetworkInventorySync.Apply(player, result);
             callback?.Invoke(result);
         });
+    }
+
+    public static bool RequestRestockSettings(EntityPlayerLocal player, Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player) return false;
+        return Send(player, NewRequest(player, NetworkRequestOperation.QueryRestockSettings), false, false, false, callback);
+    }
+
+    public static bool SetRestockSetting(EntityPlayerLocal player, RestockSettingKey setting, int value, Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player || RestockSettingCatalog.Get(setting) == null) return false;
+        NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.SetRestockSetting);
+        request.RestockSetting = setting;
+        request.RestockSettingValue = value;
+        return Send(player, request, false, false, false, callback);
+    }
+
+    public static bool RequestRestock(EntityPlayerLocal player, bool automatic, IEnumerable<int> toolbeltSlots,
+        IEnumerable<int> backpackSlots, Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player) return false;
+        NetworkRemoteRequest request = NewRequest(player, automatic ? NetworkRequestOperation.AutomaticRestock : NetworkRequestOperation.ManualRestock);
+        request.RestockToolbeltSlots = (toolbeltSlots ?? Enumerable.Empty<int>()).Where(slot => slot >= 0).Distinct().Take(128).ToList();
+        request.RestockBackpackSlots = (backpackSlots ?? Enumerable.Empty<int>()).Where(slot => slot >= 0).Distinct().Take(128).ToList();
+        return Send(player, request, true, true, false, callback);
     }
 
     public static bool RequestPage(EntityPlayer player, string category, string search, int page, int pageSize, Action<NetworkRemoteResult> callback)
@@ -480,7 +518,7 @@ internal static class NetworkRemoteClient
         };
     }
 
-    private static EntityPlayerLocal GetLocalPlayer()
+    internal static EntityPlayerLocal GetLocalPlayer()
     {
         return GameManager.Instance?.World?.GetPrimaryPlayer() as EntityPlayerLocal;
     }
@@ -595,7 +633,9 @@ internal static class NetworkRemoteClient
         if (!(bool)connection || !connection.IsClient || connection.IsServer) return false;
         lock (Sync)
         {
-            bool mutation = request.Operation != NetworkRequestOperation.QueryPage && request.Operation != NetworkRequestOperation.QueryMatching;
+            bool mutation = request.Operation != NetworkRequestOperation.QueryPage
+                && request.Operation != NetworkRequestOperation.QueryMatching
+                && request.Operation != NetworkRequestOperation.QueryRestockSettings;
             if (mutation && _activeMutationRequestId != 0)
             {
                 NetworkLog.Debug("Remote mutation not queued because another inventory transaction is awaiting confirmation. operation=" + request.Operation + "; activeRequestId=" + _activeMutationRequestId);

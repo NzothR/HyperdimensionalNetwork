@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using UnityEngine;
@@ -51,6 +52,10 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
             if (count <= 0) throw new InvalidDataException("Invalid required material count.");
             _request.Requirements.Add(new ItemStack(value, count));
         }
+        _request.RestockSetting = (RestockSettingKey)reader.ReadByte();
+        _request.RestockSettingValue = reader.ReadInt32();
+        ReadSlotList(reader, _request.RestockToolbeltSlots);
+        ReadSlotList(reader, _request.RestockBackpackSlots);
     }
 
     public override void write(PooledBinaryWriter writer)
@@ -82,6 +87,10 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
                 requirement.itemValue.Write(writer);
                 binary.Write(requirement.count);
             }
+        binary.Write((byte)_request.RestockSetting);
+        binary.Write(_request.RestockSettingValue);
+        WriteSlotList(binary, _request.RestockToolbeltSlots);
+        WriteSlotList(binary, _request.RestockBackpackSlots);
     }
 
     public override void ProcessPackage(World world, GameManager callbacks)
@@ -102,9 +111,34 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
     {
         int valueBytes = _request?.Value == null ? 0 : 128;
         int requirementsBytes = (_request?.Requirements?.Count ?? 0) * 512;
+        int slotBytes = ((_request?.RestockToolbeltSlots?.Count ?? 0) + (_request?.RestockBackpackSlots?.Count ?? 0)) * sizeof(int);
         return 64 + Encoding.UTF8.GetByteCount(_request?.ExpectedNetworkId ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_request?.Category ?? string.Empty)
-            + Encoding.UTF8.GetByteCount(_request?.Search ?? string.Empty) + valueBytes + requirementsBytes;
+            + Encoding.UTF8.GetByteCount(_request?.Search ?? string.Empty) + valueBytes + requirementsBytes + slotBytes;
+    }
+
+    private static void ReadSlotList(BinaryReader reader, List<int> slots)
+    {
+        int count = reader.ReadInt32();
+        if (count < 0 || count > 128) throw new InvalidDataException("Invalid restock slot count: " + count);
+        for (int i = 0; i < count; i++)
+        {
+            int slot = reader.ReadInt32();
+            if (slot < 0) throw new InvalidDataException("Invalid negative restock slot index.");
+            slots.Add(slot);
+        }
+    }
+
+    private static void WriteSlotList(BinaryWriter writer, List<int> slots)
+    {
+        int count = slots?.Count ?? 0;
+        if (count > 128) throw new InvalidDataException("Too many restock slot indexes: " + count);
+        writer.Write(count);
+        if (slots != null) foreach (int slot in slots)
+        {
+            if (slot < 0) throw new InvalidDataException("Invalid negative restock slot index.");
+            writer.Write(slot);
+        }
     }
 
     private static string ReadBoundedString(BinaryReader reader, int maximumBytes)

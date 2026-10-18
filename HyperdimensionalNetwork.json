@@ -1,3 +1,4 @@
 {
-  "DebugLog": true
+  "DebugLog": true,
+  "AutoRestockCooldownMs": 1000
 }

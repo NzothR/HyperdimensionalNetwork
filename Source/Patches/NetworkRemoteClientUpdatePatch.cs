@@ -9,5 +9,6 @@ internal static class NetworkRemoteClientUpdatePatch
     private static void UpdatePostfix()
     {
         if (NetworkRemoteClient.IsRemoteClient) NetworkRemoteClient.Update();
+        AutoRestockClient.Update();
     }
 }

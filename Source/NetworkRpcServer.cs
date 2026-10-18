@@ -45,6 +45,12 @@ internal static class NetworkRpcServer
             {
                 result = QueryMatching(player, request);
             }
+            else if (request.Operation == NetworkRequestOperation.QueryRestockSettings)
+            {
+                result = RestockSettingsService.TryGet(player, out RestockSettingsSnapshot settings, out string error)
+                    ? RestockSettingsResult(request, settings)
+                    : Failure(request, error);
+            }
             else
             {
                 result = ProcessMutation(world, player, sender, request);
@@ -156,9 +162,35 @@ internal static class NetworkRpcServer
                 return RepairVehicle(world, player, sender?.latestPlayerData, request);
             case NetworkRequestOperation.ReturnAuthorization:
                 return ReturnAuthorization(player, request);
+            case NetworkRequestOperation.SetRestockSetting:
+                return SetRestockSetting(player, request);
+            case NetworkRequestOperation.ManualRestock:
+            case NetworkRequestOperation.AutomaticRestock:
+                return RestockTransactionService.Execute(world, player, sender?.latestPlayerData, request);
             default:
                 return Failure(request, "UnsupportedOperation");
         }
+    }
+
+    private static NetworkRemoteResult SetRestockSetting(EntityPlayer player, NetworkRemoteRequest request)
+    {
+        if (!RestockSettingsService.TrySet(player, request.RestockSetting, request.RestockSettingValue, out string error, out RestockSettingsSnapshot settings))
+            return Failure(request, error);
+        return RestockSettingsResult(request, settings, success: true);
+    }
+
+    private static NetworkRemoteResult RestockSettingsResult(NetworkRemoteRequest request, RestockSettingsSnapshot settings, bool success = true)
+    {
+        return new NetworkRemoteResult
+        {
+            RequestId = request.RequestId,
+            Success = success,
+            RestockSettingsLoaded = true,
+            AutoRestockEnabled = settings.AutoRestockEnabled,
+            RestockTargetMode = settings.TargetMode,
+            IsNetworkAdministrator = settings.IsNetworkAdministrator,
+            AutoRestockCooldownMs = settings.AutoRestockCooldownMs
+        };
     }
 
     private static NetworkRemoteResult DepositCursor(EntityPlayer player, PlayerDataFile playerData, NetworkRemoteRequest request)
@@ -602,7 +634,7 @@ internal static class NetworkRpcServer
         }
     }
 
-    private static void ApplyPlayerInventorySnapshot(EntityPlayer player, MemoryStream snapshot, bool toolbelt)
+    internal static void ApplyPlayerInventorySnapshot(EntityPlayer player, MemoryStream snapshot, bool toolbelt)
     {
         if (player == null || snapshot == null) throw new InvalidDataException("Player inventory snapshot was unavailable.");
         using MemoryStream input = new MemoryStream(snapshot.ToArray(), writable: false);
@@ -739,7 +771,7 @@ internal static class NetworkRpcServer
         }
     }
 
-    private static Bag ReadBag(MemoryStream blob)
+    internal static Bag ReadBag(MemoryStream blob)
     {
         Bag bag = null;
         StreamUtils.FromBlob(new MemoryStream(blob.ToArray(), writable: false), reader =>
@@ -749,7 +781,7 @@ internal static class NetworkRpcServer
         return bag;
     }
 
-    private static MemoryStream WriteBag(Bag bag)
+    internal static MemoryStream WriteBag(Bag bag)
     {
         return StreamUtils.ToBlob(writer => bag.Write(writer, StreamModeWrite.Persistency));
     }
@@ -784,16 +816,26 @@ internal static class NetworkRpcServer
         if (left.Operation != right.Operation || left.SourceLocation != right.SourceLocation || left.EntityId != right.EntityId || left.Slot != right.Slot
             || left.Count != right.Count || left.OriginalRequestId != right.OriginalRequestId || !left.Position.Equals(right.Position)
             || left.ConsumptionSource != right.ConsumptionSource
+            || left.RestockSetting != right.RestockSetting || left.RestockSettingValue != right.RestockSettingValue
             || !string.Equals(left.ExpectedNetworkId, right.ExpectedNetworkId, StringComparison.OrdinalIgnoreCase)
             || !string.Equals(left.Category, right.Category, StringComparison.Ordinal)
             || !string.Equals(left.Search, right.Search, StringComparison.Ordinal)
-            || (left.Requirements?.Count ?? 0) != (right.Requirements?.Count ?? 0)) return false;
+            || (left.Requirements?.Count ?? 0) != (right.Requirements?.Count ?? 0)
+            || !SameSlots(left.RestockToolbeltSlots, right.RestockToolbeltSlots)
+            || !SameSlots(left.RestockBackpackSlots, right.RestockBackpackSlots)) return false;
         if (left.Requirements != null)
             for (int i = 0; i < left.Requirements.Count; i++)
                 if (left.Requirements[i].count != right.Requirements[i].count
                     || !left.Requirements[i].itemValue.Equals(right.Requirements[i].itemValue)) return false;
         if (left.Value == null || right.Value == null) return left.Value == right.Value;
         return left.Value.Equals(right.Value);
+    }
+
+    private static bool SameSlots(List<int> left, List<int> right)
+    {
+        if ((left?.Count ?? 0) != (right?.Count ?? 0)) return false;
+        for (int i = 0; i < (left?.Count ?? 0); i++) if (left[i] != right[i]) return false;
+        return true;
     }
 
     private static NetworkRemoteRequest Clone(NetworkRemoteRequest request)
@@ -815,7 +857,11 @@ internal static class NetworkRpcServer
             Slot = request.Slot,
             Position = request.Position,
             ConsumptionSource = request.ConsumptionSource,
-            Requirements = request.Requirements?.Select(item => new ItemStack(item.itemValue.Clone(), item.count)).ToList() ?? new List<ItemStack>()
+            Requirements = request.Requirements?.Select(item => new ItemStack(item.itemValue.Clone(), item.count)).ToList() ?? new List<ItemStack>(),
+            RestockSetting = request.RestockSetting,
+            RestockSettingValue = request.RestockSettingValue,
+            RestockToolbeltSlots = request.RestockToolbeltSlots?.ToList() ?? new List<int>(),
+            RestockBackpackSlots = request.RestockBackpackSlots?.ToList() ?? new List<int>()
         };
     }
 
@@ -836,7 +882,12 @@ internal static class NetworkRpcServer
             Value = result.Value?.Clone(),
             Entries = result.Entries?.Select(entry => new StoredEntry { Value = entry.Value.Clone(), Count = entry.Count }).ToList() ?? new List<StoredEntry>(),
             BagData = result.BagData == null ? null : (byte[])result.BagData.Clone(),
-            InventoryData = result.InventoryData == null ? null : (byte[])result.InventoryData.Clone()
+            InventoryData = result.InventoryData == null ? null : (byte[])result.InventoryData.Clone(),
+            RestockSettingsLoaded = result.RestockSettingsLoaded,
+            AutoRestockEnabled = result.AutoRestockEnabled,
+            RestockTargetMode = result.RestockTargetMode,
+            IsNetworkAdministrator = result.IsNetworkAdministrator,
+            AutoRestockCooldownMs = result.AutoRestockCooldownMs
         };
     }
 

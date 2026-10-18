@@ -55,13 +55,26 @@ internal static class PlayerNetworkDirectory
         }
     }
 
+    public static bool IsNetworkAdministrator(EntityPlayer player)
+    {
+        if (!(bool)player || IsRemoteClient()) return false;
+        string playerId = GetStablePlayerId(player);
+        if (string.IsNullOrEmpty(playerId)) return false;
+        lock (Sync)
+        {
+            if (!EnsureLoaded() || !PlayerToNetwork.TryGetValue(playerId, out string networkId)
+                || !Networks.TryGetValue(networkId, out PlayerNetworkRecord record)) return false;
+            return string.Equals(record.AdminPlayerId, playerId, StringComparison.Ordinal);
+        }
+    }
+
     public static bool IsRemoteClient()
     {
         ConnectionManager connection = SingletonMonoBehaviour<ConnectionManager>.Instance;
         return (bool)connection && connection.IsClient && !connection.IsServer;
     }
 
-    private static string GetStablePlayerId(EntityPlayer player)
+    internal static string GetStablePlayerId(EntityPlayer player)
     {
         try
         {

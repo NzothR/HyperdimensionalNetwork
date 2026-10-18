@@ -5,6 +5,23 @@ xuihyperdimensionalNetwork,Hyperdimensional Network,超维网络
 HyperdimensionalNetworkOpen,Open Hyperdimensional Network,打开超维网络
 HyperdimensionalNetworkQuickDeposit,Move all items into Hyperdimensional Network,将全部物品存入超维网络
 HyperdimensionalNetworkCategoryAll,All,全部
+HyperdimensionalNetworkManualRestock,Restock existing stacks,补充已有堆叠
+HyperdimensionalNetworkSettings,Restock settings,补货设置
+HyperdimensionalNetworkSettingsTitle,Restock Settings,补货设置
+HyperdimensionalNetworkSettingsHint,Automatic restock settings apply to your own inventory.,自动补货设置仅作用于你自己的背包和快捷栏。
+HyperdimensionalNetworkSettingAutoRestock,Automatic restock,自动补货
+HyperdimensionalNetworkSettingAutoRestockTarget,Backpack target slots,背包补货范围
+HyperdimensionalNetworkSettingOn,On,开启
+HyperdimensionalNetworkSettingOff,Off,关闭
+HyperdimensionalNetworkSettingAll,All occupied stacks,全部已有堆叠
+HyperdimensionalNetworkSettingLocked,Locked backpack slots,背包锁定格
+HyperdimensionalNetworkSettingsReady,Settings saved. Cooldown,设置已保存。冷却时间
+HyperdimensionalNetworkSettingsLoading,Loading settings...,正在读取设置……
+HyperdimensionalNetworkSettingsUnavailable,Could not load settings,无法读取设置
+HyperdimensionalNetworkSettingsSaving,Saving setting...,正在保存设置……
+HyperdimensionalNetworkSettingsSaveFailed,Could not save setting,无法保存设置
+HyperdimensionalNetworkRestockComplete,Restocked,已补充
+HyperdimensionalNetworkRestockFailed,Could not restock inventory,无法补充物品
 HyperdimensionalNetworkStressTest,Hyperdimensional Network Stress Test,超维网络压力测试
 HyperdimensionalNetworkStressTestDesc,Adds every registered item variant to your network up to its current stack limit. Quality items are added at every exposed quality level.,将当前注册的所有物品变体按各自堆叠上限加入网络；有品质的物品会加入其全部可用等级。
 HyperdimensionalNetworkStressTestMax,Hyperdimensional Network Extreme Stress Test,超维网络极限压力测试

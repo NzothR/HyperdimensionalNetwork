@@ -15,7 +15,8 @@ foreach ($fileName in @('HyperdimensionalNetwork.dll', 'ModInfo.xml')) {
 }
 @'
 {
-  "DebugLog": false
+  "DebugLog": false,
+  "AutoRestockCooldownMs": 1000
 }
 '@ | Set-Content -LiteralPath (Join-Path $mod 'HyperdimensionalNetwork.json') -Encoding utf8
 foreach ($directoryName in @('Config', 'UIAtlases')) {
