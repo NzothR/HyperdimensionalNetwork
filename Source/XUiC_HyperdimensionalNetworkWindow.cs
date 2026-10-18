@@ -113,7 +113,9 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         if (_settings == null || _settingsRequestPending) return;
         int next = _settings.TargetMode == RestockTargetMode.LockedBackpackStacks
             ? (int)RestockTargetMode.AllBackpackStacks
-            : (int)RestockTargetMode.LockedBackpackStacks;
+            : _settings.TargetMode == RestockTargetMode.AllBackpackStacks
+                ? (int)RestockTargetMode.ToolbeltOnly
+                : (int)RestockTargetMode.LockedBackpackStacks;
         SetSetting(RestockSettingKey.AutoRestockTarget, next);
     }
 
@@ -168,8 +170,12 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         if (_settings == null) return;
         SetLabel(_autoRestockValue, Localization.Get(_settings.AutoRestockEnabled
             ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
-        SetLabel(_autoRestockTargetValue, Localization.Get(_settings.TargetMode == RestockTargetMode.AllBackpackStacks
-            ? "HyperdimensionalNetworkSettingAll" : "HyperdimensionalNetworkSettingLocked"));
+        string targetKey = _settings.TargetMode == RestockTargetMode.AllBackpackStacks
+            ? "HyperdimensionalNetworkSettingAll"
+            : _settings.TargetMode == RestockTargetMode.ToolbeltOnly
+                ? "HyperdimensionalNetworkSettingToolbeltOnly"
+                : "HyperdimensionalNetworkSettingLocked";
+        SetLabel(_autoRestockTargetValue, Localization.Get(targetKey));
         string status = Localization.Get("HyperdimensionalNetworkSettingsReady");
         if (_settings.AutoRestockCooldownMs > 0)
             status += " (" + _settings.AutoRestockCooldownMs + " ms)";

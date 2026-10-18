@@ -15,7 +15,8 @@ internal enum RestockSettingKey : byte
 internal enum RestockTargetMode : byte
 {
     LockedBackpackStacks = 0,
-    AllBackpackStacks = 1
+    AllBackpackStacks = 1,
+    ToolbeltOnly = 2
 }
 
 internal enum RestockSettingPermission : byte
@@ -134,7 +135,9 @@ internal static class RestockSettingsService
                     updated.AutoRestockEnabled = value == 1;
                     break;
                 case RestockSettingKey.AutoRestockTarget:
-                    if (value != (int)RestockTargetMode.LockedBackpackStacks && value != (int)RestockTargetMode.AllBackpackStacks)
+                    if (value != (int)RestockTargetMode.LockedBackpackStacks
+                        && value != (int)RestockTargetMode.AllBackpackStacks
+                        && value != (int)RestockTargetMode.ToolbeltOnly)
                     { error = "InvalidSettingValue"; return false; }
                     updated.TargetMode = (RestockTargetMode)value;
                     break;
@@ -227,7 +230,7 @@ internal static class RestockSettingsService
                     string playerId = reader.ReadString();
                     bool enabled = reader.ReadBoolean();
                     RestockTargetMode mode = (RestockTargetMode)reader.ReadByte();
-                    if (string.IsNullOrWhiteSpace(playerId) || mode > RestockTargetMode.AllBackpackStacks || Settings.ContainsKey(playerId))
+                    if (string.IsNullOrWhiteSpace(playerId) || mode > RestockTargetMode.ToolbeltOnly || Settings.ContainsKey(playerId))
                         throw new InvalidDataException("Invalid or duplicate restock settings record.");
                     Settings.Add(playerId, new PlayerSettings { AutoRestockEnabled = enabled, TargetMode = mode });
                 }

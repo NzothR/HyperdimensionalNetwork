@@ -54,7 +54,9 @@ internal static class RestockTransactionService
         {
             toolbeltSlots = ValidSlots(request.RestockToolbeltSlots, toolbelt.Length);
             backpackSlots = ValidSlots(request.RestockBackpackSlots, bag.SlotCount);
-            if (settings.TargetMode == RestockTargetMode.LockedBackpackStacks)
+            if (settings.TargetMode == RestockTargetMode.ToolbeltOnly)
+                backpackSlots.Clear();
+            else if (settings.TargetMode == RestockTargetMode.LockedBackpackStacks)
                 backpackSlots.RemoveAll(index => !IsLocked(bag, index));
         }
         else

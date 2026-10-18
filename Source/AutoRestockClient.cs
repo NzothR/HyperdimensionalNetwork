@@ -203,6 +203,7 @@ internal static class AutoRestockClient
         }
         NetworkRemoteRequest request = NewLocalRequest(player, NetworkRequestOperation.ManualRestock);
         NetworkRemoteResult localResult = RestockTransactionService.Execute(GameManager.Instance?.World, player, null, request);
+        if (localResult.Success && localResult.Amount > 0) RefreshInventoryViews(player);
         callback?.Invoke(localResult);
         return localResult.Success;
     }
@@ -250,6 +251,8 @@ internal static class AutoRestockClient
         snapshot[index] = current;
         state.HasSnapshot = true;
         if (state.SuppressDepth > 0 || !HasStackChanged(previous, current)) return;
+        NetworkLog.Debug("Player inventory slot changed. player=" + state.Player.entityId + "; toolbelt=" + toolbelt + "; slot=" + index
+            + "; autoEnabled=" + state.AutoRestockEnabled + "; remote=" + NetworkRemoteClient.IsRemoteClient);
 
         if (!state.SettingsLoaded)
         {
@@ -349,7 +352,11 @@ internal static class AutoRestockClient
         request.RestockBackpackSlots = backpack;
         NetworkRemoteResult localResult = RestockTransactionService.Execute(GameManager.Instance?.World, state.Player, null, request);
         if (!localResult.Success) NetworkLog.Debug("Local automatic restock did not complete. player=" + state.Player.entityId + "; error=" + localResult.Error);
-        else NetworkLog.Debug("Local automatic restock completed. player=" + state.Player.entityId + "; amount=" + localResult.Amount);
+        else
+        {
+            if (localResult.Amount > 0) RefreshInventoryViews(state.Player);
+            NetworkLog.Debug("Local automatic restock completed. player=" + state.Player.entityId + "; amount=" + localResult.Amount);
+        }
     }
 
     private static bool HasPendingTargets(PlayerState state) => state.PendingToolbeltSlots.Count > 0 || state.PendingBackpackSlots.Count > 0
@@ -446,11 +453,18 @@ internal static class AutoRestockClient
         {
             if (!NetworkInventorySync.Apply(player, result, suppressRestockEvents: true))
                 NetworkLog.Error("Server confirmed restock but its inventory snapshot could not be applied. player=" + player.entityId + "; requestId=" + result.RequestId);
-            player.playerUI?.xui?.GetChildByType<XUiC_Backpack>()?.RefreshBackpackSlots();
-            player.playerUI?.xui?.GetChildByType<XUiC_Toolbelt>()?.PlayerInventory_OnToolbeltItemsChanged();
-            player.playerUI?.xui?.GetChildByType<XUiC_HyperdimensionalGrid>()?.Reload();
+            RefreshInventoryViews(player);
             NetworkLog.Debug("Server restock snapshot applied. player=" + player.entityId + "; requestId=" + result.RequestId + "; amount=" + result.Amount);
         }
+    }
+
+    public static void RefreshInventoryViews(EntityPlayerLocal player)
+    {
+        if (!(bool)player) return;
+        player.playerUI?.xui?.GetChildByType<XUiC_Backpack>()?.RefreshBackpackSlots();
+        player.playerUI?.xui?.GetChildByType<XUiC_Toolbelt>()?.PlayerInventory_OnToolbeltItemsChanged();
+        player.playerUI?.xui?.GetChildByType<XUiC_HyperdimensionalGrid>()?.Reload();
+        NetworkLog.Debug("Player inventory views refreshed after restock. player=" + player.entityId);
     }
 
     private static NetworkRemoteRequest NewLocalRequest(EntityPlayerLocal player, NetworkRequestOperation operation)
