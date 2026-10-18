@@ -58,6 +58,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         _result.AutoRestockCooldownMs = reader.ReadInt32();
         _result.ReplenishmentEnabled = reader.ReadBoolean();
         _result.AmmoBankEnabled = reader.ReadBoolean();
+        _result.RetainSearchOnClose = reader.ReadBoolean();
     }
 
     public override void write(PooledBinaryWriter writer)
@@ -98,6 +99,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         binary.Write(result.AutoRestockCooldownMs);
         binary.Write(result.ReplenishmentEnabled);
         binary.Write(result.AmmoBankEnabled);
+        binary.Write(result.RetainSearchOnClose);
     }
 
     public override void ProcessPackage(World world, GameManager callbacks)

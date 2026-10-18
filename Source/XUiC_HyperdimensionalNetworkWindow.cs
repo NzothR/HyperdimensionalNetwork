@@ -26,6 +26,9 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     private XUiController _ammoBankEnabledLabel;
     private XUiController _ammoBankEnabledValue;
     private XUiController _ammoBankEnabledButton;
+    private XUiController _retainSearchLabel;
+    private XUiController _retainSearchValue;
+    private XUiController _retainSearchButton;
     private XUiController _settingsStatus;
     private RestockSettingsSnapshot _settings;
     private bool _settingsRequestPending;
@@ -58,6 +61,9 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         _ammoBankEnabledLabel = GetChildById("labelAmmoBankEnabled");
         _ammoBankEnabledValue = GetChildById("labelAmmoBankEnabledValue");
         _ammoBankEnabledButton = GetChildById("btnToggleAmmoBankEnabled");
+        _retainSearchLabel = GetChildById("labelRetainSearch");
+        _retainSearchValue = GetChildById("labelRetainSearchValue");
+        _retainSearchButton = GetChildById("btnToggleRetainSearch");
         _settingsStatus = GetChildById("restockSettingsStatus");
         BindPress("btnHyperdimensionalRestock", OnManualRestockPressed);
         BindPress("btnHyperdimensionalSettings", OnSettingsPressed);
@@ -66,6 +72,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         BindPress("btnCycleAutoRestockTarget", OnCycleRestockTargetPressed);
         BindPress("btnToggleReplenishmentEnabled", OnToggleReplenishmentPressed);
         BindPress("btnToggleAmmoBankEnabled", OnToggleAmmoBankPressed);
+        BindPress("btnToggleRetainSearch", OnToggleRetainSearchPressed);
         SetVisible(_settingsPanel, false);
         HideNetworkAdminSettings();
         List<XUiC_ItemStack> slots = new List<XUiC_ItemStack>();
@@ -86,6 +93,18 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         _grid?.Reload();
         RefreshPager();
         NetworkLog.Debug("Network window opened. entries=" + (_grid?.EntryCount ?? 0));
+    }
+
+    public override void OnClose()
+    {
+        EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
+        if (_search != null && !AutoRestockClient.ShouldRetainSearchOnClose(player))
+        {
+            _search.Text = string.Empty;
+            _grid?.SetSearch(string.Empty);
+            NetworkLog.Debug("Network search cleared on close by the player's preference. player=" + (player?.entityId ?? -1));
+        }
+        base.OnClose();
     }
 
     private void OnCategoryChanged(XUiC_CategoryEntry category) => _grid?.SetCategory(category?.CategoryName);
@@ -157,6 +176,12 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         SetSetting(RestockSettingKey.AmmoBankEnabled, _settings.AmmoBankEnabled ? 0 : 1);
     }
 
+    private void OnToggleRetainSearchPressed(XUiController sender, int mouseButton)
+    {
+        if (_settings == null || _settingsRequestPending) return;
+        SetSetting(RestockSettingKey.RetainSearchOnClose, _settings.RetainSearchOnClose ? 0 : 1);
+    }
+
     private void LoadRestockSettings()
     {
         if (_settingsRequestPending) return;
@@ -218,6 +243,8 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
             ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
         SetLabel(_ammoBankEnabledValue, Localization.Get(_settings.AmmoBankEnabled
             ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
+        SetLabel(_retainSearchValue, Localization.Get(_settings.RetainSearchOnClose
+            ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
         SetVisible(_manualRestockButton, _settings.ReplenishmentEnabled);
         string status = Localization.Get("HyperdimensionalNetworkSettingsReady");
         if (_settings.AutoRestockCooldownMs > 0)
@@ -247,6 +274,11 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
                     SetVisible(_ammoBankEnabledLabel, visible);
                     SetVisible(_ammoBankEnabledValue, visible);
                     SetVisible(_ammoBankEnabledButton, visible);
+                    break;
+                case RestockSettingKey.RetainSearchOnClose:
+                    SetVisible(_retainSearchLabel, visible);
+                    SetVisible(_retainSearchValue, visible);
+                    SetVisible(_retainSearchButton, visible);
                     break;
             }
         }

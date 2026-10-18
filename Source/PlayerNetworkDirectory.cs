@@ -92,15 +92,8 @@ internal static class PlayerNetworkDirectory
 
     private static bool EnsureLoaded()
     {
-        string saveDirectory;
-        try { saveDirectory = GameIO.GetSaveGameDir(); }
-        catch (Exception ex)
-        {
-            NetworkLog.Error("Could not resolve the active save directory. " + ex);
-            return false;
-        }
-        if (string.IsNullOrEmpty(saveDirectory)) return false;
-        string path = Path.Combine(saveDirectory, "HyperdimensionalNetwork", "networks.hnd");
+        if (!NetworkSaveDataDirectory.TryGetDirectory(out string modDirectory)) return false;
+        string path = Path.Combine(modDirectory, "networks.hnd");
         if (_loaded && string.Equals(path, _directoryPath, StringComparison.OrdinalIgnoreCase)) return !_unsafe;
 
         Networks.Clear();

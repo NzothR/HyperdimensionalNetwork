@@ -530,9 +530,8 @@ internal static class NetworkStorage
         if (!(bool)player || PlayerNetworkDirectory.IsRemoteClient()) return null;
         string networkId = PlayerNetworkDirectory.GetNetworkId(player);
         if (string.IsNullOrEmpty(networkId)) return null;
-        string save = GameIO.GetSaveGameDir();
-        if (string.IsNullOrEmpty(save)) return null;
-        return Path.Combine(save, "HyperdimensionalNetwork", networkId + ".hwn");
+        if (!NetworkSaveDataDirectory.TryGetDirectory(out string modDirectory)) return null;
+        return Path.Combine(modDirectory, networkId + ".hwn");
     }
 
     public static void FlushAll() => NetworkLog.Debug("Shutdown flush requested; journal writes are synchronous and already durable.");

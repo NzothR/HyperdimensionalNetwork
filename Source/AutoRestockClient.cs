@@ -24,6 +24,7 @@ internal static class AutoRestockClient
         public bool AutoRestockEnabled;
         public bool ReplenishmentEnabled = true;
         public bool AmmoBankEnabled = true;
+        public bool RetainSearchOnClose = true;
         public RestockTargetMode TargetMode;
         public bool IsAdmin;
         public int CooldownMs = 1000;
@@ -475,6 +476,7 @@ internal static class AutoRestockClient
         state.AutoRestockEnabled = result.AutoRestockEnabled;
         state.ReplenishmentEnabled = result.ReplenishmentEnabled;
         state.AmmoBankEnabled = result.AmmoBankEnabled;
+        state.RetainSearchOnClose = result.RetainSearchOnClose;
         state.TargetMode = result.RestockTargetMode;
         state.IsAdmin = result.IsNetworkAdministrator;
         state.CooldownMs = Math.Max(0, Math.Min(60000, result.AutoRestockCooldownMs));
@@ -486,6 +488,7 @@ internal static class AutoRestockClient
         state.AutoRestockEnabled = settings.AutoRestockEnabled;
         state.ReplenishmentEnabled = settings.ReplenishmentEnabled;
         state.AmmoBankEnabled = settings.AmmoBankEnabled;
+        state.RetainSearchOnClose = settings.RetainSearchOnClose;
         state.TargetMode = settings.TargetMode;
         state.IsAdmin = settings.IsNetworkAdministrator;
         state.CooldownMs = Math.Max(0, Math.Min(60000, settings.AutoRestockCooldownMs));
@@ -499,6 +502,7 @@ internal static class AutoRestockClient
             AutoRestockEnabled = state.AutoRestockEnabled,
             ReplenishmentEnabled = state.ReplenishmentEnabled,
             AmmoBankEnabled = state.AmmoBankEnabled,
+            RetainSearchOnClose = state.RetainSearchOnClose,
             TargetMode = state.TargetMode,
             IsNetworkAdministrator = state.IsAdmin,
             AutoRestockCooldownMs = state.CooldownMs
@@ -511,6 +515,14 @@ internal static class AutoRestockClient
         if (!NetworkRemoteClient.IsRemoteClient) return RestockSettingsService.Get(player).AmmoBankEnabled;
         PlayerState state = GetState(player);
         return state.SettingsLoaded && state.AmmoBankEnabled;
+    }
+
+    public static bool ShouldRetainSearchOnClose(EntityPlayerLocal player)
+    {
+        if (!(bool)player) return true;
+        if (!NetworkRemoteClient.IsRemoteClient) return RestockSettingsService.GetRetainSearchOnClose(player);
+        PlayerState state = GetState(player);
+        return !state.SettingsLoaded || state.RetainSearchOnClose;
     }
 
     private static void ApplyRemoteResult(EntityPlayerLocal player, NetworkRemoteResult result)

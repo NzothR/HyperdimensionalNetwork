@@ -8,7 +8,7 @@ HyperdimensionalNetworkCategoryAll,All,全部
 HyperdimensionalNetworkManualRestock,Restock existing stacks,补充已有堆叠
 HyperdimensionalNetworkSettings,Network settings,网络设置
 HyperdimensionalNetworkSettingsTitle,Network Settings,网络设置
-HyperdimensionalNetworkSettingsHint,Personal restock settings apply to your inventory. Network feature switches are administrator-only.,个人补货设置仅作用于你自己的背包。网络功能开关仅管理员可见和设置。
+HyperdimensionalNetworkSettingsHint,Restock and search settings apply only to you. Network feature switches are administrator-only.,补货与搜索设置只影响你自己。网络功能开关仅管理员可见和设置。
 HyperdimensionalNetworkSettingAutoRestock,Automatic restock,自动补货
 HyperdimensionalNetworkSettingAutoRestockTarget,Restock range,补货范围
 HyperdimensionalNetworkSettingOn,On,开启
@@ -18,6 +18,7 @@ HyperdimensionalNetworkSettingLockedOnly,Locked backpack slots only,仅锁定格
 HyperdimensionalNetworkSettingHotbarOnly,Toolbelt only,仅快捷栏
 HyperdimensionalNetworkSettingReplenishmentEnabled,Enable replenishment,启用补货功能
 HyperdimensionalNetworkSettingAmmoBankEnabled,Enable ammo bank,启用弹药银行
+HyperdimensionalNetworkSettingRetainSearch,Retain search on close,保留搜索内容
 HyperdimensionalNetworkSettingsReady,Settings saved. Cooldown,设置已保存。冷却时间
 HyperdimensionalNetworkSettingsLoading,Loading settings...,正在读取设置……
 HyperdimensionalNetworkSettingsUnavailable,Could not load settings,无法读取设置

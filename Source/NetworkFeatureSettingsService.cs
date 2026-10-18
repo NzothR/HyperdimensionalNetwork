@@ -86,11 +86,8 @@ internal static class NetworkFeatureSettingsService
 
     private static bool EnsureLoaded()
     {
-        string saveDirectory;
-        try { saveDirectory = GameIO.GetSaveGameDir(); }
-        catch (Exception ex) { NetworkLog.Error("Could not resolve the save directory for network feature settings. " + ex); return false; }
-        if (string.IsNullOrEmpty(saveDirectory)) return false;
-        string path = Path.Combine(saveDirectory, "HyperdimensionalNetwork", "network-feature-settings.bin");
+        if (!NetworkSaveDataDirectory.TryGetDirectory(out string modDirectory)) return false;
+        string path = Path.Combine(modDirectory, "network-feature-settings.bin");
         if (_loaded && string.Equals(path, _path, StringComparison.OrdinalIgnoreCase)) return !_unsafe;
 
         Settings.Clear();

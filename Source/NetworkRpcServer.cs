@@ -216,7 +216,8 @@ internal static class NetworkRpcServer
             IsNetworkAdministrator = settings.IsNetworkAdministrator,
             AutoRestockCooldownMs = settings.AutoRestockCooldownMs,
             ReplenishmentEnabled = settings.ReplenishmentEnabled,
-            AmmoBankEnabled = settings.AmmoBankEnabled
+            AmmoBankEnabled = settings.AmmoBankEnabled,
+            RetainSearchOnClose = settings.RetainSearchOnClose
         };
     }
 
@@ -916,7 +917,8 @@ internal static class NetworkRpcServer
             IsNetworkAdministrator = result.IsNetworkAdministrator,
             AutoRestockCooldownMs = result.AutoRestockCooldownMs,
             ReplenishmentEnabled = result.ReplenishmentEnabled,
-            AmmoBankEnabled = result.AmmoBankEnabled
+            AmmoBankEnabled = result.AmmoBankEnabled,
+            RetainSearchOnClose = result.RetainSearchOnClose
         };
     }
 

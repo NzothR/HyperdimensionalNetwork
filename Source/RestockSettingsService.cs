@@ -11,7 +11,8 @@ internal enum RestockSettingKey : byte
     AutoRestockEnabled = 1,
     AutoRestockTarget = 2,
     ReplenishmentEnabled = 3,
-    AmmoBankEnabled = 4
+    AmmoBankEnabled = 4,
+    RetainSearchOnClose = 5
 }
 
 internal enum RestockTargetMode : byte
@@ -42,6 +43,7 @@ internal sealed class RestockSettingsSnapshot
     public bool IsNetworkAdministrator;
     public bool ReplenishmentEnabled = true;
     public bool AmmoBankEnabled = true;
+    public bool RetainSearchOnClose = true;
     public int AutoRestockCooldownMs;
 }
 
@@ -76,6 +78,13 @@ internal static class RestockSettingCatalog
             Name = "AmmoBankEnabled",
             LabelKey = "HyperdimensionalNetworkSettingAmmoBankEnabled",
             Permission = RestockSettingPermission.NetworkAdministrator
+        },
+        new RestockSettingDefinition
+        {
+            Key = RestockSettingKey.RetainSearchOnClose,
+            Name = "RetainSearchOnClose",
+            LabelKey = "HyperdimensionalNetworkSettingRetainSearch",
+            Permission = RestockSettingPermission.NetworkMember
         }
     };
 
@@ -93,10 +102,11 @@ internal static class RestockSettingsService
     {
         public bool AutoRestockEnabled;
         public RestockTargetMode TargetMode = RestockTargetMode.ToolbeltAndLockedBackpackStacks;
+        public bool RetainSearchOnClose = true;
     }
 
     private const int FileMagic = 0x31545352; // RST1
-    private const int FileVersion = 2;
+    private const int FileVersion = 3;
     private const int MaximumPlayers = 100000;
     private static readonly object Sync = new object();
     private static readonly Dictionary<string, PlayerSettings> Settings = new Dictionary<string, PlayerSettings>(StringComparer.Ordinal);
@@ -153,7 +163,8 @@ internal static class RestockSettingsService
             PlayerSettings updated = new PlayerSettings
             {
                 AutoRestockEnabled = current.AutoRestockEnabled,
-                TargetMode = current.TargetMode
+                TargetMode = current.TargetMode,
+                RetainSearchOnClose = current.RetainSearchOnClose
             };
             switch (key)
             {
@@ -167,6 +178,10 @@ internal static class RestockSettingsService
                         && value != (int)RestockTargetMode.ToolbeltOnly)
                     { error = "InvalidSettingValue"; return false; }
                     updated.TargetMode = (RestockTargetMode)value;
+                    break;
+                case RestockSettingKey.RetainSearchOnClose:
+                    if (value != 0 && value != 1) { error = "InvalidSettingValue"; return false; }
+                    updated.RetainSearchOnClose = value == 1;
                     break;
             }
 
@@ -198,6 +213,11 @@ internal static class RestockSettingsService
             || permission == RestockSettingPermission.NetworkAdministrator && PlayerNetworkDirectory.IsNetworkAdministrator(player);
     }
 
+    public static bool GetRetainSearchOnClose(EntityPlayer player)
+    {
+        return TryGet(player, out RestockSettingsSnapshot snapshot, out _) ? snapshot.RetainSearchOnClose : true;
+    }
+
     public static int AutoRestockCooldownMs
     {
         get
@@ -222,7 +242,7 @@ internal static class RestockSettingsService
 
     private static RestockSettingsSnapshot Defaults()
     {
-        return new RestockSettingsSnapshot { TargetMode = RestockTargetMode.ToolbeltAndLockedBackpackStacks, AutoRestockCooldownMs = AutoRestockCooldownMs };
+        return new RestockSettingsSnapshot { TargetMode = RestockTargetMode.ToolbeltAndLockedBackpackStacks, RetainSearchOnClose = true, AutoRestockCooldownMs = AutoRestockCooldownMs };
     }
 
     private static RestockSettingsSnapshot Snapshot(PlayerSettings value, bool isAdmin, NetworkFeatureSettings networkSettings)
@@ -234,17 +254,15 @@ internal static class RestockSettingsService
             IsNetworkAdministrator = isAdmin,
             ReplenishmentEnabled = networkSettings?.ReplenishmentEnabled ?? true,
             AmmoBankEnabled = networkSettings?.AmmoBankEnabled ?? true,
+            RetainSearchOnClose = value.RetainSearchOnClose,
             AutoRestockCooldownMs = AutoRestockCooldownMs
         };
     }
 
     private static bool EnsureLoaded()
     {
-        string saveDirectory;
-        try { saveDirectory = GameIO.GetSaveGameDir(); }
-        catch (Exception ex) { NetworkLog.Error("Could not resolve the save directory for personal restock settings. " + ex); return false; }
-        if (string.IsNullOrEmpty(saveDirectory)) return false;
-        string path = Path.Combine(saveDirectory, "HyperdimensionalNetwork", "restock-settings.bin");
+        if (!NetworkSaveDataDirectory.TryGetDirectory(out string modDirectory)) return false;
+        string path = Path.Combine(modDirectory, "restock-settings.bin");
         if (_loaded && string.Equals(path, _path, StringComparison.OrdinalIgnoreCase)) return !_unsafe;
 
         Settings.Clear();
@@ -260,8 +278,8 @@ internal static class RestockSettingsService
             {
                 if (reader.ReadInt32() != FileMagic) throw new InvalidDataException("Unrecognized restock settings file magic.");
                 int version = reader.ReadInt32();
-                if (version != 1 && version != FileVersion) throw new InvalidDataException("Unsupported restock settings file version: " + version);
-                migratedSettings = version == 1;
+                if (version < 1 || version > FileVersion) throw new InvalidDataException("Unsupported restock settings file version: " + version);
+                migratedSettings = version != FileVersion;
                 int count = reader.ReadInt32();
                 if (count < 0 || count > MaximumPlayers) throw new InvalidDataException("Invalid restock settings player count: " + count);
                 for (int i = 0; i < count; i++)
@@ -284,7 +302,8 @@ internal static class RestockSettingsService
                     }
                     if (string.IsNullOrWhiteSpace(playerId) || mode > RestockTargetMode.ToolbeltOnly || Settings.ContainsKey(playerId))
                         throw new InvalidDataException("Invalid or duplicate restock settings record.");
-                    Settings.Add(playerId, new PlayerSettings { AutoRestockEnabled = enabled, TargetMode = mode });
+                    bool retainSearch = version < 3 || reader.ReadBoolean();
+                    Settings.Add(playerId, new PlayerSettings { AutoRestockEnabled = enabled, TargetMode = mode, RetainSearchOnClose = retainSearch });
                 }
                 if (stream.Position != stream.Length) throw new InvalidDataException("Unexpected trailing restock settings data.");
             }
@@ -321,6 +340,7 @@ internal static class RestockSettingsService
                     writer.Write(entry.Key);
                     writer.Write(entry.Value.AutoRestockEnabled);
                     writer.Write((byte)entry.Value.TargetMode);
+                    writer.Write(entry.Value.RetainSearchOnClose);
                 }
                 writer.Flush();
                 stream.Flush(true);

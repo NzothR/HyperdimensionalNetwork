@@ -60,6 +60,7 @@ internal sealed class NetworkRemoteResult
     public int AutoRestockCooldownMs;
     public bool ReplenishmentEnabled = true;
     public bool AmmoBankEnabled = true;
+    public bool RetainSearchOnClose = true;
 }
 
 internal sealed class NetworkRemoteRequest
