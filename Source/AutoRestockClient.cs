@@ -28,10 +28,9 @@ internal static class AutoRestockClient
         public float NextSettingsRequestAt;
         public float NextAutomaticRestockAt;
         public bool AutomaticRequestPending;
-        public readonly HashSet<int> PendingToolbeltSlots = new HashSet<int>();
-        public readonly HashSet<int> PendingBackpackSlots = new HashSet<int>();
-        public readonly HashSet<int> AuthorizedToolbeltSlots = new HashSet<int>();
-        public readonly HashSet<int> AuthorizedBackpackSlots = new HashSet<int>();
+        public bool PendingAutomaticScan;
+        public bool AuthorizedAutomaticScan;
+        public bool WaitingForMutationLogged;
     }
 
     private sealed class SuppressScope : IDisposable
@@ -265,8 +264,9 @@ internal static class AutoRestockClient
         ItemStack previous = snapshot[index];
         snapshot[index] = current;
         state.HasSnapshot = true;
-        if (state.SuppressDepth > 0 || !HasStackChanged(previous, current)) return;
+        if (state.SuppressDepth > 0 || !HasStackCountChanged(previous, current)) return;
         NetworkLog.Debug("Player inventory slot changed. player=" + state.Player.entityId + "; toolbelt=" + toolbelt + "; slot=" + index
+            + "; countBefore=" + GetStackCount(previous) + "; countAfter=" + GetStackCount(current)
             + "; autoEnabled=" + state.AutoRestockEnabled + "; remote=" + NetworkRemoteClient.IsRemoteClient);
 
         if (!state.SettingsLoaded)
@@ -279,26 +279,21 @@ internal static class AutoRestockClient
 
         if (NetworkRemoteClient.IsRemoteClient)
         {
-            HashSet<int> targets;
             if (NetworkRemoteClient.IsAuthorizedConsumption(state.Player))
-                targets = toolbelt ? state.AuthorizedToolbeltSlots : state.AuthorizedBackpackSlots;
+                state.AuthorizedAutomaticScan = true;
             else
             {
-                if (NetworkRemoteClient.IsMutationPending)
-                {
-                    NetworkLog.Debug("Automatic restock slot event ignored during another inventory transaction. player=" + state.Player.entityId + "; toolbelt=" + toolbelt + "; slot=" + index);
-                    return;
-                }
-                targets = toolbelt ? state.PendingToolbeltSlots : state.PendingBackpackSlots;
+                state.PendingAutomaticScan = true;
             }
-            targets.Add(index);
-            NetworkLog.Debug("Automatic restock target slot recorded. player=" + state.Player.entityId + "; toolbelt=" + toolbelt + "; slot=" + index
+            NetworkLog.Debug("Automatic restock scan queued after an inventory count change. player=" + state.Player.entityId
+                + "; changedToolbelt=" + toolbelt + "; changedSlot=" + index
                 + "; authorized=" + NetworkRemoteClient.IsAuthorizedConsumption(state.Player));
             return;
         }
 
-        (toolbelt ? state.PendingToolbeltSlots : state.PendingBackpackSlots).Add(index);
-        NetworkLog.Debug("Local automatic restock target slot recorded. player=" + state.Player.entityId + "; toolbelt=" + toolbelt + "; slot=" + index);
+        state.PendingAutomaticScan = true;
+        NetworkLog.Debug("Local automatic restock scan queued after an inventory count change. player=" + state.Player.entityId
+            + "; changedToolbelt=" + toolbelt + "; changedSlot=" + index);
     }
 
     private static void ProcessAutomaticRestock(PlayerState state)
@@ -310,22 +305,20 @@ internal static class AutoRestockClient
         }
         if (state.AutomaticRequestPending) return;
 
-        bool hasAuthorizedTargets = state.AuthorizedToolbeltSlots.Count > 0 || state.AuthorizedBackpackSlots.Count > 0;
-        if (NetworkRemoteClient.IsRemoteClient && hasAuthorizedTargets && NetworkRemoteClient.IsAuthorizedConsumption(state.Player)) return;
-        if (!HasPendingTargets(state)) return;
+        if (!state.PendingAutomaticScan && !state.AuthorizedAutomaticScan) return;
+        if (NetworkRemoteClient.IsRemoteClient && state.AuthorizedAutomaticScan && NetworkRemoteClient.IsAuthorizedConsumption(state.Player)) return;
 
         if (NetworkRemoteClient.IsRemoteClient && NetworkRemoteClient.IsMutationPending)
         {
-            if (hasAuthorizedTargets)
+            if (!state.WaitingForMutationLogged)
             {
-                NetworkLog.Debug("Automatic restock waits for the authorized material transaction refund to finish. player=" + state.Player.entityId);
-                return;
+                NetworkLog.Debug("Automatic restock scan waits for the pending inventory transaction to finish. player=" + state.Player.entityId
+                    + "; authorized=" + state.AuthorizedAutomaticScan);
+                state.WaitingForMutationLogged = true;
             }
-            state.PendingToolbeltSlots.Clear();
-            state.PendingBackpackSlots.Clear();
-            NetworkLog.Debug("Automatic restock targets dropped because another inventory transaction is pending. player=" + state.Player.entityId);
             return;
         }
+        state.WaitingForMutationLogged = false;
 
         float now = UnityEngine.Time.realtimeSinceStartup;
         if (now < state.NextAutomaticRestockAt)
@@ -336,10 +329,11 @@ internal static class AutoRestockClient
             return;
         }
 
-        List<int> toolbelt = state.PendingToolbeltSlots.Concat(state.AuthorizedToolbeltSlots).OrderBy(index => index).ToList();
-        List<int> backpack = state.PendingBackpackSlots.Concat(state.AuthorizedBackpackSlots).OrderBy(index => index).ToList();
+        GetConfiguredTargetSlots(state, out List<int> toolbelt, out List<int> backpack);
         ClearPending(state);
         if (toolbelt.Count == 0 && backpack.Count == 0) return;
+        NetworkLog.Debug("Automatic restock scanning configured target slots after inventory activity. player=" + state.Player.entityId
+            + "; mode=" + state.TargetMode + "; toolbeltSlots=" + toolbelt.Count + "; lockedBackpackSlots=" + backpack.Count);
 
         if (NetworkRemoteClient.IsRemoteClient)
         {
@@ -386,15 +380,25 @@ internal static class AutoRestockClient
         }
     }
 
-    private static bool HasPendingTargets(PlayerState state) => state.PendingToolbeltSlots.Count > 0 || state.PendingBackpackSlots.Count > 0
-        || state.AuthorizedToolbeltSlots.Count > 0 || state.AuthorizedBackpackSlots.Count > 0;
-
     private static void ClearPending(PlayerState state)
     {
-        state.PendingToolbeltSlots.Clear();
-        state.PendingBackpackSlots.Clear();
-        state.AuthorizedToolbeltSlots.Clear();
-        state.AuthorizedBackpackSlots.Clear();
+        state.PendingAutomaticScan = false;
+        state.AuthorizedAutomaticScan = false;
+        state.WaitingForMutationLogged = false;
+    }
+
+    private static void GetConfiguredTargetSlots(PlayerState state, out List<int> toolbelt, out List<int> backpack)
+    {
+        toolbelt = state.TargetMode == RestockTargetMode.LockedBackpackOnly
+            ? new List<int>()
+            : Enumerable.Range(0, state.ToolbeltGrid?.Length ?? 0).ToList();
+        backpack = new List<int>();
+        if (state.TargetMode == RestockTargetMode.ToolbeltOnly) return;
+
+        PackedBoolArray lockedSlots = state.Player?.bag?.LockedSlots;
+        int slotCount = state.BackpackGrid?.Length ?? 0;
+        for (int index = 0; index < slotCount; index++)
+            if (lockedSlots != null && index < lockedSlots.Length && lockedSlots[index]) backpack.Add(index);
     }
 
     private static PlayerState GetState(EntityPlayerLocal player)
@@ -444,6 +448,10 @@ internal static class AutoRestockClient
         return beforeEmpty != afterEmpty || !beforeEmpty && !afterEmpty
             && (before.count != after.count || !before.itemValue.Equals(after.itemValue));
     }
+
+    private static bool HasStackCountChanged(ItemStack before, ItemStack after) => GetStackCount(before) != GetStackCount(after);
+
+    private static int GetStackCount(ItemStack stack) => stack == null || stack.IsEmpty() ? 0 : Math.Max(0, stack.count);
 
     private static void RequestSettingsIfNeeded(PlayerState state, bool force)
     {
