@@ -46,6 +46,13 @@ internal static class NetworkStorage
             .ToList();
     }
 
+    public static long GetCount(EntityPlayer player, ItemValue value)
+    {
+        if (!(bool)player || value == null) return 0;
+        Dictionary<ItemValue, long> data = GetStorage(player);
+        return data.TryGetValue(NormalizeKey(value), out long count) ? count : 0;
+    }
+
     public static bool AddStack(EntityPlayer player, ItemStack stack)
     {
         if (stack == null || stack.IsEmpty()) return false;

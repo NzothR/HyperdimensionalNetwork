@@ -96,7 +96,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
         XUiC_DragAndDropWindow drag = xui?.DragAndDropWindow;
         drag?.SetCurrentStack(mouseStack.count > 0 ? mouseStack : ItemStack.Empty.Clone());
         if (drag != null) drag.PickUpType = StackLocation;
-        ApplyLocalDelta(insertion.itemValue, requested);
+        SetProjectedCount(insertion.itemValue, NetworkStorage.GetCount(xui.playerUI.entityPlayer, insertion.itemValue));
         return true;
     }
 
@@ -115,17 +115,17 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
         if (removed <= 0) return false;
         drag.SetCurrentStack(new ItemStack(entry.Value.Clone(), removed));
         drag.PickUpType = StackLocation;
-        ApplyLocalDelta(entry.Value, -removed);
+        SetProjectedCount(entry.Value, NetworkStorage.GetCount(xui.playerUI.entityPlayer, entry.Value));
         return true;
     }
 
-    private void ApplyLocalDelta(ItemValue value, long delta)
+    private void SetProjectedCount(ItemValue value, long actualCount)
     {
         ItemValue key = NetworkStorage.NormalizeKey(value);
         if (_entryIndex.TryGetValue(key, out StoredEntry entry))
         {
-            entry.Count = Math.Max(0, entry.Count + delta);
-            if (entry.Count == 0)
+            entry.Count = Math.Max(0, actualCount);
+            if (entry.Count <= 0)
             {
                 _entryIndex.Remove(entry.Value);
                 _allEntries.Remove(entry);
@@ -138,9 +138,9 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
                 else if (!matches) _visibleEntries.Remove(entry);
             }
         }
-        else if (delta > 0)
+        else if (actualCount > 0)
         {
-            entry = new StoredEntry { Value = key, Count = delta };
+            entry = new StoredEntry { Value = key, Count = actualCount };
             _entryIndex[entry.Value] = entry;
             InsertSorted(_allEntries, entry);
             if (MatchesFilters(entry.Value)) InsertSorted(_visibleEntries, entry);
@@ -148,7 +148,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
         _revision = NetworkStorage.GetRevision(xui?.playerUI?.entityPlayer);
         IsDirty = true;
         RefreshPager();
-        NetworkLog.Debug("Visible inventory updated from transaction delta. item=" + key.type + "; delta=" + delta + "; variants=" + _allEntries.Count + "; revision=" + _revision);
+        NetworkLog.Debug("Visible inventory reconciled from committed storage count. item=" + key.type + "; count=" + actualCount + "; variants=" + _allEntries.Count + "; revision=" + _revision);
     }
 
     private bool MatchesFilters(ItemValue value)
