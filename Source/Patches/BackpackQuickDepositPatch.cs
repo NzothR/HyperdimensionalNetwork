@@ -53,7 +53,6 @@ internal static class BackpackQuickDepositPatch
         ItemStack remainder = source.Clone();
         remainder.count -= amount;
         instance.ItemStack = remainder.count > 0 ? remainder : ItemStack.Empty.Clone();
-        sourceGrid.HandleSlotChangedEvent(instance.SlotNumber, instance.ItemStack.Clone());
         if (sourceGrid is XUiC_Backpack backpack) backpack.RefreshBackpackSlots();
         else if (sourceGrid is XUiC_Toolbelt toolbelt) toolbelt.PlayerInventory_OnToolbeltItemsChanged();
 
