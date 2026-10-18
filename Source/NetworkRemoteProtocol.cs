@@ -34,7 +34,8 @@ internal enum NetworkRequestOperation : byte
 internal enum NetworkConsumptionSource : byte
 {
     PlayerInventory = 0,
-    WorkstationInput = 1
+    WorkstationInput = 1,
+    NetworkPreferredPlayerInventory = 2
 }
 
 internal sealed class NetworkRemoteResult
@@ -263,13 +264,19 @@ internal static class NetworkRemoteClient
     }
 
     public static bool RequestConsumption(EntityPlayerLocal player, IList<ItemStack> requirements, NetworkConsumptionSource source,
-        Vector3i workstationPosition, Action<NetworkRemoteResult> onSuccess, Action<string> onFailure = null)
+        Vector3i workstationPosition, Action<NetworkRemoteResult> onSuccess, Action<string> onFailure = null,
+        ItemValue requiredNetworkValue = null, int requiredNetworkCount = 0)
     {
         if (!IsRemoteClient || !(bool)player || requirements == null || requirements.Count == 0) return false;
         NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.ConsumeRequirements);
         request.ConsumptionSource = source;
         request.Position = workstationPosition;
         request.Requirements = CloneRequirements(requirements);
+        if (source == NetworkConsumptionSource.NetworkPreferredPlayerInventory && requiredNetworkCount > 0)
+        {
+            request.Value = requiredNetworkValue?.Clone();
+            request.Count = requiredNetworkCount;
+        }
         return Send(player, request, true, true, false, result =>
         {
             if (!result.Success)

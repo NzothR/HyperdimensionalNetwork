@@ -32,6 +32,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     private XUiController _cancelLabel;
     private XUiController _startButton;
     private XUiController _cancelButton;
+    private XUiC_TextInput _quantityInput;
     private XUiController[] _nodeButtons;
     private XUiController[] _nodeFrames;
     private XUiController[] _nodeCounts;
@@ -60,6 +61,8 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     private float _nextNetworkSnapshotCheck;
     private float _nextStartCheck;
     private float _nextPresentationCheck;
+    private float _quantityRefreshAt = -1f;
+    private int _desiredOutputCount = 1;
     private int _recipePopupOpenedFrame = -1;
     private int _recipePopupDismissedFrame = -1;
     private float _recipePreviewX;
@@ -109,6 +112,8 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         _cancelLabel = GetChildById("craftingChainCancelLabel");
         _startButton = GetChildById("btnCraftingChainStart");
         _cancelButton = GetChildById("btnCraftingChainCancel");
+        _quantityInput = GetChildById("craftingChainQuantityInput") as XUiC_TextInput;
+        if (_quantityInput != null) _quantityInput.OnChangeHandler += OnQuantityChanged;
 
         _nodeButtons = new XUiController[NodeSlotCount];
         _nodeFrames = new XUiController[NodeSlotCount];
@@ -165,6 +170,8 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         BindPress("btnCraftingChainConfirmCancelYes", OnConfirmCancelPressed);
         BindPress("btnCraftingChainConfirmCancelNo", OnDismissCancelPressed);
         BindPress("btnCraftingChainClose", OnClosePressed);
+        BindPress("btnCraftingChainQuantityMinus", (sender, button) => ChangeOutputCount(-1));
+        BindPress("btnCraftingChainQuantityPlus", (sender, button) => ChangeOutputCount(1));
         SetVisible(_recipeDropdown, false);
         SetVisible(_recipePreview, false);
         SetVisible(_confirmCancelPanel, false);
@@ -187,6 +194,9 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         CraftingChainOrderService.ClearLastStatus(xui?.playerUI?.entityPlayer);
         _orderWasActive = CraftingChainOrderService.IsActive(xui?.playerUI?.entityPlayer);
         _viewState = CraftingChainCacheService.Load(xui?.playerUI?.entityPlayer);
+        _quantityRefreshAt = -1f;
+        _desiredOutputCount = GetTrackedDefaultOutputCount();
+        SetQuantityInput(_desiredOutputCount);
         _pan = new Vector2(_viewState.PanX, _viewState.PanY);
         _zoom = _viewState.Zoom;
         ApplyCanvasTransform();
@@ -233,6 +243,12 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             }
         }
 
+        if (_quantityRefreshAt >= 0f && Time.realtimeSinceStartup >= _quantityRefreshAt)
+        {
+            _quantityRefreshAt = -1f;
+            RefreshTrackedRecipe("output-count-changed");
+        }
+
         if (_planTask != null && _planTask.IsCompleted)
         {
             Task<CraftingChainPlan> task = _planTask;
@@ -276,6 +292,9 @@ public sealed class XUiC_CraftingChainWindow : XUiController
 
     private void OnTrackedRecipeChanged()
     {
+        _quantityRefreshAt = -1f;
+        _desiredOutputCount = GetTrackedDefaultOutputCount();
+        SetQuantityInput(_desiredOutputCount);
         Recipe recipe = xui?.Recipes?.TrackedRecipe;
         string recipeKey = string.Empty;
         if (recipe != null)
@@ -321,7 +340,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             SetLabel(_status, Localization.Get("HyperdimensionalNetworkCraftingChainPlanFailed"));
             return;
         }
-        _planInput = CraftingChainPlanner.Capture(xui, player, _trackedRecipe, null);
+        _planInput = CraftingChainPlanner.Capture(xui, player, _trackedRecipe, null, _desiredOutputCount);
         if (_planInput == null)
         {
             SetLabel(_status, Localization.Get("HyperdimensionalNetworkCraftingChainPlanFailed"));
@@ -338,7 +357,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         }
         ApplySavedRecipeChoices(_planInput);
         _viewState.RootRecipeKey = _trackedRootKey;
-        SetLabel(_targetName, outputClass.GetLocalizedItemName() + " × " + _planInput.RequestedCrafts);
+        SetLabel(_targetName, outputClass.GetLocalizedItemName() + " × " + _planInput.RequestedOutputCount);
         SetIcon(_targetIcon, _trackedRecipe.GetIcon(), outputClass.GetLocalizedItemName());
         SetVisible(_emptyHint, false);
 
@@ -428,13 +447,20 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             CraftingChainPlanMaterial material = _plan.Materials[index];
             CraftingChainItemInfo item = GetItem(material.ItemId);
             float materialX = 12f + (index % 8) * 107f;
-            float materialY = -17f - (index / 8) * 32f;
+            bool compact = _plan.Materials.Count > 16;
+            float materialY = -4f - (index / 8) * (compact ? 35f : 55f);
+            int iconSize = compact ? 30 : 42;
+            if (_materialButtons[index]?.ViewComponent != null)
+            {
+                _materialButtons[index].ViewComponent.Width = iconSize;
+                _materialButtons[index].ViewComponent.Height = iconSize;
+            }
             SetIcon(_materialButtons[index], item?.Icon, item?.Name);
             SetVisible(_materialButtons[index], true);
             SetPosition(_materialButtons[index], new Vector3(materialX, materialY, 0f));
             SetLabel(_materialCounts[index], material.Required + "/" + material.Available);
             SetLabelColor(_materialCounts[index], material.Required > material.Available ? Color.red : Color.white);
-            SetPosition(_materialCounts[index], new Vector3(materialX + 38f, materialY - 6f, 0f));
+            SetPosition(_materialCounts[index], new Vector3(materialX + (compact ? 29f : 38f), materialY - 6f, 0f));
             SetVisible(_materialCounts[index], true);
             if (material.ForgeOnly)
             {
@@ -690,6 +716,56 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         _startCheckValid = false;
         UpdateOrderPresentation();
         NetworkLog.Debug("Crafting-chain order accepted from its planning window. player=" + player.entityId + "; root=" + _trackedRootKey);
+    }
+
+    private int GetTrackedDefaultOutputCount()
+    {
+        Recipe recipe = xui?.Recipes?.TrackedRecipe;
+        if (recipe == null) return 1;
+        try { return Mathf.Clamp(XUiM_Recipes.GetRecipeCraftOutputCount(xui, recipe), 1, 9999); }
+        catch { return Mathf.Clamp(recipe.count, 1, 9999); }
+    }
+
+    private void SetQuantityInput(int count)
+    {
+        if (_quantityInput != null) _quantityInput.Text = count.ToString();
+    }
+
+    private void ChangeOutputCount(int delta)
+    {
+        SetDesiredOutputCount(Mathf.Clamp(_desiredOutputCount + delta, 1, 9999));
+    }
+
+    private void OnQuantityChanged(XUiController sender, string text, bool changeFromCode)
+    {
+        if (changeFromCode) return;
+        if (!int.TryParse(text, out int count) || count < 1 || count > 9999)
+        {
+            _quantityRefreshAt = -1f;
+            CancelPendingPlan();
+            _plan = null;
+            _startCheckValid = false;
+            SetStartEnabled(false);
+            return;
+        }
+        SetDesiredOutputCount(count);
+    }
+
+    private void SetDesiredOutputCount(int count)
+    {
+        if (_desiredOutputCount == count && (_plan != null || _planTask != null || _quantityRefreshAt >= 0f))
+        {
+            SetQuantityInput(count);
+            return;
+        }
+        _desiredOutputCount = count;
+        SetQuantityInput(count);
+        CancelPendingPlan();
+        _plan = null;
+        _startCheckValid = false;
+        SetStartEnabled(false);
+        _quantityRefreshAt = Time.realtimeSinceStartup + 0.2f;
+        NetworkLog.Debug("Crafting-chain requested output count changed. count=" + count);
     }
 
     private void OnCancelPressed(XUiController sender, int mouseButton)

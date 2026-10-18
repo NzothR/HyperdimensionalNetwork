@@ -417,6 +417,17 @@ internal static class NetworkRpcServer
     {
         if (request.Requirements == null || request.Requirements.Count == 0 || request.Requirements.Count > 64)
             return Failure(request, "InvalidMaterialRequirements");
+        if (request.ConsumptionSource == NetworkConsumptionSource.NetworkPreferredPlayerInventory && request.Count > 0)
+        {
+            if (request.Value == null || request.Count > request.Requirements.Where(item => item != null
+                && NetworkItemMatcher.Matches(item.itemValue, request.Value)).Sum(item => (long)item.count)
+                || NetworkStorage.GetMatchingCount(player, request.Value) < request.Count)
+            {
+                NetworkLog.Debug("Crafting-chain target network stock changed before server reservation. player="
+                    + player.entityId + "; requested=" + request.Count + "; item=" + request.Value?.type);
+                return Failure(request, "InsufficientMaterials");
+            }
+        }
         List<ItemStack> physical;
         if (request.ConsumptionSource == NetworkConsumptionSource.WorkstationInput)
         {
@@ -428,7 +439,8 @@ internal static class NetworkRpcServer
             foreach (ItemStack stack in workstation.Input)
                 if (stack != null && !stack.IsEmpty()) physical.Add(stack.Clone());
         }
-        else if (request.ConsumptionSource == NetworkConsumptionSource.PlayerInventory)
+        else if (request.ConsumptionSource == NetworkConsumptionSource.PlayerInventory
+            || request.ConsumptionSource == NetworkConsumptionSource.NetworkPreferredPlayerInventory)
         {
             if (playerData == null || playerData.bagData == null || playerData.inventoryData == null)
                 return Failure(request, "PlayerInventoryUnavailable");
@@ -447,6 +459,8 @@ internal static class NetworkRpcServer
         {
             if (requirement?.itemValue == null || requirement.count <= 0) return Failure(request, "InvalidMaterialRequirements");
             long remaining = requirement.count;
+            if (request.ConsumptionSource == NetworkConsumptionSource.NetworkPreferredPlayerInventory)
+                ConsumeNetwork(requirement, network, removals, ref remaining);
             foreach (ItemStack carried in physical)
             {
                 if (remaining == 0) break;
@@ -455,15 +469,7 @@ internal static class NetworkRpcServer
                 carried.count -= take;
                 remaining -= take;
             }
-            foreach (StoredEntry entry in network)
-            {
-                if (remaining == 0) break;
-                if (entry.Count <= 0 || !NetworkItemMatcher.Matches(entry.Value, requirement.itemValue)) continue;
-                long take = Math.Min(remaining, entry.Count);
-                entry.Count -= take;
-                remaining -= take;
-                AddPlannedRemoval(removals, entry.Value, take);
-            }
+            ConsumeNetwork(requirement, network, removals, ref remaining);
             if (remaining > 0)
             {
                 NetworkLog.Debug("Remote material transaction rejected for insufficient exact materials. player=" + player.entityId + "; requestId=" + request.RequestId + "; item=" + requirement.itemValue.type + "; quality=" + requirement.itemValue.Quality + "; missing=" + remaining);
@@ -485,6 +491,20 @@ internal static class NetworkRpcServer
             Entries = removals.Select(item => new StoredEntry { Value = item.Value.Clone(), Count = item.Count }).ToList(),
             Amount = (int)Math.Min(removals.Sum(item => item.Count), int.MaxValue)
         };
+    }
+
+    private static void ConsumeNetwork(ItemStack requirement, List<StoredEntry> network,
+        List<StorageAddition> removals, ref long remaining)
+    {
+        foreach (StoredEntry entry in network)
+        {
+            if (remaining == 0) break;
+            if (entry.Count <= 0 || !NetworkItemMatcher.Matches(entry.Value, requirement.itemValue)) continue;
+            long take = Math.Min(remaining, entry.Count);
+            entry.Count -= take;
+            remaining -= take;
+            AddPlannedRemoval(removals, entry.Value, take);
+        }
     }
 
     private static NetworkRemoteResult RefuelVehicle(World world, EntityPlayer player, PlayerDataFile playerData, NetworkRemoteRequest request)

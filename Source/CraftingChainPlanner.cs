@@ -64,7 +64,7 @@ internal sealed class CraftingChainRecipeOptionIngredient
 internal sealed class CraftingChainPlanInput
 {
     public string RootRecipeKey = string.Empty;
-    public int RequestedCrafts = 1;
+    public int RequestedOutputCount = 1;
     public int RootOutputItemId;
     public int[] RootMatchingSupplyIndexes = Array.Empty<int>();
     public List<CraftingChainItemInfo> Items = new List<CraftingChainItemInfo>();
@@ -110,7 +110,7 @@ internal sealed class CraftingChainPlanMaterial
 internal sealed class CraftingChainPlan
 {
     public string RootRecipeKey = string.Empty;
-    public int RequestedCrafts;
+    public int RequestedOutputCount;
     public int RequestedOutput;
     public int AvailableOutput;
     public int PlannedOutput;
@@ -219,7 +219,7 @@ internal static class CraftingChainPlanner
     }
 
     public static CraftingChainPlanInput Capture(XUi xui, EntityPlayerLocal player, Recipe rootRecipe,
-        IDictionary<int, string> selectedRecipeKeys)
+        IDictionary<int, string> selectedRecipeKeys, int requestedOutputCount)
     {
         if (xui == null || !(bool)player || rootRecipe == null) return null;
 
@@ -377,7 +377,7 @@ internal static class CraftingChainPlanner
         CraftingChainPlanInput input = new CraftingChainPlanInput
         {
             RootRecipeKey = BuildRecipeKey(rootRecipe, rootQuality),
-            RequestedCrafts = Math.Max(1, xui.Recipes.TrackedRecipeCount),
+            RequestedOutputCount = Math.Max(1, requestedOutputCount),
             RootOutputItemId = rootOutputId,
             RootMatchingSupplyIndexes = rootMatches,
             Items = items,
@@ -413,7 +413,7 @@ internal static class CraftingChainPlanner
         return new CraftingChainPlanInput
         {
             RootRecipeKey = source.RootRecipeKey,
-            RequestedCrafts = source.RequestedCrafts,
+            RequestedOutputCount = source.RequestedOutputCount,
             RootOutputItemId = source.RootOutputItemId,
             RootMatchingSupplyIndexes = (int[])source.RootMatchingSupplyIndexes.Clone(),
             Items = source.Items.Select(item => new CraftingChainItemInfo
@@ -458,7 +458,7 @@ internal static class CraftingChainPlanner
         CraftingChainPlan plan = new CraftingChainPlan
         {
             RootRecipeKey = input?.RootRecipeKey ?? string.Empty,
-            RequestedCrafts = input?.RequestedCrafts ?? 0,
+            RequestedOutputCount = input?.RequestedOutputCount ?? 0,
             Items = input?.Items ?? new List<CraftingChainItemInfo>()
         };
         if (input == null) { plan.Error = "InvalidPlanInput"; return plan; }
@@ -477,20 +477,19 @@ internal static class CraftingChainPlanner
             ? selectedRoot : null;
         if (rootRecipe == null) { plan.Error = "TrackedRecipeUnavailable"; return plan; }
 
-        int wanted = SafeCount((long)input.RequestedCrafts * rootRecipe.OutputCount);
+        int wanted = Math.Max(1, input.RequestedOutputCount);
         plan.RequestedOutput = wanted;
         plan.RootRecipeOptions = byOutput.TryGetValue(input.RootOutputItemId, out List<CraftingChainRecipeInfo> rootOptions)
             ? BuildRecipeOptions(rootOptions) : Array.Empty<CraftingChainRecipeOption>();
-        long availableRoot = ConsumeSupplies(context, state, input.RootMatchingSupplyIndexes, input.RootOutputItemId, wanted, forgeOnly: false);
-        plan.AvailableOutput = SafeCount(availableRoot);
-        long remaining = Math.Max(0L, wanted - availableRoot);
-        if (remaining > 0)
-        {
-            HashSet<int> ancestors = new HashSet<int> { input.RootOutputItemId };
-            CraftingChainPlanNode rootNode = BuildRecipeNode(context, state, rootRecipe, remaining, ancestors, 0, selectedRoot: true);
-            if (rootNode != null) plan.Nodes.Add(rootNode);
-        }
-        plan.PlannedOutput = SafeCount((long)plan.AvailableOutput + (plan.Nodes.Count == 0 ? 0 : plan.Nodes[0].OutputCount));
+        HashSet<int> ancestors = new HashSet<int> { input.RootOutputItemId };
+        int[] networkRootIndexes = input.RootMatchingSupplyIndexes.Where(index => index >= 0 && index < input.Supplies.Count
+            && input.Supplies[index].Source == CraftingChainSupplySource.Network).ToArray();
+        long networkRoot = ConsumeSupplies(context, state, networkRootIndexes, input.RootOutputItemId, wanted, forgeOnly: false);
+        plan.AvailableOutput = (int)Math.Min(int.MaxValue, networkRoot);
+        CraftingChainPlanNode rootNode = networkRoot < wanted
+            ? BuildRecipeNode(context, state, rootRecipe, wanted - networkRoot, ancestors, 0, selectedRoot: true) : null;
+        if (rootNode != null) plan.Nodes.Add(rootNode);
+        plan.PlannedOutput = (int)Math.Min(int.MaxValue, networkRoot + (rootNode?.OutputCount ?? 0));
         plan.Materials = state.Materials.Values.OrderBy(material => GetItemName(input, material.ItemId), StringComparer.CurrentCulture)
             .ThenBy(material => material.ForgeOnly).ToList();
         plan.ReservedSupplies = Enumerable.Range(0, input.Supplies.Count)
@@ -517,6 +516,7 @@ internal static class CraftingChainPlanner
         }
         plan.MissingMaterials = plan.Materials.Sum(material => Math.Max(0L, material.Required - material.Available));
         NetworkLog.Debug("Crafting-chain graph planned. rootRecipe=" + input.RootRecipeKey + "; requested=" + plan.RequestedOutput
+            + "; networkRoot=" + plan.AvailableOutput
             + "; plannedCraftNodes=" + state.CreatedNodes + "; baseMaterials=" + plan.Materials.Count + "; missing=" + plan.MissingMaterials);
         return plan;
     }

@@ -43,7 +43,7 @@ internal static class CraftingChainLockReservationPatch
 
         if (__instance?.requestTargets != null)
             Array.Clear(__instance.requestTargets, 0, __instance.requestTargets.Length);
-        NetworkLog.Debug("Vanilla lock request rejected while the player owns a crafting-chain workstation reservation. player="
+        NetworkLog.Debug("Vanilla lock request rejected because it conflicts with an active crafting-chain workstation. player="
             + playerId + "; targetCount=" + _count);
         return false;
     }

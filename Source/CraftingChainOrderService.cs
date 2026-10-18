@@ -56,6 +56,7 @@ internal static class CraftingChainOrderService
         public string NetworkId;
         public ItemValue RootOutputValue;
         public int DeliverableRootOutput;
+        public int NetworkRootOutput;
         public readonly List<Stage> Stages = new List<Stage>();
         public readonly List<ItemStack> EscrowItems = new List<ItemStack>();
         // A subset of EscrowItems that was actually removed from the shared network.
@@ -118,6 +119,14 @@ internal static class CraftingChainOrderService
         if (reservedRequirements == null)
         {
             error = "HyperdimensionalNetworkCraftingChainPlanTooLarge";
+            return false;
+        }
+        if (plan.AvailableOutput > 0 && NetworkStorage.GetMatchingCount(player,
+            GetItemValue(input, input.RootOutputItemId)) < plan.AvailableOutput)
+        {
+            error = "HyperdimensionalNetworkCraftingChainMissingMaterials";
+            NetworkLog.Debug("Crafting-chain network target stock changed before reservation. player=" + player.entityId
+                + "; planned=" + plan.AvailableOutput);
             return false;
         }
         foreach (ItemStack material in reservedRequirements)
@@ -198,6 +207,7 @@ internal static class CraftingChainOrderService
                 : PlayerNetworkDirectory.GetNetworkId(player) ?? string.Empty,
             RootOutputValue = BuildOutputValue(input, input.RootOutputItemId),
             DeliverableRootOutput = plan.PlannedOutput,
+            NetworkRootOutput = plan.AvailableOutput,
             Status = Localization.Get("HyperdimensionalNetworkCraftingChainStarting")
         };
         foreach (CraftingChainPlanNode node in nodes)
@@ -271,7 +281,9 @@ internal static class CraftingChainOrderService
     internal static bool ShouldAllowVanillaLockRequest(int playerId, ILockTarget[] targets, int count)
     {
         if (!Orders.TryGetValue(playerId, out Order order) || order.LockTargets.Count == 0) return true;
-        if (!order.PendingLocks || order.LocksReleaseRequested || count != order.LockTargets.Count
+        if (order.LocksReleaseRequested) return targets != null && count >= 0 && count <= targets.Length
+            && !targets.Take(count).Any(target => order.LockTargets.Contains(target));
+        if (!order.PendingLocks || count != order.LockTargets.Count
             || targets == null || count > targets.Length) return false;
         for (int index = 0; index < count; index++)
             if (!ReferenceEquals(targets[index], order.LockTargets[index])) return false;
@@ -322,7 +334,7 @@ internal static class CraftingChainOrderService
             order.PendingReservation = true;
             order.Status = Localization.Get("HyperdimensionalNetworkCraftingChainReserving");
             bool sent = NetworkRemoteClient.RequestConsumption(order.player, requirements,
-                NetworkConsumptionSource.PlayerInventory, Vector3i.zero,
+                NetworkConsumptionSource.NetworkPreferredPlayerInventory, Vector3i.zero,
                 (NetworkRemoteResult result) => BeginReservedOrder(order, requirements, result.RequestId, result.NetworkId),
                 failure =>
                 {
@@ -330,7 +342,7 @@ internal static class CraftingChainOrderService
                     FailBeforeReservation(order, failure == "InsufficientMaterials"
                         ? "HyperdimensionalNetworkCraftingChainMissingMaterials" : "HyperdimensionalNetworkCraftingChainPlanFailed",
                         "initial-network-reservation-rejected-" + failure);
-                });
+                }, order.RootOutputValue, order.NetworkRootOutput);
             if (!sent)
                 FailBeforeReservation(order, "HyperdimensionalNetworkCraftingChainNetworkBusy", "initial-network-reservation-send-failed");
             return;
@@ -561,7 +573,8 @@ internal static class CraftingChainOrderService
         }
 
         List<ItemStack> requirements = new List<ItemStack>();
-        foreach (KeyValuePair<int, long> requirement in requiredByItem)
+        foreach (KeyValuePair<int, long> requirement in requiredByItem.OrderByDescending(entry =>
+            entry.Key == input.RootOutputItemId ? 1 : 0))
         {
             if (requirement.Value > int.MaxValue) return null;
             CraftingChainItemInfo item = input.Items[requirement.Key];
@@ -583,6 +596,13 @@ internal static class CraftingChainOrderService
     private static bool BeginReservedOrder(Order order, IList<ItemStack> requirements, long reservationRequestId, string reservationNetworkId)
     {
         if (order == null || !Orders.ContainsKey(order.player.entityId)) return false;
+        if (!NetworkRemoteClient.IsRemoteClient && order.NetworkRootOutput > 0
+            && NetworkStorage.GetMatchingCount(order.player, order.RootOutputValue) < order.NetworkRootOutput)
+        {
+            FailBeforeReservation(order, "HyperdimensionalNetworkCraftingChainMissingMaterials",
+                "target-network-stock-changed-before-local-reservation");
+            return false;
+        }
         order.PendingReservation = false;
         order.ReservationRequestId = reservationRequestId;
         if (!string.IsNullOrEmpty(reservationNetworkId)) order.NetworkId = reservationNetworkId;
@@ -593,9 +613,11 @@ internal static class CraftingChainOrderService
             if (NetworkRemoteClient.IsRemoteClient)
             {
                 using (NetworkRemoteClient.CaptureCraftingChainNetworkConsumption(order.player, networkRemoved))
+                using (Patches.PlayerInventoryConsumePatch.PreferNetworkForChainReservation())
                     order.xui.PlayerInventory.RemoveItems(requirements, 1, removed);
             }
-            else order.xui.PlayerInventory.RemoveItems(requirements, 1, removed);
+            else using (Patches.PlayerInventoryConsumePatch.PreferNetworkForChainReservation())
+                order.xui.PlayerInventory.RemoveItems(requirements, 1, removed);
         }
         AddEscrowItems(order, removed);
         AddNetworkEscrowItems(order, networkRemoved);
@@ -613,7 +635,11 @@ internal static class CraftingChainOrderService
             return true;
         }
         if (order.Stages.Count == 0) CompleteOrder(order);
-        else StartNextStage(order);
+        else
+        {
+            StartNextStage(order);
+            if (Orders.ContainsKey(order.player.entityId)) ReleaseWorkstationLocks(order);
+        }
         return true;
     }
 

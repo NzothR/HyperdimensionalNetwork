@@ -7,6 +7,19 @@ namespace HyperdimensionalNetwork.Patches;
 [HarmonyPatch(typeof(XUiM_PlayerInventory), nameof(XUiM_PlayerInventory.RemoveItems))]
 internal static class PlayerInventoryConsumePatch
 {
+    [ThreadStatic] private static bool _preferNetworkForChainReservation;
+
+    private sealed class ChainReservationScope : IDisposable
+    {
+        public void Dispose() => _preferNetworkForChainReservation = false;
+    }
+
+    internal static IDisposable PreferNetworkForChainReservation()
+    {
+        _preferNetworkForChainReservation = true;
+        return new ChainReservationScope();
+    }
+
     private sealed class SlotWithdrawal
     {
         public ItemStackGrid Grid;
@@ -39,6 +52,15 @@ internal static class PlayerInventoryConsumePatch
                 NetworkLog.Error("Player material consumption blocked: requirement exceeds int32. item=" + required.itemValue.type + "; count=" + needed);
                 return false;
             }
+            if (_preferNetworkForChainReservation)
+            {
+                if (network == null) network = remoteClient && !remoteAuthorized
+                    ? new List<StoredEntry>()
+                    : remoteAuthorized
+                        ? NetworkRemoteClient.GetAuthorizedEntriesForRequirements(player, _itemStacks)
+                        : NetworkStorage.GetEntriesForRequirements(player, _itemStacks);
+                TakeNetwork(required, network, networkRequests, ref needed);
+            }
             foreach (SlotWithdrawal slot in slots)
             {
                 if (needed == 0) break;
@@ -54,15 +76,7 @@ internal static class PlayerInventoryConsumePatch
                 : remoteAuthorized
                     ? NetworkRemoteClient.GetAuthorizedEntriesForRequirements(player, _itemStacks)
                     : NetworkStorage.GetEntriesForRequirements(player, _itemStacks);
-            foreach (StoredEntry entry in network)
-            {
-                if (needed == 0) break;
-                if (entry.Count == 0 || !NetworkItemMatcher.Matches(entry.Value, required.itemValue)) continue;
-                long take = Math.Min(needed, entry.Count);
-                entry.Count -= take;
-                needed -= take;
-                networkRequests.Add(new StorageAddition { Value = entry.Value.Clone(), Count = take });
-            }
+            TakeNetwork(required, network, networkRequests, ref needed);
             if (needed > 0)
             {
                 NetworkLog.Error("Player material consumption blocked: exact material unavailable. item=" + required.itemValue.type + "; quality=" + required.itemValue.Quality + "; missing=" + needed);
@@ -115,6 +129,20 @@ internal static class PlayerInventoryConsumePatch
             else NetworkLog.Error("Player material consumption rolled back after slot error. " + ex);
         }
         return false;
+    }
+
+    private static void TakeNetwork(ItemStack required, List<StoredEntry> network,
+        List<StorageAddition> requests, ref long needed)
+    {
+        foreach (StoredEntry entry in network)
+        {
+            if (needed == 0) break;
+            if (entry.Count == 0 || !NetworkItemMatcher.Matches(entry.Value, required.itemValue)) continue;
+            long take = Math.Min(needed, entry.Count);
+            entry.Count -= take;
+            needed -= take;
+            requests.Add(new StorageAddition { Value = entry.Value.Clone(), Count = take });
+        }
     }
 
     private static bool RestoreRemoteAuthorization(EntityPlayer player, IEnumerable<StorageAddition> networkRequests)

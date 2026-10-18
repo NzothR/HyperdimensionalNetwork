@@ -83,7 +83,13 @@
           <sprite depth="0" name="craftingChainBodyBackground" pos="0,0" width="900" height="760" sprite="menu_empty" type="sliced" color="8,16,27,255" foregroundlayer="true" globalopacitymod="0" />
           <sprite depth="1" name="craftingChainBodyFrame" pos="0,0" width="900" height="760" sprite="menu_empty2px" type="sliced" fillcenter="false" color="48,125,160,255" />
           <sprite depth="4" name="craftingChainTargetIcon" pos="22,-17" width="30" height="30" />
-          <label depth="4" name="craftingChainTargetName" pos="55,-4" width="810" height="30" font_size="20" justify="center" color="165,225,240,255" effect="Outline8" effect_color="0,0,0,255" effect_distance="1,1" />
+          <label depth="4" name="craftingChainTargetName" pos="55,-4" width="550" height="30" font_size="20" justify="center" color="165,225,240,255" effect="Outline8" effect_color="0,0,0,255" effect_distance="1,1" />
+          <label depth="4" name="craftingChainQuantityLabel" pos="608,-8" width="98" height="27" font_size="16" justify="right" text_key="HyperdimensionalNetworkCraftingChainQuantity" color="190,225,235,255" />
+          <button depth="4" name="btnCraftingChainQuantityMinus" pos="714,-7" width="27" height="27" style="press, hover" sprite="menu_empty3px" defaultcolor="30,65,82,255" sound="[paging_click]" />
+          <label depth="5" name="craftingChainQuantityMinusLabel" pos="714,-9" width="27" height="25" font_size="20" justify="center" text="-" />
+          <textfield depth="5" name="craftingChainQuantityInput" pos="746,-7" width="70" height="27" />
+          <button depth="4" name="btnCraftingChainQuantityPlus" pos="822,-7" width="27" height="27" style="press, hover" sprite="menu_empty3px" defaultcolor="30,65,82,255" sound="[paging_click]" />
+          <label depth="5" name="craftingChainQuantityPlusLabel" pos="822,-9" width="27" height="25" font_size="20" justify="center" text="+" />
           <panel depth="5" name="craftingChainTreeViewport" pos="5,-42" width="890" height="505" clipping="SoftClip" clippingsoftness="2,2" clippingsize="890,505" clippingcenter="445,-252" on_scroll="true">
             <sprite depth="1" name="treeBackground" pos="0,0" width="890" height="505" sprite="menu_empty" color="9,18,29,255" type="sliced" foregroundlayer="true" globalopacitymod="0" />
             <rect depth="2" name="craftingChainTreeCanvas" pos="0,0" width="1800" height="1200">

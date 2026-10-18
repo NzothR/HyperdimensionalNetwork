@@ -64,3 +64,4 @@ HyperdimensionalNetworkCraftingChainReturnFailed,Order materials could not be re
 HyperdimensionalNetworkCraftingChainReturnInventorySpace,Make room in your inventory to receive the remaining order materials.,请为剩余订单材料腾出背包空间。
 HyperdimensionalNetworkCraftingChainPlanTooLarge,This crafting plan is too large to display safely.,合成计划过于复杂，无法安全显示。
 HyperdimensionalNetworkCraftingChainInventory,Backpack crafting,背包制作
+HyperdimensionalNetworkCraftingChainQuantity,Output count,成品数量
