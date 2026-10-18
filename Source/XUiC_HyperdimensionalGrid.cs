@@ -130,8 +130,10 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
         XUiC_DragAndDropWindow drag = xui.DragAndDropWindow;
         if (drag == null || (drag.CurrentStack != null && !drag.CurrentStack.IsEmpty())) return false;
         int request = GetTakeCount(entry, half: false);
-        int capacity = xui.PlayerInventory.CountAvailableSpaceForItem(entry.Value, _limitToOneStack: false);
-        request = Math.Min(request, capacity);
+        Bag backpack = xui.PlayerInventory.Backpack;
+        if (backpack == null || !new ItemStack(entry.Value, 1).CanMoveTo(XUiC_ItemStack.StackLocationTypes.Backpack)) return false;
+        List<KeyValuePair<int, int>> placements = PlanBackpackPlacement(backpack, entry.Value, request);
+        request = placements.Sum(placement => placement.Value);
         if (request <= 0)
         {
             NetworkLog.Debug("Network quick withdrawal has no player inventory space. item=" + entry.Value.type + "; slot=" + visibleIndex);
@@ -140,9 +142,16 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
         NetworkLog.Debug("Network quick withdrawal requested. item=" + entry.Value.type + "; requested=" + request + "; slot=" + visibleIndex);
         int removed = NetworkStorage.Remove(xui.playerUI.entityPlayer, entry.Value, request);
         if (removed <= 0) { Reload(); return false; }
-        ItemStack transfer = new ItemStack(entry.Value.Clone(), removed);
-        xui.PlayerInventory.AddItem(transfer);
-        int accepted = removed - Math.Max(0, transfer.count);
+        int accepted = 0;
+        foreach (KeyValuePair<int, int> placement in placements)
+        {
+            if (accepted >= removed) break;
+            int count = Math.Min(placement.Value, removed - accepted);
+            ItemStack current = backpack.ItemGrid[placement.Key];
+            if (current.IsEmpty()) backpack.ItemGrid.SetItem(placement.Key, new ItemStack(entry.Value.Clone(), count));
+            else backpack.ItemGrid.SetItem(placement.Key, new ItemStack(current.itemValue.Clone(), current.count + count));
+            accepted += count;
+        }
         if (accepted < removed)
         {
             int remainder = removed - Math.Max(0, accepted);
@@ -157,6 +166,36 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
         SetProjectedCount(entry.Value, remaining);
         NetworkLog.Debug("Network quick withdrawal completed. item=" + entry.Value.type + "; accepted=" + accepted + "; remaining=" + remaining + "; slot=" + visibleIndex);
         return accepted > 0;
+    }
+
+    private static List<KeyValuePair<int, int>> PlanBackpackPlacement(Bag backpack, ItemValue value, int requested)
+    {
+        var placements = new List<KeyValuePair<int, int>>();
+        int remaining = requested;
+        int stackLimit = Math.Max(1, value.ItemClass?.MaxCount ?? 1);
+        ItemValue key = NetworkStorage.NormalizeKey(value);
+        ItemStack incoming = new ItemStack(value, requested);
+
+        // The grid is row-major. Fill every compatible partial stack before using empty slots.
+        for (int i = 0; i < backpack.SlotCount && remaining > 0; i++)
+        {
+            ItemStack current = backpack.ItemGrid[i];
+            if (current.IsEmpty() || !NetworkStorage.NormalizeKey(current.itemValue).Equals(key)
+                || !current.CanStackPartlyWith(incoming, out int canAdd)) continue;
+            int count = Math.Min(remaining, canAdd);
+            placements.Add(new KeyValuePair<int, int>(i, count));
+            remaining -= count;
+        }
+        for (int i = 0; i < backpack.SlotCount && remaining > 0; i++)
+        {
+            if (!backpack.ItemGrid[i].IsEmpty()) continue;
+            int count = Math.Min(remaining, stackLimit);
+            placements.Add(new KeyValuePair<int, int>(i, count));
+            remaining -= count;
+        }
+        NetworkLog.Debug("Quick withdrawal backpack plan. item=" + value.type + "; requested=" + requested
+            + "; planned=" + (requested - remaining) + "; slots=" + placements.Count);
+        return placements;
     }
 
     private StoredEntry GetVisibleEntry(int visibleIndex)
