@@ -111,11 +111,19 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
         int stackLimit = Math.Max(1, itemClass?.Stacknumber?.Value ?? 1);
         int request = (int)Math.Min(Math.Min(entry.Count, stackLimit), int.MaxValue);
         if (half) request = Math.Max(1, request / 2);
+        NetworkLog.Debug("Network withdrawal requested. mode=" + (half ? "half" : "full") + "; item=" + entry.Value.type + "; requested=" + request + "; available=" + entry.Count + "; slot=" + visibleIndex);
         int removed = NetworkStorage.Remove(xui.playerUI.entityPlayer, entry.Value, request);
-        if (removed <= 0) return false;
+        if (removed <= 0)
+        {
+            NetworkLog.Debug("Network withdrawal rejected by storage. item=" + entry.Value.type + "; requested=" + request + "; slot=" + visibleIndex);
+            Reload();
+            return false;
+        }
         drag.SetCurrentStack(new ItemStack(entry.Value.Clone(), removed));
         drag.PickUpType = StackLocation;
-        SetProjectedCount(entry.Value, NetworkStorage.GetCount(xui.playerUI.entityPlayer, entry.Value));
+        long remaining = NetworkStorage.GetCount(xui.playerUI.entityPlayer, entry.Value);
+        SetProjectedCount(entry.Value, remaining);
+        NetworkLog.Debug("Network withdrawal completed. item=" + entry.Value.type + "; removed=" + removed + "; remaining=" + remaining + "; slot=" + visibleIndex);
         return true;
     }
 

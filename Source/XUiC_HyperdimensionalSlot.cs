@@ -60,4 +60,6 @@ public sealed class XUiC_HyperdimensionalSlot : XUiC_ItemStack
         XUiC_DragAndDropWindow drag = xui?.DragAndDropWindow;
         return drag != null && (drag.CurrentStack == null || drag.CurrentStack.IsEmpty()) && _grid != null && _grid.TakeToMouse(_visibleIndex, half);
     }
+
+    internal void TakeFromNetwork(bool half) => Take(half);
 }
