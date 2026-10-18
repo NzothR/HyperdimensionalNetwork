@@ -62,7 +62,7 @@ internal static class NetworkStorage
         foreach (StorageAddition addition in additions)
         {
             if (addition?.Value == null || addition.Value.type == 0 || addition.Count <= 0) continue;
-            ItemValue key = addition.Value.Clone();
+            ItemValue key = NormalizeKey(addition.Value);
             deltas[key] = SafeAdd(deltas.TryGetValue(key, out long oldDelta) ? oldDelta : 0, addition.Count);
         }
         if (deltas.Count == 0) return false;
@@ -89,7 +89,7 @@ internal static class NetworkStorage
         string path = GetPath(player);
         if (UnsafePaths.Contains(path)) return 0;
         Dictionary<ItemValue, long> current = GetStorage(player);
-        ItemValue lookup = value.Clone();
+        ItemValue lookup = NormalizeKey(value);
         if (!current.TryGetValue(lookup, out long available) || available <= 0) return 0;
         int amount = (int)Math.Min(Math.Min((long)requested, available), int.MaxValue);
         Dictionary<ItemValue, long> deltas = new Dictionary<ItemValue, long>(ItemValueComparer.Instance) { [lookup] = -amount };
@@ -243,6 +243,16 @@ internal static class NetworkStorage
     }
 
     private static long SafeAdd(long left, long right) => right > long.MaxValue - left ? long.MaxValue : left + right;
+
+    private static ItemValue NormalizeKey(ItemValue value)
+    {
+        ItemValue key = value.Clone();
+        // The game creates a random Seed for newly constructed values. For stackable definitions
+        // that seed does not distinguish inventory stacks, so canonicalize it to keep repeated
+        // deposits and stress runs in the same storage variant.
+        if (key.ItemClass != null && key.ItemClass.MaxCount > 1) key.Seed = 0;
+        return key;
+    }
 
     private static uint Hash(byte[] bytes)
     {
