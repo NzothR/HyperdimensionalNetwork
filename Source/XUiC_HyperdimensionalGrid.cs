@@ -107,6 +107,11 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
         XUiC_DragAndDropWindow drag = xui?.DragAndDropWindow;
         if (drag == null || (drag.CurrentStack != null && !drag.CurrentStack.IsEmpty())) return false;
         int request = GetTakeCount(entry, half);
+        if (request <= 0)
+        {
+            NetworkLog.Debug("Network withdrawal skipped because the stack has no half to move. item=" + entry.Value.type + "; available=" + entry.Count + "; half=" + half + "; slot=" + visibleIndex);
+            return false;
+        }
         NetworkLog.Debug("Network withdrawal requested. mode=" + (half ? "half" : "full") + "; item=" + entry.Value.type + "; requested=" + request + "; available=" + entry.Count + "; slot=" + visibleIndex);
         int removed = NetworkStorage.Remove(xui.playerUI.entityPlayer, entry.Value, request);
         if (removed <= 0)
@@ -208,7 +213,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
     {
         int stackLimit = Math.Max(1, entry.Value.ItemClass?.MaxCount ?? 1);
         int count = (int)Math.Min(Math.Min(entry.Count, stackLimit), int.MaxValue);
-        return half ? Math.Max(1, count / 2) : count;
+        return half ? count / 2 : count;
     }
 
     private void SetProjectedCount(ItemValue value, long actualCount)

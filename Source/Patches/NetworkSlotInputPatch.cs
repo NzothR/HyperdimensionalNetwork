@@ -9,8 +9,8 @@ internal static class NetworkSlotInputPatch
     private static bool PartialStackPickupPrefix(XUiC_ItemStack __instance)
     {
         if (__instance is not XUiC_HyperdimensionalSlot slot) return true;
-        NetworkLog.Debug("Drag pickup routed through network transaction. slot=" + slot.SlotNumber);
-        slot.TakeFromNetwork(half: false);
+        NetworkLog.Debug("Partial drag pickup routed through network transaction. slot=" + slot.SlotNumber);
+        slot.TakeFromNetwork(half: true);
         return false;
     }
 

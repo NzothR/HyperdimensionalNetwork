@@ -14,7 +14,7 @@ internal static class BackpackQuickDepositPatch
     public static bool PreferredLocationPrefix(XUiC_ItemStack __instance)
     {
         if (!IsShiftHeld()) return true;
-        return !TryDeposit(__instance);
+        return !TryDeposit(__instance, half: false);
     }
 
     [HarmonyPrefix, HarmonyPatch("Update")]
@@ -22,14 +22,28 @@ internal static class BackpackQuickDepositPatch
     {
         if (__instance?.xui?.playerUI?.windowManager == null
             || __instance.xui.playerUI.windowManager.IsInputActive()
-            || !__instance.isOver
-            || !IsShiftHeld()) return true;
+            || !__instance.isOver) return true;
         CursorControllerAbs cursor = __instance.xui.playerUI.CursorController;
-        if (!cursor.GetMouseButtonUp(UICamera.MouseButton.LeftButton)) return true;
-        return !TryDeposit(__instance);
+        if (!IsShiftHeld()) return true;
+
+        if (cursor.GetMouseButtonUp(UICamera.MouseButton.RightButton))
+        {
+            if (__instance is XUiC_HyperdimensionalSlot networkSlot)
+            {
+                XUiC_DragAndDropWindow drag = __instance.xui.DragAndDropWindow;
+                if (drag?.CurrentStack != null && !drag.CurrentStack.IsEmpty()) return true;
+                NetworkLog.Debug("Shift-right network withdrawal requested. slot=" + networkSlot.SlotNumber);
+                networkSlot.TakeFromNetwork(half: true);
+                return false;
+            }
+            return !TryDeposit(__instance, half: true);
+        }
+
+        if (cursor.GetMouseButtonUp(UICamera.MouseButton.LeftButton)) return !TryDeposit(__instance, half: false);
+        return true;
     }
 
-    private static bool TryDeposit(XUiC_ItemStack instance)
+    private static bool TryDeposit(XUiC_ItemStack instance, bool half)
     {
         if (instance?.xui?.playerUI?.windowManager == null
             || instance.xui.playerUI.windowManager.IsInputActive()
@@ -42,11 +56,17 @@ internal static class BackpackQuickDepositPatch
         XUiC_ItemStackGrid sourceGrid = FindSourceGrid(instance);
         if (sourceGrid == null) return false;
         EntityPlayer player = instance.xui.playerUI.entityPlayer;
-        int amount = source.count;
+        int amount = half ? source.count / 2 : source.count;
+        if (amount <= 0)
+        {
+            NetworkLog.Debug("Shift-right deposit skipped because the stack has no half to move. item=" + source.itemValue.type + "; count=" + source.count);
+            return true;
+        }
         ItemStack deposit = source.Clone();
+        deposit.count = amount;
         if (!NetworkStorage.AddStack(player, deposit))
         {
-            NetworkLog.Debug("Shift deposit failed. item=" + source.itemValue.type + "; count=" + amount);
+            NetworkLog.Debug("Shift deposit failed. item=" + source.itemValue.type + "; count=" + amount + "; half=" + half);
             return true;
         }
 
@@ -56,7 +76,7 @@ internal static class BackpackQuickDepositPatch
         if (sourceGrid is XUiC_Backpack backpack) backpack.RefreshBackpackSlots();
         else if (sourceGrid is XUiC_Toolbelt toolbelt) toolbelt.PlayerInventory_OnToolbeltItemsChanged();
 
-        NetworkLog.Debug("Shift deposit completed. source=" + sourceGrid.GetType().Name + "; item=" + deposit.itemValue.type + "; count=" + amount + "; revision=" + NetworkStorage.GetRevision(player));
+        NetworkLog.Debug("Shift deposit completed. source=" + sourceGrid.GetType().Name + "; item=" + deposit.itemValue.type + "; count=" + amount + "; half=" + half + "; revision=" + NetworkStorage.GetRevision(player));
         return true;
     }
 
