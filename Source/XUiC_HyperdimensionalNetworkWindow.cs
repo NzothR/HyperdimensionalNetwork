@@ -11,6 +11,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     private XUiC_Paging _pager;
     private XUiController _searchInputControls;
     private XUiController _pagerControls;
+    private XUiController _manualRestockButton;
     private XUiController _categoryBar;
     private XUiController _settingsPanel;
     private XUiController _autoRestockLabel;
@@ -19,6 +20,12 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     private XUiController _autoRestockTargetLabel;
     private XUiController _autoRestockTargetValue;
     private XUiController _autoRestockTargetButton;
+    private XUiController _replenishmentEnabledLabel;
+    private XUiController _replenishmentEnabledValue;
+    private XUiController _replenishmentEnabledButton;
+    private XUiController _ammoBankEnabledLabel;
+    private XUiController _ammoBankEnabledValue;
+    private XUiController _ammoBankEnabledButton;
     private XUiController _settingsStatus;
     private RestockSettingsSnapshot _settings;
     private bool _settingsRequestPending;
@@ -36,6 +43,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         if (_search != null) _search.OnChangeHandler += OnSearchChanged;
         _searchInputControls = GetChildById("searchInputControls");
         _pagerControls = GetChildById("pagerControls");
+        _manualRestockButton = GetChildById("btnHyperdimensionalRestock");
         _categoryBar = GetChildById("categoryBar");
         _settingsPanel = GetChildById("restockSettingsPanel");
         _autoRestockLabel = GetChildById("labelAutoRestock");
@@ -44,13 +52,22 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         _autoRestockTargetLabel = GetChildById("labelAutoRestockTarget");
         _autoRestockTargetValue = GetChildById("labelAutoRestockTargetValue");
         _autoRestockTargetButton = GetChildById("btnCycleAutoRestockTarget");
+        _replenishmentEnabledLabel = GetChildById("labelReplenishmentEnabled");
+        _replenishmentEnabledValue = GetChildById("labelReplenishmentEnabledValue");
+        _replenishmentEnabledButton = GetChildById("btnToggleReplenishmentEnabled");
+        _ammoBankEnabledLabel = GetChildById("labelAmmoBankEnabled");
+        _ammoBankEnabledValue = GetChildById("labelAmmoBankEnabledValue");
+        _ammoBankEnabledButton = GetChildById("btnToggleAmmoBankEnabled");
         _settingsStatus = GetChildById("restockSettingsStatus");
         BindPress("btnHyperdimensionalRestock", OnManualRestockPressed);
         BindPress("btnHyperdimensionalSettings", OnSettingsPressed);
         BindPress("btnRestockSettingsClose", OnCloseSettingsPressed);
         BindPress("btnToggleAutoRestock", OnToggleAutoRestockPressed);
         BindPress("btnCycleAutoRestockTarget", OnCycleRestockTargetPressed);
+        BindPress("btnToggleReplenishmentEnabled", OnToggleReplenishmentPressed);
+        BindPress("btnToggleAmmoBankEnabled", OnToggleAmmoBankPressed);
         SetVisible(_settingsPanel, false);
+        HideNetworkAdminSettings();
         List<XUiC_ItemStack> slots = new List<XUiC_ItemStack>();
         GetChildrenByType(slots);
         foreach (XUiC_ItemStack slot in slots) slot.OnScroll += OnNetworkScroll;
@@ -62,6 +79,10 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     {
         base.OnOpen();
         SetSettingsVisible(false);
+        _settings = null;
+        SetVisible(_manualRestockButton, false);
+        HideNetworkAdminSettings();
+        LoadRestockSettings();
         _grid?.Reload();
         RefreshPager();
         NetworkLog.Debug("Network window opened. entries=" + (_grid?.EntryCount ?? 0));
@@ -97,7 +118,12 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     {
         bool visible = _settingsPanel?.ViewComponent?.IsVisible != true;
         SetSettingsVisible(visible);
-        if (visible) LoadRestockSettings();
+        if (visible)
+        {
+            _settings = null;
+            HideNetworkAdminSettings();
+            LoadRestockSettings();
+        }
     }
 
     private void OnCloseSettingsPressed(XUiController sender, int mouseButton) => SetSettingsVisible(false);
@@ -117,6 +143,18 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
                 ? (int)RestockTargetMode.ToolbeltAndLockedBackpackStacks
                 : (int)RestockTargetMode.ToolbeltOnly;
         SetSetting(RestockSettingKey.AutoRestockTarget, next);
+    }
+
+    private void OnToggleReplenishmentPressed(XUiController sender, int mouseButton)
+    {
+        if (_settings == null || _settingsRequestPending || !_settings.IsNetworkAdministrator) return;
+        SetSetting(RestockSettingKey.ReplenishmentEnabled, _settings.ReplenishmentEnabled ? 0 : 1);
+    }
+
+    private void OnToggleAmmoBankPressed(XUiController sender, int mouseButton)
+    {
+        if (_settings == null || _settingsRequestPending || !_settings.IsNetworkAdministrator) return;
+        SetSetting(RestockSettingKey.AmmoBankEnabled, _settings.AmmoBankEnabled ? 0 : 1);
     }
 
     private void LoadRestockSettings()
@@ -176,6 +214,11 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
                 ? "HyperdimensionalNetworkSettingLockedOnly"
                 : "HyperdimensionalNetworkSettingHotbarOnly";
         SetLabel(_autoRestockTargetValue, Localization.Get(targetKey));
+        SetLabel(_replenishmentEnabledValue, Localization.Get(_settings.ReplenishmentEnabled
+            ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
+        SetLabel(_ammoBankEnabledValue, Localization.Get(_settings.AmmoBankEnabled
+            ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
+        SetVisible(_manualRestockButton, _settings.ReplenishmentEnabled);
         string status = Localization.Get("HyperdimensionalNetworkSettingsReady");
         if (_settings.AutoRestockCooldownMs > 0)
             status += " (" + _settings.AutoRestockCooldownMs + " ms)";
@@ -195,6 +238,16 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
                     SetVisible(_autoRestockTargetValue, visible);
                     SetVisible(_autoRestockTargetButton, visible);
                     break;
+                case RestockSettingKey.ReplenishmentEnabled:
+                    SetVisible(_replenishmentEnabledLabel, visible);
+                    SetVisible(_replenishmentEnabledValue, visible);
+                    SetVisible(_replenishmentEnabledButton, visible);
+                    break;
+                case RestockSettingKey.AmmoBankEnabled:
+                    SetVisible(_ammoBankEnabledLabel, visible);
+                    SetVisible(_ammoBankEnabledValue, visible);
+                    SetVisible(_ammoBankEnabledButton, visible);
+                    break;
             }
         }
     }
@@ -207,6 +260,16 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         SetVisible(_searchInputControls, !visible);
         SetVisible(_pagerControls, !visible);
         if (visible && _settings == null) SetLabel(_settingsStatus, Localization.Get("HyperdimensionalNetworkSettingsLoading"));
+    }
+
+    private void HideNetworkAdminSettings()
+    {
+        SetVisible(_replenishmentEnabledLabel, false);
+        SetVisible(_replenishmentEnabledValue, false);
+        SetVisible(_replenishmentEnabledButton, false);
+        SetVisible(_ammoBankEnabledLabel, false);
+        SetVisible(_ammoBankEnabledValue, false);
+        SetVisible(_ammoBankEnabledButton, false);
     }
 
     private void BindPress(string id, XUiEvent_OnPressEventHandler handler)

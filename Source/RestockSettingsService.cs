@@ -9,7 +9,9 @@ namespace HyperdimensionalNetwork;
 internal enum RestockSettingKey : byte
 {
     AutoRestockEnabled = 1,
-    AutoRestockTarget = 2
+    AutoRestockTarget = 2,
+    ReplenishmentEnabled = 3,
+    AmmoBankEnabled = 4
 }
 
 internal enum RestockTargetMode : byte
@@ -38,6 +40,8 @@ internal sealed class RestockSettingsSnapshot
     public bool AutoRestockEnabled;
     public RestockTargetMode TargetMode;
     public bool IsNetworkAdministrator;
+    public bool ReplenishmentEnabled = true;
+    public bool AmmoBankEnabled = true;
     public int AutoRestockCooldownMs;
 }
 
@@ -58,6 +62,20 @@ internal static class RestockSettingCatalog
             Name = "AutoRestockTarget",
             LabelKey = "HyperdimensionalNetworkSettingAutoRestockTarget",
             Permission = RestockSettingPermission.NetworkMember
+        },
+        new RestockSettingDefinition
+        {
+            Key = RestockSettingKey.ReplenishmentEnabled,
+            Name = "ReplenishmentEnabled",
+            LabelKey = "HyperdimensionalNetworkSettingReplenishmentEnabled",
+            Permission = RestockSettingPermission.NetworkAdministrator
+        },
+        new RestockSettingDefinition
+        {
+            Key = RestockSettingKey.AmmoBankEnabled,
+            Name = "AmmoBankEnabled",
+            LabelKey = "HyperdimensionalNetworkSettingAmmoBankEnabled",
+            Permission = RestockSettingPermission.NetworkAdministrator
         }
     };
 
@@ -99,11 +117,12 @@ internal static class RestockSettingsService
         if (!(bool)player) { error = "PlayerUnavailable"; return false; }
         string playerId = PlayerNetworkDirectory.GetStablePlayerId(player);
         if (string.IsNullOrEmpty(playerId)) { error = "PlayerIdentityUnavailable"; return false; }
+        if (!NetworkFeatureSettingsService.TryGet(player, out NetworkFeatureSettings networkSettings, out error)) return false;
         lock (Sync)
         {
             if (!EnsureLoaded()) { error = "SettingsUnavailable"; return false; }
             if (!Settings.TryGetValue(playerId, out PlayerSettings value)) value = new PlayerSettings();
-            snapshot = Snapshot(value, PlayerNetworkDirectory.IsNetworkAdministrator(player));
+            snapshot = Snapshot(value, PlayerNetworkDirectory.IsNetworkAdministrator(player), networkSettings);
             return true;
         }
     }
@@ -115,6 +134,14 @@ internal static class RestockSettingsService
         RestockSettingDefinition definition = RestockSettingCatalog.Get(key);
         if (definition == null) { error = "UnknownSetting"; return false; }
         if (!CanConfigure(player, definition.Permission)) { error = "PermissionDenied"; return false; }
+        if (key == RestockSettingKey.ReplenishmentEnabled || key == RestockSettingKey.AmmoBankEnabled)
+        {
+            if (value != 0 && value != 1) { error = "InvalidSettingValue"; return false; }
+            NetworkFeatureSetting networkKey = key == RestockSettingKey.ReplenishmentEnabled
+                ? NetworkFeatureSetting.ReplenishmentEnabled : NetworkFeatureSetting.AmmoBankEnabled;
+            if (!NetworkFeatureSettingsService.TrySet(player, networkKey, value == 1, out error)) return false;
+            return TryGet(player, out snapshot, out error);
+        }
         string playerId = PlayerNetworkDirectory.GetStablePlayerId(player);
         if (string.IsNullOrEmpty(playerId)) { error = "PlayerIdentityUnavailable"; return false; }
 
@@ -151,7 +178,14 @@ internal static class RestockSettingsService
                 error = "SettingsSaveFailed";
                 return false;
             }
-            snapshot = Snapshot(updated, PlayerNetworkDirectory.IsNetworkAdministrator(player));
+            if (!NetworkFeatureSettingsService.TryGet(player, out NetworkFeatureSettings networkSettings, out error))
+            {
+                if (hadEntry) Settings[playerId] = current;
+                else Settings.Remove(playerId);
+                Save();
+                return false;
+            }
+            snapshot = Snapshot(updated, PlayerNetworkDirectory.IsNetworkAdministrator(player), networkSettings);
             NetworkLog.Debug("Personal restock setting updated. player=" + player.entityId + "; setting=" + definition.Name + "; value=" + value);
             return true;
         }
@@ -191,13 +225,15 @@ internal static class RestockSettingsService
         return new RestockSettingsSnapshot { TargetMode = RestockTargetMode.ToolbeltAndLockedBackpackStacks, AutoRestockCooldownMs = AutoRestockCooldownMs };
     }
 
-    private static RestockSettingsSnapshot Snapshot(PlayerSettings value, bool isAdmin)
+    private static RestockSettingsSnapshot Snapshot(PlayerSettings value, bool isAdmin, NetworkFeatureSettings networkSettings)
     {
         return new RestockSettingsSnapshot
         {
             AutoRestockEnabled = value.AutoRestockEnabled,
             TargetMode = value.TargetMode,
             IsNetworkAdministrator = isAdmin,
+            ReplenishmentEnabled = networkSettings?.ReplenishmentEnabled ?? true,
+            AmmoBankEnabled = networkSettings?.AmmoBankEnabled ?? true,
             AutoRestockCooldownMs = AutoRestockCooldownMs
         };
     }

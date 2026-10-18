@@ -21,7 +21,9 @@ internal static class RestockTransactionService
     public static NetworkRemoteResult Execute(World world, EntityPlayer player, PlayerDataFile playerData, NetworkRemoteRequest request)
     {
         bool automatic = request.Operation == NetworkRequestOperation.AutomaticRestock;
-        RestockSettingsSnapshot settings = RestockSettingsService.Get(player);
+        if (!RestockSettingsService.TryGet(player, out RestockSettingsSnapshot settings, out string settingsError))
+            return Failure(request, settingsError);
+        if (!settings.ReplenishmentEnabled) return Failure(request, "ReplenishmentDisabled");
         if (automatic)
         {
             if (!settings.AutoRestockEnabled) return Failure(request, "AutoRestockDisabled");

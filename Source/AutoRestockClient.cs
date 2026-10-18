@@ -22,6 +22,8 @@ internal static class AutoRestockClient
         public bool SettingsLoaded;
         public bool SettingsPending;
         public bool AutoRestockEnabled;
+        public bool ReplenishmentEnabled = true;
+        public bool AmmoBankEnabled = true;
         public RestockTargetMode TargetMode;
         public bool IsAdmin;
         public int CooldownMs = 1000;
@@ -275,7 +277,7 @@ internal static class AutoRestockClient
             NetworkLog.Debug("Automatic restock slot event ignored until player settings are loaded. player=" + state.Player.entityId + "; toolbelt=" + toolbelt + "; slot=" + index);
             return;
         }
-        if (!state.AutoRestockEnabled) return;
+        if (!state.AutoRestockEnabled || !state.ReplenishmentEnabled) return;
 
         if (NetworkRemoteClient.IsRemoteClient)
         {
@@ -298,7 +300,7 @@ internal static class AutoRestockClient
 
     private static void ProcessAutomaticRestock(PlayerState state)
     {
-        if (!state.SettingsLoaded || !state.AutoRestockEnabled)
+        if (!state.SettingsLoaded || !state.AutoRestockEnabled || !state.ReplenishmentEnabled)
         {
             ClearPending(state);
             return;
@@ -471,6 +473,8 @@ internal static class AutoRestockClient
     private static void ApplySettings(PlayerState state, NetworkRemoteResult result)
     {
         state.AutoRestockEnabled = result.AutoRestockEnabled;
+        state.ReplenishmentEnabled = result.ReplenishmentEnabled;
+        state.AmmoBankEnabled = result.AmmoBankEnabled;
         state.TargetMode = result.RestockTargetMode;
         state.IsAdmin = result.IsNetworkAdministrator;
         state.CooldownMs = Math.Max(0, Math.Min(60000, result.AutoRestockCooldownMs));
@@ -480,6 +484,8 @@ internal static class AutoRestockClient
     private static void ApplySettings(PlayerState state, RestockSettingsSnapshot settings)
     {
         state.AutoRestockEnabled = settings.AutoRestockEnabled;
+        state.ReplenishmentEnabled = settings.ReplenishmentEnabled;
+        state.AmmoBankEnabled = settings.AmmoBankEnabled;
         state.TargetMode = settings.TargetMode;
         state.IsAdmin = settings.IsNetworkAdministrator;
         state.CooldownMs = Math.Max(0, Math.Min(60000, settings.AutoRestockCooldownMs));
@@ -491,10 +497,20 @@ internal static class AutoRestockClient
         return new RestockSettingsSnapshot
         {
             AutoRestockEnabled = state.AutoRestockEnabled,
+            ReplenishmentEnabled = state.ReplenishmentEnabled,
+            AmmoBankEnabled = state.AmmoBankEnabled,
             TargetMode = state.TargetMode,
             IsNetworkAdministrator = state.IsAdmin,
             AutoRestockCooldownMs = state.CooldownMs
         };
+    }
+
+    public static bool IsAmmoBankEnabled(EntityPlayerLocal player)
+    {
+        if (!(bool)player) return false;
+        if (!NetworkRemoteClient.IsRemoteClient) return RestockSettingsService.Get(player).AmmoBankEnabled;
+        PlayerState state = GetState(player);
+        return state.SettingsLoaded && state.AmmoBankEnabled;
     }
 
     private static void ApplyRemoteResult(EntityPlayerLocal player, NetworkRemoteResult result)

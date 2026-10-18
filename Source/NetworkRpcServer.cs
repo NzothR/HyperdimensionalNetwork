@@ -19,6 +19,7 @@ internal static class NetworkRpcServer
     private static readonly Queue<string> CompletedRequestOrder = new Queue<string>();
     private static readonly HashSet<string> ReturnedWithdrawals = new HashSet<string>(StringComparer.Ordinal);
     private static readonly Dictionary<string, List<StorageAddition>> ReturnedAuthorizations = new Dictionary<string, List<StorageAddition>>(StringComparer.Ordinal);
+    private static readonly Dictionary<string, int> ReturnedAmmoBankUnits = new Dictionary<string, int>(StringComparer.Ordinal);
     private const int MaximumCachedRequests = 512;
 
     public static void ProcessRequest(World world, EntityPlayer player, ClientInfo sender, NetworkRemoteRequest request)
@@ -129,6 +130,7 @@ internal static class NetworkRpcServer
                 CompletedRequests.Remove(oldest);
                 ReturnedWithdrawals.Remove(oldest);
                 ReturnedAuthorizations.Remove(oldest);
+                ReturnedAmmoBankUnits.Remove(oldest);
             }
             NetworkLog.Debug("Network transaction processed. player=" + player.entityId + "; network=" + result.NetworkId + "; requestId=" + request.RequestId + "; operation=" + request.Operation + "; success=" + result.Success + "; amount=" + result.Amount + "; revision=" + result.Revision + "; error=" + result.Error);
             return result;
@@ -167,6 +169,10 @@ internal static class NetworkRpcServer
             case NetworkRequestOperation.ManualRestock:
             case NetworkRequestOperation.AutomaticRestock:
                 return RestockTransactionService.Execute(world, player, sender?.latestPlayerData, request);
+            case NetworkRequestOperation.AmmoBankReload:
+                return AmmoBankService.ExecuteRemoteReload(player, request);
+            case NetworkRequestOperation.AmmoBankRefund:
+                return ReturnAmmoBankSupply(player, request);
             default:
                 return Failure(request, "UnsupportedOperation");
         }
@@ -179,6 +185,25 @@ internal static class NetworkRpcServer
         return RestockSettingsResult(request, settings, success: true);
     }
 
+    private static NetworkRemoteResult ReturnAmmoBankSupply(EntityPlayer player, NetworkRemoteRequest request)
+    {
+        if (request.OriginalRequestId <= 0 || request.Value == null || request.Count <= 0)
+            return Failure(request, "InvalidAmmoRefund");
+        string originalKey = request.EntityId + ":" + request.OriginalRequestId;
+        if (!CompletedRequests.TryGetValue(originalKey, out CachedRequest original)
+            || original.Request.Operation != NetworkRequestOperation.AmmoBankReload || !original.Result.Success
+            || original.Request.Value == null || !NetworkStorage.NormalizeKey(original.Request.Value).Equals(NetworkStorage.NormalizeKey(request.Value)))
+            return Failure(request, "AmmoRefundNotAuthorized");
+        int returned = ReturnedAmmoBankUnits.TryGetValue(originalKey, out int totalReturned) ? totalReturned : 0;
+        if (request.Count > original.Result.Amount - returned)
+            return Failure(request, "AmmoRefundExceedsSupply");
+        if (!NetworkStorage.AddStack(player, new ItemStack(original.Request.Value.Clone(), request.Count)))
+            return Failure(request, "AmmoRefundFailed");
+        ReturnedAmmoBankUnits[originalKey] = returned + request.Count;
+        NetworkLog.Debug("Unused ammo bank supply returned to network. player=" + player.entityId + "; originalRequestId=" + request.OriginalRequestId + "; amount=" + request.Count);
+        return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Amount = request.Count };
+    }
+
     private static NetworkRemoteResult RestockSettingsResult(NetworkRemoteRequest request, RestockSettingsSnapshot settings, bool success = true)
     {
         return new NetworkRemoteResult
@@ -189,7 +214,9 @@ internal static class NetworkRpcServer
             AutoRestockEnabled = settings.AutoRestockEnabled,
             RestockTargetMode = settings.TargetMode,
             IsNetworkAdministrator = settings.IsNetworkAdministrator,
-            AutoRestockCooldownMs = settings.AutoRestockCooldownMs
+            AutoRestockCooldownMs = settings.AutoRestockCooldownMs,
+            ReplenishmentEnabled = settings.ReplenishmentEnabled,
+            AmmoBankEnabled = settings.AmmoBankEnabled
         };
     }
 
@@ -887,7 +914,9 @@ internal static class NetworkRpcServer
             AutoRestockEnabled = result.AutoRestockEnabled,
             RestockTargetMode = result.RestockTargetMode,
             IsNetworkAdministrator = result.IsNetworkAdministrator,
-            AutoRestockCooldownMs = result.AutoRestockCooldownMs
+            AutoRestockCooldownMs = result.AutoRestockCooldownMs,
+            ReplenishmentEnabled = result.ReplenishmentEnabled,
+            AmmoBankEnabled = result.AmmoBankEnabled
         };
     }
 

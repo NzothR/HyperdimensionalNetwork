@@ -10,15 +10,15 @@
         <rect depth="2" name="searchControls" width="522" height="43" pos="101,-49">
           <sprite depth="1" name="background" color="[darkGrey]" type="sliced" pos="-1,0" width="524" height="49" />
           <sprite depth="8" name="backgroundMain" sprite="menu_empty3px" pos="-3,3" width="528" height="52" color="[black]" type="sliced" fillcenter="false" />
-          <button depth="4" name="btnHyperdimensionalRestock" pos="8,-22" style="icon30px, press, hover" sprite="ui_game_symbol_resource" tooltip_key="HyperdimensionalNetworkManualRestock" pivot="center" sound="[paging_click]" />
-          <button depth="4" name="btnHyperdimensionalSettings" pos="52,-22" style="icon30px, press, hover" sprite="ui_game_symbol_wrench" tooltip_key="HyperdimensionalNetworkSettings" pivot="center" sound="[paging_click]" />
-          <panel name="searchInputControls" pos="100,0" width="200" disableautobackground="true">
-            <sprite depth="4" name="searchIcon" style="icon30px" pos="0,-22" sprite="ui_game_symbol_search" pivot="center" />
-            <textfield depth="5" pos="22,-7" width="160" height="30" name="searchInput" focus_on_open="true" search_field="true" close_group_on_tab="true" clear_button="true" />
-          </panel>
-          <panel name="pagerControls" pos="405,0" width="104" height="43" disableautobackground="true">
+          <panel name="pagerControls" pos="110,0" width="104" height="43" disableautobackground="true">
             <pager name="pager" pos="4,-6" contents_parent="content" />
           </panel>
+          <panel name="searchInputControls" pos="214,0" width="220" disableautobackground="true">
+            <sprite depth="4" name="searchIcon" style="icon30px" pos="0,-22" sprite="ui_game_symbol_search" pivot="center" />
+            <textfield depth="5" pos="22,-7" width="178" height="30" name="searchInput" focus_on_open="true" search_field="true" close_group_on_tab="true" clear_button="true" />
+          </panel>
+          <button depth="4" name="btnHyperdimensionalRestock" pos="449,-22" style="icon30px, press, hover" sprite="ui_game_symbol_resource" tooltip_key="HyperdimensionalNetworkManualRestock" pivot="center" sound="[paging_click]" />
+          <button depth="4" name="btnHyperdimensionalSettings" pos="493,-22" style="icon30px, press, hover" sprite="ui_game_symbol_wrench" tooltip_key="HyperdimensionalNetworkSettings" pivot="center" sound="[paging_click]" />
         </rect>
         <rect depth="2" name="categoryBar" width="92" height="718" pos="3,-49">
           <sprite depth="1" name="background" color="[darkGrey]" type="sliced" pos="-1,0" width="97" height="722" />
@@ -57,7 +57,13 @@
           <label depth="32" name="labelAutoRestockTarget" pos="30,-202" width="220" height="54" font_size="22" text_key="HyperdimensionalNetworkSettingAutoRestockTarget" />
           <button depth="33" name="btnCycleAutoRestockTarget" pos="270,-205" width="190" height="50" style="press, hover" sprite="menu_empty3px" defaultcolor="65,52,40,245" hovercolor="112,82,48,255" selectedcolor="130,92,52,255" disabledcolor="55,48,40,180" sound="[paging_click]" />
           <label depth="34" name="labelAutoRestockTargetValue" pos="275,-210" width="180" height="40" font_size="18" color="255,255,255,255" justify="center" text_key="HyperdimensionalNetworkSettingHotbarAndLocked" />
-          <label depth="32" name="restockSettingsStatus" pos="20,-275" width="470" height="40" font_size="18" justify="center" text_key="HyperdimensionalNetworkSettingsReady" />
+          <label depth="32" name="labelReplenishmentEnabled" pos="30,-275" width="220" height="36" font_size="22" text_key="HyperdimensionalNetworkSettingReplenishmentEnabled" />
+          <button depth="33" name="btnToggleReplenishmentEnabled" pos="270,-269" width="190" height="42" style="press, hover" sprite="menu_empty3px" defaultcolor="65,52,40,245" hovercolor="112,82,48,255" selectedcolor="130,92,52,255" disabledcolor="55,48,40,180" sound="[paging_click]" />
+          <label depth="34" name="labelReplenishmentEnabledValue" pos="270,-274" width="190" height="32" font_size="21" color="255,255,255,255" justify="center" text_key="HyperdimensionalNetworkSettingOn" />
+          <label depth="32" name="labelAmmoBankEnabled" pos="30,-345" width="220" height="36" font_size="22" text_key="HyperdimensionalNetworkSettingAmmoBankEnabled" />
+          <button depth="33" name="btnToggleAmmoBankEnabled" pos="270,-339" width="190" height="42" style="press, hover" sprite="menu_empty3px" defaultcolor="65,52,40,245" hovercolor="112,82,48,255" selectedcolor="130,92,52,255" disabledcolor="55,48,40,180" sound="[paging_click]" />
+          <label depth="34" name="labelAmmoBankEnabledValue" pos="270,-344" width="190" height="32" font_size="21" color="255,255,255,255" justify="center" text_key="HyperdimensionalNetworkSettingOn" />
+          <label depth="32" name="restockSettingsStatus" pos="20,-415" width="470" height="40" font_size="18" justify="center" text_key="HyperdimensionalNetworkSettingsReady" />
         </rect>
       </rect>
     </window>

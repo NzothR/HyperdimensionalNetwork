@@ -26,7 +26,9 @@ internal enum NetworkRequestOperation : byte
     QueryRestockSettings = 15,
     SetRestockSetting = 16,
     ManualRestock = 17,
-    AutomaticRestock = 18
+    AutomaticRestock = 18,
+    AmmoBankReload = 19,
+    AmmoBankRefund = 20
 }
 
 internal enum NetworkConsumptionSource : byte
@@ -56,6 +58,8 @@ internal sealed class NetworkRemoteResult
     public RestockTargetMode RestockTargetMode;
     public bool IsNetworkAdministrator;
     public int AutoRestockCooldownMs;
+    public bool ReplenishmentEnabled = true;
+    public bool AmmoBankEnabled = true;
 }
 
 internal sealed class NetworkRemoteRequest
@@ -302,6 +306,26 @@ internal static class NetworkRemoteClient
         return Send(player, request, false, false, false, callback);
     }
 
+    public static bool RequestAmmoBankReload(EntityPlayerLocal player, ItemValue ammo, int count, int toolbeltSlot, Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player || ammo == null || ammo.type <= 0 || count <= 0 || toolbeltSlot < 0) return false;
+        NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.AmmoBankReload);
+        request.Value = ammo.Clone();
+        request.Count = count;
+        request.Slot = toolbeltSlot;
+        return Send(player, request, false, false, false, callback);
+    }
+
+    public static bool RequestAmmoBankRefund(EntityPlayerLocal player, ItemValue ammo, int count, long originalRequestId, Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player || ammo == null || count <= 0 || originalRequestId <= 0) return false;
+        NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.AmmoBankRefund);
+        request.Value = ammo.Clone();
+        request.Count = count;
+        request.OriginalRequestId = originalRequestId;
+        return Send(player, request, false, false, false, callback);
+    }
+
     public static bool RequestRestock(EntityPlayerLocal player, bool automatic, IEnumerable<int> toolbeltSlots,
         IEnumerable<int> backpackSlots, Action<NetworkRemoteResult> callback)
     {
@@ -383,6 +407,7 @@ internal static class NetworkRemoteClient
         if (result == null) return;
         PendingRequest pending;
         bool responseCurrent;
+        bool revisionChanged = false;
         lock (Sync)
         {
             if (!string.IsNullOrEmpty(result.NetworkId))
@@ -392,6 +417,7 @@ internal static class NetworkRemoteClient
                 _knownRevision = result.Revision;
                 MatchingEntries.Clear();
                 MatchingTypeFetchedAt.Clear();
+                revisionChanged = true;
             }
             responseCurrent = result.Revision >= _knownRevision;
             if (!Pending.TryGetValue(result.RequestId, out pending))
@@ -418,7 +444,9 @@ internal static class NetworkRemoteClient
                         MatchingEntries[NetworkStorage.NormalizeKey(entry.Value)] = entry.Count;
                 foreach (int type in types) MatchingTypeFetchedAt[type] = Time.realtimeSinceStartup;
             }
+            AmmoBankService.RefreshAmmoHud(GetLocalPlayer());
         }
+        else if (revisionChanged) AmmoBankService.RefreshAmmoHud(GetLocalPlayer());
         try { pending.Callback?.Invoke(result); }
         catch (Exception ex) { NetworkLog.Error("Network response handler failed. requestId=" + result.RequestId + "; exception=" + ex); }
     }
