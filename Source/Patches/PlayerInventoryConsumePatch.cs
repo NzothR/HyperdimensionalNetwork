@@ -7,81 +7,110 @@ namespace HyperdimensionalNetwork.Patches;
 [HarmonyPatch(typeof(XUiM_PlayerInventory), nameof(XUiM_PlayerInventory.RemoveItems))]
 internal static class PlayerInventoryConsumePatch
 {
-    private sealed class ConsumeState
+    private sealed class SlotWithdrawal
     {
-        public EntityPlayerLocal Player;
-        public List<StorageAddition> Removed;
+        public ItemStackGrid Grid;
+        public int Index;
+        public ItemStack Original;
+        public int Remaining;
+        public int Take;
     }
 
     [HarmonyPrefix]
-    private static bool Prefix(XUiM_PlayerInventory __instance, ref IList<ItemStack> _itemStacks, ref int _multiplier, out ConsumeState __state)
+    private static bool Prefix(XUiM_PlayerInventory __instance, IList<ItemStack> _itemStacks, int _multiplier, IList<ItemStack> _removedItems)
     {
-        __state = null;
         EntityPlayerLocal player = __instance.localPlayer;
         if (!(bool)player || _itemStacks == null || _multiplier <= 0) return true;
-        List<StoredEntry> available = null;
-        Dictionary<int, long> physicalRemaining = new Dictionary<int, long>();
-        List<ItemStack> physicalRequests = new List<ItemStack>();
+        List<SlotWithdrawal> slots = new List<SlotWithdrawal>();
+        AddSlots(slots, __instance.backpack.ItemGrid);
+        AddSlots(slots, __instance.toolbelt.ItemGrid);
+        List<StoredEntry> network = null;
         List<StorageAddition> networkRequests = new List<StorageAddition>();
+        bool exactQuality = false;
         foreach (ItemStack required in _itemStacks)
         {
             if (required == null || required.IsEmpty()) continue;
+            if (required.itemValue.Quality > 0) exactQuality = true;
             long needed = (long)required.count * _multiplier;
             if (needed > int.MaxValue)
             {
-                NetworkLog.Error("Player material consumption exceeds int32 limit. item=" + required.itemValue.type + "; count=" + needed);
+                NetworkLog.Error("Player material consumption blocked: requirement exceeds int32. item=" + required.itemValue.type + "; count=" + needed);
                 return false;
             }
-            int type = required.itemValue.type;
-            if (!physicalRemaining.TryGetValue(type, out long physical))
-                physical = (long)__instance.backpack.GetItemCount(required.itemValue) + __instance.toolbelt.GetItemCount(required.itemValue);
-            int physicalTake = (int)Math.Min(physical, needed);
-            physicalRemaining[type] = physical - physicalTake;
-            if (physicalTake > 0) physicalRequests.Add(new ItemStack(required.itemValue.Clone(), physicalTake));
-            long deficit = needed - physicalTake;
-            if (deficit <= 0) continue;
-            if (available == null) available = NetworkStorage.GetEntries(player);
-            foreach (StoredEntry entry in available)
+            foreach (SlotWithdrawal slot in slots)
             {
-                if (deficit == 0) break;
-                if (entry.Count <= 0 || !NetworkItemMatcher.Matches(entry.Value, required.itemValue)) continue;
-                long take = Math.Min(deficit, entry.Count);
+                if (needed == 0) break;
+                if (slot.Remaining == 0 || !NetworkItemMatcher.Matches(slot.Original.itemValue, required.itemValue)) continue;
+                int take = (int)Math.Min(needed, slot.Remaining);
+                slot.Remaining -= take;
+                slot.Take += take;
+                needed -= take;
+            }
+            if (needed == 0) continue;
+            if (network == null) network = NetworkStorage.GetEntriesForRequirements(player, _itemStacks);
+            foreach (StoredEntry entry in network)
+            {
+                if (needed == 0) break;
+                if (entry.Count == 0 || !NetworkItemMatcher.Matches(entry.Value, required.itemValue)) continue;
+                long take = Math.Min(needed, entry.Count);
                 entry.Count -= take;
-                deficit -= take;
+                needed -= take;
                 networkRequests.Add(new StorageAddition { Value = entry.Value.Clone(), Count = take });
             }
-            if (deficit > 0)
+            if (needed > 0)
             {
-                NetworkLog.Error("Player material consumption blocked: available sources are insufficient. item=" + type + "; missing=" + deficit);
+                NetworkLog.Error("Player material consumption blocked: exact material unavailable. item=" + required.itemValue.type + "; quality=" + required.itemValue.Quality + "; missing=" + needed);
                 return false;
             }
         }
-        if (networkRequests.Count == 0) return true;
-        if (!NetworkStorage.RemoveBatch(player, networkRequests))
+        if (networkRequests.Count == 0 && !exactQuality) return true;
+        if (networkRequests.Count > 0 && !NetworkStorage.RemoveBatch(player, networkRequests))
         {
             NetworkLog.Error("Player material consumption blocked: network batch commit failed. variants=" + networkRequests.Count);
             return false;
         }
-        __state = new ConsumeState { Player = player, Removed = networkRequests };
-        _itemStacks = physicalRequests;
-        _multiplier = 1;
-        NetworkLog.Debug("Player material consumption planned. physicalStacks=" + physicalRequests.Count + "; networkVariants=" + networkRequests.Count);
-        return true;
+        try
+        {
+            bool changedPhysical = false;
+            foreach (SlotWithdrawal slot in slots)
+            {
+                if (slot.Take == 0) continue;
+                if (slot.Grid.ChangeCount(slot.Index, -slot.Take) != -slot.Take)
+                    throw new InvalidOperationException("Physical inventory slot changed during material consumption.");
+                changedPhysical = true;
+            }
+            if (_removedItems != null)
+            {
+                foreach (SlotWithdrawal slot in slots)
+                    if (slot.Take > 0) _removedItems.Add(new ItemStack(slot.Original.itemValue.Clone(), slot.Take));
+                foreach (StorageAddition removal in networkRequests)
+                    _removedItems.Add(new ItemStack(removal.Value.Clone(), (int)removal.Count));
+            }
+            if (!changedPhysical)
+            {
+                __instance.dispatchBackpackItemsChanged();
+                __instance.dispatchToolbeltItemsChanged();
+            }
+            NetworkLog.Debug("Player materials consumed. physicalSlots=" + slots.FindAll(slot => slot.Take > 0).Count + "; networkVariants=" + networkRequests.Count);
+        }
+        catch (Exception ex)
+        {
+            foreach (SlotWithdrawal slot in slots)
+                if (slot.Take > 0) slot.Grid.SetItem(slot.Index, slot.Original);
+            if (networkRequests.Count > 0 && !NetworkStorage.AddBatch(player, networkRequests))
+                NetworkLog.Error("Player material rollback could not restore network items. " + ex);
+            else NetworkLog.Error("Player material consumption rolled back after slot error. " + ex);
+        }
+        return false;
     }
 
-    [HarmonyPostfix]
-    private static void Postfix(IList<ItemStack> _removedItems, ConsumeState __state)
+    private static void AddSlots(List<SlotWithdrawal> slots, ItemStackGrid grid)
     {
-        if (__state?.Removed == null || _removedItems == null) return;
-        foreach (StorageAddition removal in __state.Removed)
-            _removedItems.Add(new ItemStack(removal.Value.Clone(), (int)removal.Count));
-    }
-
-    [HarmonyFinalizer]
-    private static Exception Finalizer(Exception __exception, ConsumeState __state)
-    {
-        if (__exception != null && __state?.Removed != null && !NetworkStorage.AddBatch(__state.Player, __state.Removed))
-            NetworkLog.Error("Player material consumption rollback failed after game exception. " + __exception);
-        return __exception;
+        for (int index = 0; index < grid.Length; index++)
+        {
+            ItemStack stack = grid[index];
+            if (stack == null || stack.IsEmpty()) continue;
+            slots.Add(new SlotWithdrawal { Grid = grid, Index = index, Original = stack.Clone(), Remaining = stack.count });
+        }
     }
 }

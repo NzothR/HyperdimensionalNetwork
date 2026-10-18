@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using HarmonyLib;
 
 namespace HyperdimensionalNetwork.Patches;
@@ -9,6 +10,12 @@ internal static class CraftActionAvailabilityPatch
     [HarmonyPostfix]
     private static void Postfix(ItemActionEntryCraft __instance, XUi _xui, Recipe _recipe, ref bool __result)
     {
+        XUiC_WorkstationInputGrid workstationInput = __instance.craftCountControl?.WindowGroup?.Controller?.GetChildByType<XUiC_WorkstationInputGrid>();
+        if (workstationInput != null && __result && _recipe?.ingredients != null)
+        {
+            __result = workstationInput.HasItems(__instance.tempIngredientList, __instance.craftCountControl.Count);
+        }
+        if (workstationInput is XUiC_WorkstationMaterialInputGrid) return;
         if (__result || _recipe?.ingredients == null || _xui?.playerUI?.entityPlayer == null) return;
         bool hasQualityIngredient = false;
         foreach (ItemStack ingredient in _recipe.ingredients)
@@ -38,13 +45,17 @@ internal static class CraftActionAvailabilityPatch
             list.Add(new ItemStack(ingredient.itemValue.Clone(), count));
             if (!ingredient.itemValue.HasQuality) continue;
             long available = NetworkStorage.GetMatchingCount(player, ingredient.itemValue);
-            foreach (ItemStack stack in _xui.PlayerInventory.GetAllItemStacks())
-                if (stack != null && !stack.IsEmpty() && NetworkItemMatcher.Matches(stack.itemValue, ingredient.itemValue)) available += stack.count;
+            IList<ItemStack> physical = workstationInput != null
+                ? workstationInput.GetSlots()
+                : _xui.PlayerInventory.GetAllItemStacks();
+            foreach (ItemStack stack in physical)
+                if (stack != null && !stack.IsEmpty() && NetworkItemMatcher.Matches(stack.itemValue, ingredient.itemValue))
+                    available = available > long.MaxValue - stack.count ? long.MaxValue : available + stack.count;
             if (available < count) return;
         }
-        __result = _xui.PlayerInventory.HasItems(list, __instance.craftCountControl.Count);
-        XUiC_WorkstationInputGrid input = __instance.craftCountControl.WindowGroup.Controller.GetChildByType<XUiC_WorkstationInputGrid>();
-        if (input != null) __result |= input.HasItems(list, __instance.craftCountControl.Count);
+        __result = workstationInput != null
+            ? workstationInput.HasItems(list, __instance.craftCountControl.Count)
+            : _xui.PlayerInventory.HasItems(list, __instance.craftCountControl.Count);
         NetworkLog.Debug("Quality recipe availability recalculated with network. result=" + __result + "; ingredients=" + list.Count);
     }
 }

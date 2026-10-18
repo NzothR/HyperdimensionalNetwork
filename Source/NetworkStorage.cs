@@ -24,6 +24,7 @@ internal static class NetworkStorage
     private const int FileMagic = 0x314E5748; // HWN1
     private const int FileVersion = 1;
     private static readonly Dictionary<string, Dictionary<ItemValue, long>> Storages = new Dictionary<string, Dictionary<ItemValue, long>>(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, Dictionary<int, HashSet<ItemValue>>> TypeIndexes = new Dictionary<string, Dictionary<int, HashSet<ItemValue>>>(StringComparer.OrdinalIgnoreCase);
     private static readonly Dictionary<string, long> Revisions = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> UnsafePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     private static readonly Dictionary<string, long> ValidLengths = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
@@ -56,13 +57,38 @@ internal static class NetworkStorage
     public static long GetMatchingCount(EntityPlayer player, ItemValue requirement, bool includeModded = false)
     {
         if (!(bool)player || requirement == null) return 0;
+        string path = GetPath(player);
+        Dictionary<ItemValue, long> data = GetStorage(player);
+        if (UnsafePaths.Contains(path)) return 0;
+        if (!TypeIndexes[path].TryGetValue(requirement.type, out HashSet<ItemValue> keys)) return 0;
         long total = 0;
-        foreach (KeyValuePair<ItemValue, long> entry in GetStorage(player))
+        foreach (ItemValue key in keys)
         {
-            if (!NetworkItemMatcher.Matches(entry.Key, requirement, includeModded)) continue;
-            total = SafeAdd(total, entry.Value);
+            if (!NetworkItemMatcher.Matches(key, requirement, includeModded)) continue;
+            if (data.TryGetValue(key, out long count)) total = SafeAdd(total, count);
         }
         return total;
+    }
+
+    public static List<StoredEntry> GetEntriesForRequirements(EntityPlayer player, IEnumerable<ItemStack> requirements)
+    {
+        List<StoredEntry> result = new List<StoredEntry>();
+        if (!(bool)player || requirements == null) return result;
+        string path = GetPath(player);
+        Dictionary<ItemValue, long> data = GetStorage(player);
+        if (UnsafePaths.Contains(path)) return result;
+        HashSet<int> types = new HashSet<int>();
+        foreach (ItemStack requirement in requirements)
+            if (requirement?.itemValue != null && requirement.itemValue.type > 0) types.Add(requirement.itemValue.type);
+        foreach (int type in types)
+        {
+            if (!TypeIndexes[path].TryGetValue(type, out HashSet<ItemValue> keys)) continue;
+            foreach (ItemValue key in keys)
+                if (data.TryGetValue(key, out long count) && count > 0) result.Add(new StoredEntry { Value = key.Clone(), Count = count });
+        }
+        result.Sort((left, right) => left.Value.type != right.Value.type
+            ? left.Value.type.CompareTo(right.Value.type) : left.Value.Quality.CompareTo(right.Value.Quality));
+        return result;
     }
 
     public static bool RemoveBatch(EntityPlayer player, IEnumerable<StorageAddition> removals)
@@ -71,6 +97,7 @@ internal static class NetworkStorage
         string path = GetPath(player);
         if (UnsafePaths.Contains(path)) return false;
         Dictionary<ItemValue, long> current = GetStorage(player);
+        if (UnsafePaths.Contains(path)) return false;
         Dictionary<ItemValue, long> deltas = new Dictionary<ItemValue, long>(ItemValueComparer.Instance);
         foreach (StorageAddition removal in removals)
         {
@@ -88,6 +115,8 @@ internal static class NetworkStorage
         Dictionary<ItemValue, long> negative = deltas.ToDictionary(pair => pair.Key, pair => -pair.Value, ItemValueComparer.Instance);
         if (!AppendTransaction(path, negative)) return false;
         Apply(current, negative);
+        foreach (KeyValuePair<ItemValue, long> delta in deltas)
+            if (!current.ContainsKey(delta.Key)) Unindex(path, delta.Key);
         BumpRevision(path);
         NetworkLog.Debug("Network material batch consumed. variants=" + negative.Count + "; revision=" + Revisions[path]);
         return true;
@@ -115,6 +144,7 @@ internal static class NetworkStorage
         if (deltas.Count == 0) return false;
 
         Dictionary<ItemValue, long> current = GetStorage(player);
+        if (UnsafePaths.Contains(path)) return false;
         foreach (KeyValuePair<ItemValue, long> delta in deltas)
         {
             long old = current.TryGetValue(delta.Key, out long count) ? count : 0;
@@ -125,6 +155,8 @@ internal static class NetworkStorage
             }
         }
         if (!AppendTransaction(path, deltas)) return false;
+        foreach (KeyValuePair<ItemValue, long> delta in deltas)
+            if (!current.ContainsKey(delta.Key)) Index(path, delta.Key);
         Apply(current, deltas);
         BumpRevision(path);
         return true;
@@ -136,12 +168,14 @@ internal static class NetworkStorage
         string path = GetPath(player);
         if (UnsafePaths.Contains(path)) return 0;
         Dictionary<ItemValue, long> current = GetStorage(player);
+        if (UnsafePaths.Contains(path)) return 0;
         ItemValue lookup = NormalizeKey(value);
         if (!current.TryGetValue(lookup, out long available) || available <= 0) return 0;
         int amount = (int)Math.Min(Math.Min((long)requested, available), int.MaxValue);
         Dictionary<ItemValue, long> deltas = new Dictionary<ItemValue, long>(ItemValueComparer.Instance) { [lookup] = -amount };
         if (!AppendTransaction(path, deltas)) return 0;
         Apply(current, deltas);
+        if (!current.ContainsKey(lookup)) Unindex(path, lookup);
         BumpRevision(path);
         return amount;
     }
@@ -152,7 +186,28 @@ internal static class NetworkStorage
         if (Storages.TryGetValue(path, out Dictionary<ItemValue, long> data)) return data;
         data = Load(path);
         Storages[path] = data;
+        Dictionary<int, HashSet<ItemValue>> index = new Dictionary<int, HashSet<ItemValue>>();
+        foreach (ItemValue key in data.Keys)
+        {
+            if (!index.TryGetValue(key.type, out HashSet<ItemValue> keys)) index[key.type] = keys = new HashSet<ItemValue>(ItemValueComparer.Instance);
+            keys.Add(key);
+        }
+        TypeIndexes[path] = index;
         return data;
+    }
+
+    private static void Index(string path, ItemValue value)
+    {
+        Dictionary<int, HashSet<ItemValue>> index = TypeIndexes[path];
+        if (!index.TryGetValue(value.type, out HashSet<ItemValue> keys)) index[value.type] = keys = new HashSet<ItemValue>(ItemValueComparer.Instance);
+        keys.Add(value);
+    }
+
+    private static void Unindex(string path, ItemValue value)
+    {
+        if (!TypeIndexes[path].TryGetValue(value.type, out HashSet<ItemValue> keys)) return;
+        keys.Remove(value);
+        if (keys.Count == 0) TypeIndexes[path].Remove(value.type);
     }
 
     private static Dictionary<ItemValue, long> Load(string path)

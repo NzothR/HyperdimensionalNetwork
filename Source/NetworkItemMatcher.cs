@@ -17,5 +17,10 @@ internal static class NetworkItemMatcher
 
     public static int ClampCount(long count) => (int)Math.Max(0, Math.Min(count, int.MaxValue));
 
-    public static int AddClamped(int physical, long network) => ClampCount(Math.Max(0L, physical) + Math.Max(0L, network));
+    public static int AddClamped(int physical, long network)
+    {
+        long total = Math.Max(0L, network);
+        if (total >= int.MaxValue) return int.MaxValue;
+        return ClampCount(total + Math.Max(0, physical));
+    }
 }
