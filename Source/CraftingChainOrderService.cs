@@ -11,6 +11,15 @@ namespace HyperdimensionalNetwork;
 /// </summary>
 internal static class CraftingChainOrderService
 {
+    internal sealed class StageProgress
+    {
+        public CraftingChainPlanNode Node;
+        public bool Active;
+        public bool Completed;
+        public float StartedAt;
+        public string WarningKey = string.Empty;
+    }
+
     private sealed class WorkstationTask
     {
         public TileEntityWorkstation Workstation;
@@ -40,6 +49,7 @@ internal static class CraftingChainOrderService
         public bool QueueSubmitted;
         public bool IsActive;
         public bool IsCompleted;
+        public float StartedAt;
         public XUiC_WorkstationOutputGrid OutputGrid;
         public bool UsesForgeMaterials;
         public List<ItemStack> ReservedInputs = new List<ItemStack>();
@@ -57,6 +67,9 @@ internal static class CraftingChainOrderService
         public ItemValue RootOutputValue;
         public int DeliverableRootOutput;
         public int NetworkRootOutput;
+        public CraftingChainPlanInput PlanInput;
+        public CraftingChainPlan Plan;
+        public float StartedAt;
         public readonly List<Stage> Stages = new List<Stage>();
         public readonly List<ItemStack> EscrowItems = new List<ItemStack>();
         // A subset of EscrowItems that was actually removed from the shared network.
@@ -89,6 +102,7 @@ internal static class CraftingChainOrderService
     private static readonly Dictionary<int, Order> Orders = new Dictionary<int, Order>();
     private static readonly Dictionary<int, int> LastPumpFrameByPlayer = new Dictionary<int, int>();
     private static readonly Dictionary<int, string> LastStatuses = new Dictionary<int, string>();
+    private static readonly Dictionary<int, float> LastElapsedSeconds = new Dictionary<int, float>();
 
     public static bool CanStart(XUi xui, EntityPlayerLocal player, CraftingChainPlanInput input, CraftingChainPlan plan, out string error)
     {
@@ -208,6 +222,9 @@ internal static class CraftingChainOrderService
             RootOutputValue = BuildOutputValue(input, input.RootOutputItemId),
             DeliverableRootOutput = plan.PlannedOutput,
             NetworkRootOutput = plan.AvailableOutput,
+            PlanInput = input,
+            Plan = plan,
+            StartedAt = UnityEngine.Time.realtimeSinceStartup,
             Status = Localization.Get("HyperdimensionalNetworkCraftingChainStarting")
         };
         foreach (CraftingChainPlanNode node in nodes)
@@ -217,6 +234,7 @@ internal static class CraftingChainOrderService
         }
 
         LastStatuses.Remove(player.entityId);
+        LastElapsedSeconds.Remove(player.entityId);
         Orders[player.entityId] = order;
         AttachTrackingHandler(order);
         NetworkLog.Debug("Crafting-chain order created. player=" + player.entityId + "; root=" + order.RootRecipeKey
@@ -381,7 +399,7 @@ internal static class CraftingChainOrderService
         status = order.Status;
         currentStep = Math.Min(order.StageIndex + (order.StageIndex < order.Stages.Count ? 1 : 0), order.Stages.Count);
         totalSteps = order.Stages.Count;
-        cancellationPending = order.CancelRequested;
+        cancellationPending = order.CancelRequested || order.ReturnPending || order.ReturnInFlight;
         return true;
     }
 
@@ -389,6 +407,53 @@ internal static class CraftingChainOrderService
     {
         status = string.Empty;
         return (bool)player && LastStatuses.TryGetValue(player.entityId, out status);
+    }
+
+    public static bool TryGetLastElapsed(EntityPlayer player, out float seconds)
+    {
+        seconds = 0f;
+        return (bool)player && LastElapsedSeconds.TryGetValue(player.entityId, out seconds);
+    }
+
+    public static bool TryGetActiveView(EntityPlayer player, out CraftingChainPlanInput input, out CraftingChainPlan plan)
+    {
+        input = null;
+        plan = null;
+        if (!(bool)player || !Orders.TryGetValue(player.entityId, out Order order)) return false;
+        input = order.PlanInput;
+        plan = order.Plan;
+        return input != null && plan != null;
+    }
+
+    public static bool TryGetProgress(EntityPlayer player, out float elapsed, out List<StageProgress> stages)
+    {
+        elapsed = 0f;
+        stages = null;
+        if (!(bool)player || !Orders.TryGetValue(player.entityId, out Order order)) return false;
+        elapsed = Math.Max(0f, UnityEngine.Time.realtimeSinceStartup - order.StartedAt);
+        stages = new List<StageProgress>(order.Stages.Count);
+        foreach (Stage stage in order.Stages)
+        {
+            StageProgress progress = new StageProgress
+            {
+                Node = stage.Node,
+                Active = stage.IsActive,
+                Completed = stage.IsCompleted,
+                StartedAt = stage.StartedAt
+            };
+            if (stage.IsActive)
+                foreach (WorkstationTask task in stage.WorkstationTasks)
+                {
+                    TileEntityWorkstation station = task.Workstation;
+                    if (station == null || !CraftingChainWorkstationService.RequiresFuel(station) || station.IsBurning) continue;
+                    progress.WarningKey = new XUiM_Workstation(station).GetTotalBurnTimeLeft() <= 0f
+                        ? "HyperdimensionalNetworkCraftingChainFuelInsufficient"
+                        : "HyperdimensionalNetworkCraftingChainWorkstationStopped";
+                    break;
+                }
+            stages.Add(progress);
+        }
+        return true;
     }
 
     public static void ClearLastStatus(EntityPlayer player)
@@ -1023,6 +1088,7 @@ internal static class CraftingChainOrderService
                 stage.QueueSubmitted = true;
             }
             stage.IsActive = true;
+            stage.StartedAt = UnityEngine.Time.realtimeSinceStartup;
             order.Status = string.Format(Localization.Get("HyperdimensionalNetworkCraftingChainStepProgress"),
                 order.StageIndex + 1, order.Stages.Count, GetItemName(stage));
             NetworkLog.Debug("Crafting-chain vanilla step queued. player=" + order.player.entityId + "; step=" + (order.StageIndex + 1)
@@ -1850,8 +1916,22 @@ internal static class CraftingChainOrderService
         order.Status = string.IsNullOrEmpty(order.TerminalStatus)
             ? Localization.Get("HyperdimensionalNetworkCraftingChainCompleted") : order.TerminalStatus;
         LastStatuses[order.player.entityId] = order.Status;
+        LastElapsedSeconds[order.player.entityId] = Math.Max(0f, UnityEngine.Time.realtimeSinceStartup - order.StartedAt);
         DetachTrackingHandler(order);
         Orders.Remove(order.player.entityId);
+        if (order.Status == Localization.Get("HyperdimensionalNetworkCraftingChainCompleted"))
+        {
+            try
+            {
+                GameManager.ShowTooltip(order.player, order.Status, string.Empty, "ui_challenge_complete");
+                NetworkLog.Debug("Crafting-chain completion toast queued. player=" + order.player.entityId);
+            }
+            catch (Exception exception)
+            {
+                NetworkLog.Error("Crafting-chain completion toast failed. player=" + order.player.entityId
+                    + "; exception=" + exception);
+            }
+        }
         NetworkLog.Debug("Crafting-chain order closed. player=" + order.player.entityId + "; root=" + order.RootRecipeKey
             + "; steps=" + order.Stages.Count + "; terminal=" + order.Status);
     }

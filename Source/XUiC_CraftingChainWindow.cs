@@ -24,6 +24,8 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     private XUiController _recipePreviewFrame;
     private XUiController _recipePreviewTitle;
     private XUiController _status;
+    private XUiController _materialsTitle;
+    private XUiController _totalElapsed;
     private XUiController _targetName;
     private XUiController _targetIcon;
     private XUiController _emptyHint;
@@ -33,6 +35,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     private XUiController _startButton;
     private XUiController _cancelButton;
     private XUiC_TextInput _quantityInput;
+    private XUiController[] _quantityControls;
     private XUiController[] _nodeButtons;
     private XUiController[] _nodeFrames;
     private XUiController[] _nodeCounts;
@@ -58,6 +61,9 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     private bool _isPanning;
     private bool _waitingForNetworkSnapshot;
     private bool _orderWasActive;
+    private bool _showingCompletedOrder;
+    private int _visibleCompletedStages = -1;
+    private readonly HashSet<CraftingChainPlanNode> _completedNodes = new HashSet<CraftingChainPlanNode>();
     private float _nextNetworkSnapshotCheck;
     private float _nextStartCheck;
     private float _nextPresentationCheck;
@@ -104,6 +110,8 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         _recipePreviewFrame = GetChildById("recipePreviewFrame");
         _recipePreviewTitle = GetChildById("craftingChainRecipePreviewTitle");
         _status = GetChildById("craftingChainStatus");
+        _materialsTitle = GetChildById("materialsTitle");
+        _totalElapsed = GetChildById("craftingChainTotalElapsed");
         _targetName = GetChildById("craftingChainTargetName");
         _targetIcon = GetChildById("craftingChainTargetIcon");
         _emptyHint = GetChildById("craftingChainEmptyHint");
@@ -113,6 +121,10 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         _startButton = GetChildById("btnCraftingChainStart");
         _cancelButton = GetChildById("btnCraftingChainCancel");
         _quantityInput = GetChildById("craftingChainQuantityInput") as XUiC_TextInput;
+        _quantityControls = new[] { "craftingChainQuantityLabel", "btnCraftingChainQuantityMinus",
+            "craftingChainQuantityMinusLabel", "craftingChainQuantityInput",
+            "btnCraftingChainQuantityPlus", "craftingChainQuantityPlusLabel" }
+            .Select(GetChildById).ToArray();
         if (_quantityInput != null) _quantityInput.OnChangeHandler += OnQuantityChanged;
 
         _nodeButtons = new XUiController[NodeSlotCount];
@@ -191,8 +203,8 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         _maxObservedFrameTime = 0f;
         _observedFrameTimeTotal = 0f;
         _observedFrames = 0;
-        CraftingChainOrderService.ClearLastStatus(xui?.playerUI?.entityPlayer);
         _orderWasActive = CraftingChainOrderService.IsActive(xui?.playerUI?.entityPlayer);
+        _showingCompletedOrder = false;
         _viewState = CraftingChainCacheService.Load(xui?.playerUI?.entityPlayer);
         _quantityRefreshAt = -1f;
         _desiredOutputCount = GetTrackedDefaultOutputCount();
@@ -264,6 +276,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             }
             _plan = task.Result;
             _startCheckValid = false;
+            if (_showingCompletedOrder) return;
             try
             {
                 RenderPlan();
@@ -285,6 +298,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         {
             _nextPresentationCheck = Time.realtimeSinceStartup + 0.2f;
             UpdateOrderPresentation();
+            UpdateProgressVisuals();
         }
         UpdateRecipePopupDismissal();
         UpdatePanning();
@@ -310,6 +324,11 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     private void RefreshTrackedRecipe(string reason)
     {
         CancelPendingPlan();
+        if (ShowActiveOrder()) return;
+        _completedNodes.Clear();
+        _visibleCompletedStages = -1;
+        SetLabel(_materialsTitle, Localization.Get("HyperdimensionalNetworkCraftingChainMaterials"));
+        SetVisible(_totalElapsed, false);
         _trackedRecipe = xui?.Recipes?.TrackedRecipe;
         _plan = null;
         _planInput = null;
@@ -327,6 +346,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             SetLabel(_targetName, string.Empty);
             SetIcon(_targetIcon, string.Empty, string.Empty);
             SetVisible(_emptyHint, true);
+            SetLabel(_emptyHint, Localization.Get("HyperdimensionalNetworkCraftingChainNoTarget"));
             SetLabel(_status, Localization.Get("HyperdimensionalNetworkCraftingChainNoTarget"));
             _waitingForNetworkSnapshot = false;
             NetworkLog.Debug("Crafting-chain preview cleared because no recipe is tracked. reason=" + reason);
@@ -373,6 +393,29 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         StartPlanCalculation(_planInput, reason);
     }
 
+    private bool ShowActiveOrder()
+    {
+        EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
+        if (!CraftingChainOrderService.TryGetActiveView(player, out CraftingChainPlanInput input,
+            out CraftingChainPlan plan)) return false;
+        _planInput = input;
+        _plan = plan;
+        _showingCompletedOrder = false;
+        _trackedRootKey = plan.RootRecipeKey;
+        _desiredOutputCount = plan.RequestedOutputCount;
+        SetQuantityInput(_desiredOutputCount);
+        CraftingChainItemInfo item = GetItem(input.RootOutputItemId);
+        SetLabel(_targetName, (item?.Name ?? string.Empty) + " × " + plan.RequestedOutputCount);
+        SetIcon(_targetIcon, item?.Icon, item?.Name);
+        SetVisible(_emptyHint, false);
+        _startCheckValid = false;
+        _visibleCompletedStages = -1;
+        UpdateProgressVisuals();
+        NetworkLog.Debug("Crafting-chain view restored from active order. player=" + player.entityId
+            + "; stages=" + plan.Nodes.Count);
+        return true;
+    }
+
     private void ApplySavedRecipeChoices(CraftingChainPlanInput input)
     {
         if (_viewState?.RecipeChoices == null || input?.Items == null) return;
@@ -410,6 +453,11 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             return;
         }
         SetVisible(_emptyHint, false);
+        bool running = CraftingChainOrderService.IsActive(xui?.playerUI?.entityPlayer);
+        SetQuantityControlsVisible(!running);
+        SetLabel(_materialsTitle, Localization.Get(running
+            ? "HyperdimensionalNetworkCraftingChainTotalElapsed" : "HyperdimensionalNetworkCraftingChainMaterials"));
+        SetVisible(_totalElapsed, running);
         BuildLocatedNodes();
         if (_treeTruncated)
         {
@@ -424,6 +472,11 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             CraftingChainItemInfo item = GetItem(located.ItemId);
             XUiController nodeButton = _nodeButtons[index];
             SetIcon(nodeButton, item?.Icon, item?.Name);
+            if (!running)
+            {
+                SetSpriteColor(_nodeFrames[index], new Color32(94, 151, 176, 255));
+                SetButtonColor(nodeButton, Color.white);
+            }
             SetVisible(nodeButton, true);
             if (nodeButton?.ViewComponent == null && !nodeViewProblemLogged)
             {
@@ -441,6 +494,14 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             SetVisible(_nodeCounts[index], true);
         }
         RenderEdges();
+
+        if (running)
+        {
+            ClearMaterialSlots();
+            UpdateStartAvailability();
+            ApplyCanvasTransform();
+            return;
+        }
 
         for (int index = 0; index < Math.Min(_plan.Materials.Count, _materialButtons.Length); index++)
         {
@@ -489,8 +550,9 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         _treeTruncated = false;
         float nextLeaf = 0f;
         foreach (CraftingChainPlanNode root in _plan.Nodes)
-            AddLocatedNode(root, root.ItemId, root.OutputCount, false, 0, -1, ref nextLeaf);
-        if (_locatedNodes.Count == 0 && _planInput != null)
+            if (!_completedNodes.Contains(root))
+                AddLocatedNode(root, root.ItemId, root.OutputCount, false, 0, -1, ref nextLeaf);
+        if (_locatedNodes.Count == 0 && _planInput != null && !CraftingChainOrderService.IsActive(xui?.playerUI?.entityPlayer))
             AddLocatedNode(null, _planInput.RootOutputItemId, _plan.RequestedOutput, false, 0, -1, ref nextLeaf);
         float centerLeaf = (nextLeaf - 1f) * 0.5f;
         foreach (LocatedPlanNode node in _locatedNodes)
@@ -522,6 +584,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         if (recipeNode != null)
             foreach (CraftingChainPlanDisplayChild child in recipeNode.DisplayChildren)
             {
+                if (child.RecipeNode != null && _completedNodes.Contains(child.RecipeNode)) continue;
                 int childIndex = AddLocatedNode(child.RecipeNode, child.ItemId, child.RequiredCount,
                     child.ForgeOnly, depth + 1, index, ref nextLeaf);
                 if (childIndex < 0) break;
@@ -573,6 +636,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
 
     private void OnNodePressed(int slot)
     {
+        if (CraftingChainOrderService.IsActive(xui?.playerUI?.entityPlayer)) return;
         if (_plan == null || slot < 0 || slot >= _locatedNodes.Count) return;
         LocatedPlanNode located = _locatedNodes[slot];
         _selectedItemId = located.ItemId;
@@ -714,6 +778,13 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         }
         _orderWasActive = true;
         _startCheckValid = false;
+        GUIWindowManager manager = xui?.playerUI?.windowManager;
+        if (manager != null && !manager.IsWindowOpen("hyperdimensionalCraftingChain"))
+        {
+            NetworkLog.Debug("Crafting-chain reopening the planning window after vanilla queue submission closed it.");
+            manager.Open("hyperdimensionalCraftingChain", _bModal: true);
+        }
+        ShowActiveOrder();
         UpdateOrderPresentation();
         NetworkLog.Debug("Crafting-chain order accepted from its planning window. player=" + player.entityId + "; root=" + _trackedRootKey);
     }
@@ -770,12 +841,15 @@ public sealed class XUiC_CraftingChainWindow : XUiController
 
     private void OnCancelPressed(XUiController sender, int mouseButton)
     {
-        if (!CraftingChainOrderService.IsActive(xui?.playerUI?.entityPlayer))
+        EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
+        if (!CraftingChainOrderService.IsActive(player))
         {
             xui?.playerUI?.windowManager?.Close("hyperdimensionalCraftingChain");
             return;
         }
-        SetVisible(_confirmCancelPanel, true);
+        bool accepted = CraftingChainOrderService.RequestCancel(player);
+        NetworkLog.Debug("Crafting-chain cancel button pressed. player=" + player.entityId + "; accepted=" + accepted);
+        if (accepted) UpdateOrderPresentation();
     }
 
     private void OnConfirmCancelPressed(XUiController sender, int mouseButton)
@@ -800,6 +874,11 @@ public sealed class XUiC_CraftingChainWindow : XUiController
 
     private void UpdateStartAvailability()
     {
+        if (_showingCompletedOrder)
+        {
+            SetStartEnabled(false);
+            return;
+        }
         if (CraftingChainOrderService.IsActive(xui?.playerUI?.entityPlayer))
         {
             _startAvailable = false;
@@ -829,20 +908,110 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             SetVisible(_cancelButton, true);
             SetVisible(_cancelLabel, true);
             SetLabel(_cancelLabel, Localization.Get("HyperdimensionalNetworkCraftingChainCancel"));
-            if (cancellationPending) SetVisible(_cancelButton, false);
+            SetVisible(_cancelButton, !cancellationPending);
+            SetVisible(_cancelLabel, !cancellationPending);
             return;
         }
 
         SetVisible(_cancelButton, true);
         SetVisible(_cancelLabel, true);
         SetLabel(_cancelLabel, Localization.Get("xuiClose"));
-        SetVisible(_startButton, true);
-        SetVisible(_startLabel, true);
+        SetVisible(_startButton, !_showingCompletedOrder);
+        SetVisible(_startLabel, !_showingCompletedOrder);
+        SetQuantityControlsVisible(!_showingCompletedOrder);
         UpdateStartAvailability();
         if (_orderWasActive && CraftingChainOrderService.TryGetLastStatus(player, out string lastStatus))
         {
             SetLabel(_status, lastStatus);
             _orderWasActive = false;
+            if (lastStatus == Localization.Get("HyperdimensionalNetworkCraftingChainCompleted"))
+            {
+                _showingCompletedOrder = true;
+                ClearNodeSlots();
+                ClearMaterialSlots();
+                SetVisible(_emptyHint, true);
+                SetLabel(_emptyHint, lastStatus);
+                SetLabel(_materialsTitle, Localization.Get("HyperdimensionalNetworkCraftingChainTotalElapsed"));
+                if (CraftingChainOrderService.TryGetLastElapsed(player, out float seconds))
+                {
+                    SetLabel(_totalElapsed, FormatElapsed(seconds));
+                    SetVisible(_totalElapsed, true);
+                }
+                SetVisible(_startButton, false);
+                SetVisible(_startLabel, false);
+            }
+            else RefreshTrackedRecipe("order-ended");
+        }
+    }
+
+    private void UpdateProgressVisuals()
+    {
+        EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
+        if (!CraftingChainOrderService.TryGetProgress(player, out float elapsed,
+            out List<CraftingChainOrderService.StageProgress> stages)) return;
+        int completed = stages.Count(stage => stage.Completed);
+        if (completed != _visibleCompletedStages)
+        {
+            _completedNodes.Clear();
+            foreach (CraftingChainOrderService.StageProgress stage in stages.Where(stage => stage.Completed))
+                _completedNodes.Add(stage.Node);
+            _visibleCompletedStages = completed;
+            if (_plan != null) RenderPlan();
+            NetworkLog.Debug("Crafting-chain progress tree refreshed. player=" + player.entityId
+                + "; completed=" + completed + "/" + stages.Count);
+        }
+        if (CraftingChainOrderService.TryGetStatus(player, out string runningStatus, out _, out _, out _))
+            SetLabel(_status, runningStatus);
+        SetLabel(_totalElapsed, FormatElapsed(elapsed));
+        SetVisible(_totalElapsed, true);
+        for (int index = 0; index < _locatedNodes.Count; index++)
+        {
+            LocatedPlanNode located = _locatedNodes[index];
+            CraftingChainOrderService.StageProgress stage = stages.FirstOrDefault(candidate =>
+                ReferenceEquals(candidate.Node, located.RecipeNode));
+            bool active = stage?.Active == true;
+            bool warning = active && !string.IsNullOrEmpty(stage.WarningKey);
+            Color frameColor = warning ? new Color32(255, 198, 48, 255)
+                : active ? new Color32(82, 222, 245, 255) : new Color32(99, 105, 113, 255);
+            Color iconColor = warning ? new Color32(255, 236, 145, 255)
+                : active ? Color.white : new Color32(145, 150, 155, 255);
+            SetSpriteColor(_nodeFrames[index], frameColor);
+            SetButtonColor(_nodeButtons[index], iconColor);
+            if (active && _nodeButtons[index]?.ViewComponent != null)
+            {
+                string tooltip = (GetItem(located.ItemId)?.Name ?? string.Empty) + "\n"
+                    + string.Format(Localization.Get("HyperdimensionalNetworkCraftingChainNodeElapsed"),
+                        FormatElapsed(Math.Max(0f, Time.realtimeSinceStartup - stage.StartedAt)));
+                if (warning) tooltip += "\n" + Localization.Get(stage.WarningKey);
+                if (_nodeButtons[index].ViewComponent.ToolTip != tooltip)
+                    _nodeButtons[index].ViewComponent.ToolTip = tooltip;
+            }
+        }
+    }
+
+    private static string FormatElapsed(float seconds)
+    {
+        int total = Math.Max(0, Mathf.FloorToInt(seconds));
+        return string.Format("{0:00}:{1:00}:{2:00}", total / 3600, total / 60 % 60, total % 60);
+    }
+
+    private void SetQuantityControlsVisible(bool visible)
+    {
+        foreach (XUiController control in _quantityControls ?? Array.Empty<XUiController>())
+            SetVisible(control, visible);
+    }
+
+    private static void SetSpriteColor(XUiController controller, Color color)
+    {
+        if (controller?.ViewComponent is XUiV_Sprite sprite && sprite.Color != color) sprite.Color = color;
+    }
+
+    private static void SetButtonColor(XUiController controller, Color color)
+    {
+        if (controller?.ViewComponent is XUiV_Button button && button.DefaultSpriteColor != color)
+        {
+            button.DefaultSpriteColor = color;
+            button.HoverSpriteColor = color;
         }
     }
 

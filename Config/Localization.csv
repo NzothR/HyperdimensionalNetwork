@@ -65,3 +65,7 @@ HyperdimensionalNetworkCraftingChainReturnInventorySpace,Make room in your inven
 HyperdimensionalNetworkCraftingChainPlanTooLarge,This crafting plan is too large to display safely.,合成计划过于复杂，无法安全显示。
 HyperdimensionalNetworkCraftingChainInventory,Backpack crafting,背包制作
 HyperdimensionalNetworkCraftingChainQuantity,Output count,成品数量
+HyperdimensionalNetworkCraftingChainTotalElapsed,Total elapsed time,总耗时
+HyperdimensionalNetworkCraftingChainNodeElapsed,Elapsed: {0},已耗时：{0}
+HyperdimensionalNetworkCraftingChainFuelInsufficient,Workstation stopped: fuel depleted.,工作站已停止：燃料不足。
+HyperdimensionalNetworkCraftingChainWorkstationStopped,Workstation stopped: check fuel and operating state.,工作站已停止：请检查燃料和运行状态。

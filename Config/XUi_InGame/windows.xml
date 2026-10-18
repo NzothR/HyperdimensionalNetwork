@@ -805,6 +805,7 @@
           <sprite depth="3" name="materialsBackground" pos="5,-554" width="890" height="156" sprite="menu_empty" color="10,20,32,255" type="sliced" foregroundlayer="true" globalopacitymod="0" />
           <sprite depth="4" name="materialsFrame" pos="5,-554" width="890" height="156" sprite="menu_empty2px" color="45,125,160,255" type="sliced" fillcenter="false" />
           <label depth="5" name="materialsTitle" pos="18,-565" width="860" height="26" font_size="18" text_key="HyperdimensionalNetworkCraftingChainMaterials" color="240,185,90,255" effect="Outline8" effect_color="0,0,0,255" effect_distance="1,1" />
+          <label depth="6" name="craftingChainTotalElapsed" pos="15,-624" width="870" height="54" visible="false" font_size="35" justify="center" color="215,235,240,255" effect="Outline8" effect_color="0,0,0,255" effect_distance="1,1" />
           <rect depth="5" name="craftingChainMaterials" pos="15,-595" width="870" height="104">
               <button depth="2" name="craftingChainMaterial00" pos="0,0" width="42" height="42" visible="false" style="icon32px, press, hover" />
               <label depth="3" name="craftingChainMaterialCount00" pos="0,0" width="60" height="24" visible="false" font_size="15" />
