@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace HyperdimensionalNetwork;
 
@@ -20,6 +21,10 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         _search = GetChildById("searchInput") as XUiC_TextInput;
         if (_search == null) _search = Parent?.GetChildById("searchInput") as XUiC_TextInput;
         if (_search != null) _search.OnChangeHandler += OnSearchChanged;
+        List<XUiC_ItemStack> slots = new List<XUiC_ItemStack>();
+        GetChildrenByType(slots);
+        foreach (XUiC_ItemStack slot in slots) slot.OnScroll += OnNetworkScroll;
+        OnScroll += OnNetworkScroll;
         NetworkLog.Debug("Window controller initialized. grid=" + (_grid != null) + "; categories=" + (_categories != null) + "; search=" + (_search != null));
     }
 
@@ -34,6 +39,15 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     private void OnCategoryChanged(XUiC_CategoryEntry category) => _grid?.SetCategory(category?.CategoryName);
     private void OnSearchChanged(XUiController controller, string text, bool changeFromCode) => _grid?.SetSearch(text);
     private void OnPageChanged() { if (_pager != null) _grid?.SetPage(_pager.CurrentPageNumber); }
+
+    private void OnNetworkScroll(XUiController sender, float delta)
+    {
+        if (_grid == null || delta == 0f) return;
+        int next = _grid.Page + (delta < 0f ? 1 : -1);
+        if (next == _grid.Page || next < 0 || next >= _grid.PageCount) return;
+        _grid.SetPage(next);
+        NetworkLog.Debug("Network page changed by mouse wheel. page=" + next + "; total=" + _grid.PageCount);
+    }
 
     private void RefreshPager()
     {

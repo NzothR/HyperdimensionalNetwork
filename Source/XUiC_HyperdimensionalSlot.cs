@@ -10,6 +10,16 @@ public sealed class XUiC_HyperdimensionalSlot : XUiC_ItemStack
     public void Bind(XUiC_HyperdimensionalGrid grid, int index) { _grid = grid; _visibleIndex = index; }
     public void SetVisibleIndex(int index) => _visibleIndex = index;
 
+    public override bool GetBindingValueInternal(ref string value, string bindingName)
+    {
+        if (bindingName == "itemcount" && ItemStack != null && !ItemStack.IsEmpty() && ItemStack.count > 1)
+        {
+            value = itemcountFormatter.Format(ItemStack.count);
+            return true;
+        }
+        return base.GetBindingValueInternal(ref value, bindingName);
+    }
+
     public override void Update(float _dt)
     {
         if (!TryHandleMousePut()) base.Update(_dt);
