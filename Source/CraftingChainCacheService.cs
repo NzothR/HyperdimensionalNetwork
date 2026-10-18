@@ -20,6 +20,7 @@ internal static class CraftingChainCacheService
 {
     private const int FileMagic = 0x31434348; // HCC1
     private const int FileVersion = 1;
+    private const int TreeLayoutRevision = 2;
     private const int MaximumRecipeChoices = 512;
     private static readonly object Sync = new object();
 
@@ -49,6 +50,13 @@ internal static class CraftingChainCacheService
                         string itemKey = reader.ReadString();
                         string recipeKey = reader.ReadString();
                         if (!string.IsNullOrEmpty(itemKey) && !string.IsNullOrEmpty(recipeKey)) state.RecipeChoices[itemKey] = recipeKey;
+                    }
+                    int savedLayoutRevision = stream.Position < stream.Length ? reader.ReadInt32() : 0;
+                    if (savedLayoutRevision != TreeLayoutRevision)
+                    {
+                        state.PanX = 0f;
+                        state.PanY = 0f;
+                        state.Zoom = 1f;
                     }
                 }
                 NetworkLog.Debug("Crafting-chain personal view cache loaded. choices=" + state.RecipeChoices.Count + "; zoom=" + state.Zoom.ToString("F2"));
@@ -91,6 +99,7 @@ internal static class CraftingChainCacheService
                         writer.Write(choice.Key);
                         writer.Write(choice.Value);
                     }
+                    writer.Write(TreeLayoutRevision);
                     writer.Flush();
                     stream.Flush(true);
                 }

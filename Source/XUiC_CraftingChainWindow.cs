@@ -10,11 +10,19 @@ namespace HyperdimensionalNetwork;
 public sealed class XUiC_CraftingChainWindow : XUiController
 {
     private const int NodeSlotCount = 128;
+    private const int EdgeSlotCount = 256;
     private const int MaterialSlotCount = 24;
     private const int OptionSlotCount = 8;
+    private const int PreviewIngredientSlotCount = 10;
     private XUiController _treeViewport;
     private XUiController _treeCanvas;
     private XUiController _recipeDropdown;
+    private XUiController _recipeDropdownBackground;
+    private XUiController _recipeDropdownFrame;
+    private XUiController _recipePreview;
+    private XUiController _recipePreviewBackground;
+    private XUiController _recipePreviewFrame;
+    private XUiController _recipePreviewTitle;
     private XUiController _status;
     private XUiController _targetName;
     private XUiController _targetIcon;
@@ -25,6 +33,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     private XUiController _startButton;
     private XUiController _cancelButton;
     private XUiController[] _nodeButtons;
+    private XUiController[] _nodeFrames;
     private XUiController[] _nodeCounts;
     private XUiController[] _edges;
     private XUiController[] _materialButtons;
@@ -32,6 +41,10 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     private XUiController[] _forgeIcons;
     private XUiController[] _optionButtons;
     private XUiController[] _optionLabels;
+    private XUiController[] _previewRows;
+    private XUiController[] _previewIcons;
+    private XUiController[] _previewNames;
+    private XUiController[] _previewCounts;
     private Recipe _trackedRecipe;
     private CraftingChainPlanInput _planInput;
     private CraftingChainPlan _plan;
@@ -72,6 +85,12 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         _treeViewport = GetChildById("craftingChainTreeViewport");
         _treeCanvas = GetChildById("craftingChainTreeCanvas");
         _recipeDropdown = GetChildById("craftingChainRecipeDropdown");
+        _recipeDropdownBackground = GetChildById("recipeDropdownBackground");
+        _recipeDropdownFrame = GetChildById("recipeDropdownFrame");
+        _recipePreview = GetChildById("craftingChainRecipePreview");
+        _recipePreviewBackground = GetChildById("recipePreviewBackground");
+        _recipePreviewFrame = GetChildById("recipePreviewFrame");
+        _recipePreviewTitle = GetChildById("craftingChainRecipePreviewTitle");
         _status = GetChildById("craftingChainStatus");
         _targetName = GetChildById("craftingChainTargetName");
         _targetIcon = GetChildById("craftingChainTargetIcon");
@@ -83,13 +102,15 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         _cancelButton = GetChildById("btnCraftingChainCancel");
 
         _nodeButtons = new XUiController[NodeSlotCount];
+        _nodeFrames = new XUiController[NodeSlotCount];
         _nodeCounts = new XUiController[NodeSlotCount];
-        _edges = new XUiController[NodeSlotCount - 1];
+        _edges = new XUiController[EdgeSlotCount];
         for (int index = 0; index < _edges.Length; index++)
             _edges[index] = GetChildById("craftingChainEdge" + index.ToString("00"));
         for (int index = 0; index < NodeSlotCount; index++)
         {
             int slot = index;
+            _nodeFrames[index] = GetChildById("craftingChainNodeFrame" + index.ToString("00"));
             _nodeButtons[index] = GetChildById("craftingChainNode" + index.ToString("00"));
             _nodeCounts[index] = GetChildById("craftingChainNodeCount" + index.ToString("00"));
             if (_nodeButtons[index] != null) _nodeButtons[index].OnPress += (sender, mouseButton) => OnNodePressed(slot);
@@ -113,6 +134,20 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             _optionButtons[index] = GetChildById("craftingChainRecipeOption" + index.ToString("00"));
             _optionLabels[index] = GetChildById("craftingChainRecipeOptionLabel" + index.ToString("00"));
             if (_optionButtons[index] != null) _optionButtons[index].OnPress += (sender, mouseButton) => OnRecipeOptionPressed(slot);
+            if (_optionButtons[index] != null) _optionButtons[index].OnHover += (sender, isOver) => OnRecipeOptionHovered(slot, isOver);
+        }
+
+        _previewRows = new XUiController[PreviewIngredientSlotCount];
+        _previewIcons = new XUiController[PreviewIngredientSlotCount];
+        _previewNames = new XUiController[PreviewIngredientSlotCount];
+        _previewCounts = new XUiController[PreviewIngredientSlotCount];
+        for (int index = 0; index < PreviewIngredientSlotCount; index++)
+        {
+            string suffix = index.ToString("00");
+            _previewRows[index] = GetChildById("craftingChainPreviewRow" + suffix);
+            _previewIcons[index] = GetChildById("craftingChainPreviewIcon" + suffix);
+            _previewNames[index] = GetChildById("craftingChainPreviewName" + suffix);
+            _previewCounts[index] = GetChildById("craftingChainPreviewCount" + suffix);
         }
 
         if (_treeViewport != null) _treeViewport.OnScroll += OnTreeScroll;
@@ -122,6 +157,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         BindPress("btnCraftingChainConfirmCancelNo", OnDismissCancelPressed);
         BindPress("btnCraftingChainClose", OnClosePressed);
         SetVisible(_recipeDropdown, false);
+        SetVisible(_recipePreview, false);
         SetVisible(_confirmCancelPanel, false);
         SetVisible(_emptyHint, true);
         ClearNodeSlots();
@@ -343,9 +379,11 @@ public sealed class XUiC_CraftingChainWindow : XUiController
                     + "; controller=" + (nodeButton?.GetType().Name ?? "<missing>")
                     + "; view=" + (nodeButton?.ViewComponent?.GetType().Name ?? "<missing>"));
             }
-            SetPosition(nodeButton, located.Position);
+            SetPosition(_nodeFrames[index], located.Position);
+            SetVisible(_nodeFrames[index], true);
+            SetPosition(nodeButton, located.Position + new Vector3(8f, -8f, 0f));
             SetLabel(_nodeCounts[index], "×" + located.Count);
-            SetPosition(_nodeCounts[index], located.Position + new Vector3(18f, -42f, 0f));
+            SetPosition(_nodeCounts[index], located.Position + new Vector3(18f, -54f, 0f));
             SetVisible(_nodeCounts[index], true);
         }
         RenderEdges();
@@ -396,7 +434,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         float centerLeaf = (nextLeaf - 1f) * 0.5f;
         foreach (LocatedPlanNode node in _locatedNodes)
         {
-            node.Position = new Vector3(415f + (node.LeafX - centerLeaf) * 102f, -25f - node.Depth * 108f, 0f);
+            node.Position = new Vector3(407f + (node.LeafX - centerLeaf) * 112f, -20f - node.Depth * 120f, 0f);
         }
         if (_treeTruncated)
             NetworkLog.Debug("Crafting-chain tree reached the visible node limit. limit=" + NodeSlotCount + "; root=" + _trackedRootKey);
@@ -437,22 +475,39 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     private void RenderEdges()
     {
         if (_edges == null) return;
-        for (int childIndex = 1; childIndex < _locatedNodes.Count && childIndex - 1 < _edges.Length; childIndex++)
+        int edgeIndex = 0;
+        for (int parentIndex = 0; parentIndex < _locatedNodes.Count; parentIndex++)
         {
-            LocatedPlanNode child = _locatedNodes[childIndex];
-            if (child.ParentIndex < 0 || child.ParentIndex >= _locatedNodes.Count) continue;
-            Vector3 start = _locatedNodes[child.ParentIndex].Position + new Vector3(30f, -60f, 0f);
-            Vector3 end = child.Position + new Vector3(30f, 0f, 0f);
-            Vector3 delta = end - start;
-            XUiController edge = _edges[childIndex - 1];
-            SetPosition(edge, start);
-            if (edge?.ViewComponent != null)
-            {
-                edge.ViewComponent.Width = Math.Max(1, Mathf.RoundToInt(delta.magnitude));
-                edge.ViewComponent.Rotation = Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg;
-            }
-            SetVisible(edge, true);
+            List<LocatedPlanNode> children = new List<LocatedPlanNode>();
+            for (int index = parentIndex + 1; index < _locatedNodes.Count; index++)
+                if (_locatedNodes[index].ParentIndex == parentIndex) children.Add(_locatedNodes[index]);
+            if (children.Count == 0) continue;
+            LocatedPlanNode parent = _locatedNodes[parentIndex];
+            float parentX = parent.Position.x + 38f;
+            float branchY = parent.Position.y - 98f;
+            DrawEdge(ref edgeIndex, parentX, parent.Position.y - 76f, parentX, branchY);
+            float left = children.Min(child => child.Position.x + 38f);
+            float right = children.Max(child => child.Position.x + 38f);
+            if (right > left) DrawEdge(ref edgeIndex, left, branchY, right, branchY);
+            foreach (LocatedPlanNode child in children)
+                DrawEdge(ref edgeIndex, child.Position.x + 38f, branchY, child.Position.x + 38f, child.Position.y);
         }
+        NetworkLog.Debug("Crafting-chain orthogonal connectors rendered. segments=" + edgeIndex);
+    }
+
+    private void DrawEdge(ref int edgeIndex, float x1, float y1, float x2, float y2)
+    {
+        if (edgeIndex >= _edges.Length) return;
+        XUiController edge = _edges[edgeIndex++];
+        bool horizontal = Mathf.Abs(x2 - x1) > Mathf.Abs(y2 - y1);
+        SetPosition(edge, new Vector3(Mathf.Min(x1, x2), Mathf.Max(y1, y2), 0f));
+        if (edge?.ViewComponent != null)
+        {
+            edge.ViewComponent.Width = horizontal ? Math.Max(1, Mathf.RoundToInt(Mathf.Abs(x2 - x1))) : 3;
+            edge.ViewComponent.Height = horizontal ? 3 : Math.Max(1, Mathf.RoundToInt(Mathf.Abs(y2 - y1)));
+            edge.ViewComponent.Rotation = 0f;
+        }
+        SetVisible(edge, true);
     }
 
     private void OnNodePressed(int slot)
@@ -460,10 +515,10 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         if (_plan == null || slot < 0 || slot >= _locatedNodes.Count) return;
         LocatedPlanNode located = _locatedNodes[slot];
         _selectedItemId = located.ItemId;
-        ShowRecipeOptions(located.RecipeNode?.RecipeOptions, located.Position);
+        ShowRecipeOptions(located.RecipeNode?.RecipeOptions);
     }
 
-    private void ShowRecipeOptions(CraftingChainRecipeOption[] options, Vector3 nodePosition)
+    private void ShowRecipeOptions(CraftingChainRecipeOption[] options)
     {
         ClearRecipeOptions();
         if (options == null || options.Length == 0)
@@ -471,18 +526,61 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             SetVisible(_recipeDropdown, false);
             return;
         }
-        SetPosition(_recipeDropdown, nodePosition + new Vector3(-145f, -52f, 0f));
+        SetPosition(_recipeDropdown, new Vector3(16f, -16f, 0f));
+        int listHeight = Math.Min(options.Length, _optionButtons.Length) * 36 + 8;
+        SetHeight(_recipeDropdown, listHeight);
+        SetHeight(_recipeDropdownBackground, listHeight);
+        SetHeight(_recipeDropdownFrame, listHeight);
         for (int index = 0; index < Math.Min(options.Length, _optionButtons.Length); index++)
         {
             SetVisible(_optionButtons[index], true);
             SetVisible(_optionLabels[index], true);
-            SetLabel(_optionLabels[index], options[index].Label);
-            _optionButtons[index].ViewComponent.ToolTip = options[index].Label;
-            SetPosition(_optionButtons[index], new Vector3(15f, -22f - index * 35f, 0f));
-            SetPosition(_optionLabels[index], new Vector3(42f, -22f - index * 35f, 0f));
+            SetLabel(_optionLabels[index], GetCraftingAreaName(options[index].CraftingArea));
+            if (_optionButtons[index]?.ViewComponent != null) _optionButtons[index].ViewComponent.ToolTip = string.Empty;
+            SetPosition(_optionButtons[index], new Vector3(7f, -7f - index * 36f, 0f));
+            SetPosition(_optionLabels[index], new Vector3(18f, -10f - index * 36f, 0f));
         }
         _activeOptions = options;
         SetVisible(_recipeDropdown, true);
+    }
+
+    private void OnRecipeOptionHovered(int slot, bool isOver)
+    {
+        if (!isOver || slot < 0 || slot >= _activeOptions.Length)
+        {
+            SetVisible(_recipePreview, false);
+            return;
+        }
+        CraftingChainRecipeOption option = _activeOptions[slot];
+        SetLabel(_recipePreviewTitle, GetCraftingAreaName(option.CraftingArea));
+        int previewHeight = 48 + Math.Min(option.Ingredients.Length, _previewRows.Length) * 36;
+        SetHeight(_recipePreview, previewHeight);
+        SetHeight(_recipePreviewBackground, previewHeight);
+        SetHeight(_recipePreviewFrame, previewHeight);
+        for (int index = 0; index < _previewRows.Length; index++)
+        {
+            bool present = index < option.Ingredients.Length;
+            SetVisible(_previewRows[index], present);
+            SetVisible(_previewIcons[index], present);
+            SetVisible(_previewNames[index], present);
+            SetVisible(_previewCounts[index], present);
+            if (!present) continue;
+            CraftingChainRecipeOptionIngredient ingredient = option.Ingredients[index];
+            CraftingChainItemInfo item = GetItem(ingredient.ItemId);
+            SetIcon(_previewIcons[index], item?.Icon, item?.Name);
+            SetLabel(_previewNames[index], item?.Name ?? string.Empty);
+            SetLabel(_previewCounts[index], "×" + ingredient.Count);
+        }
+        SetVisible(_recipePreview, true);
+    }
+
+    private static string GetCraftingAreaName(string area)
+    {
+        if (string.IsNullOrEmpty(area)) return Localization.Get("HyperdimensionalNetworkCraftingChainInventory");
+        Block block = Block.GetBlockByName(area);
+        if (block != null) return block.GetLocalizedBlockName();
+        string localized = Localization.Get(area);
+        return string.IsNullOrEmpty(localized) || localized == area ? area : localized;
     }
 
     private void OnRecipeOptionPressed(int slot)
@@ -494,6 +592,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
             _viewState.RecipeChoices[CraftingChainCacheService.GetStableItemKey(_planInput.Items[_selectedItemId])] = choice;
         if (_selectedItemId == _planInput.RootOutputItemId) _planInput.RootRecipeKey = choice;
         SetVisible(_recipeDropdown, false);
+        SetVisible(_recipePreview, false);
         NetworkLog.Debug("Crafting-chain recipe path selected. item=" + _selectedItemId + "; recipe=" + choice);
         StartPlanCalculation(_planInput, "recipe-path-selected");
     }
@@ -667,6 +766,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         for (int index = 0; index < _nodeButtons.Length; index++)
         {
             SetVisible(_nodeButtons[index], false);
+            SetVisible(_nodeFrames[index], false);
             SetVisible(_nodeCounts[index], false);
         }
         if (_edges != null)
@@ -687,6 +787,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     private void ClearRecipeOptions()
     {
         if (_optionButtons == null) return;
+        SetVisible(_recipePreview, false);
         for (int index = 0; index < _optionButtons.Length; index++)
         {
             SetVisible(_optionButtons[index], false);
@@ -739,6 +840,11 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     {
         if (controller?.ViewComponent != null)
             controller.ViewComponent.Position = new Vector2i(Mathf.RoundToInt(position.x), Mathf.RoundToInt(position.y));
+    }
+
+    private static void SetHeight(XUiController controller, int height)
+    {
+        if (controller?.ViewComponent != null) controller.ViewComponent.Height = height;
     }
 
     private static void SetVisible(XUiController controller, bool visible)

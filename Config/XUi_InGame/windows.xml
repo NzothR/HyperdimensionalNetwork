@@ -214,6 +214,263 @@
                 <sprite depth="4" name="craftingChainEdge124" pos="0,0" width="100" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
                 <sprite depth="4" name="craftingChainEdge125" pos="0,0" width="100" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
                 <sprite depth="4" name="craftingChainEdge126" pos="0,0" width="100" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge127" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge128" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge129" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge130" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge131" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge132" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge133" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge134" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge135" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge136" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge137" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge138" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge139" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge140" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge141" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge142" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge143" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge144" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge145" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge146" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge147" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge148" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge149" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge150" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge151" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge152" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge153" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge154" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge155" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge156" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge157" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge158" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge159" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge160" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge161" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge162" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge163" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge164" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge165" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge166" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge167" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge168" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge169" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge170" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge171" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge172" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge173" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge174" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge175" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge176" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge177" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge178" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge179" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge180" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge181" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge182" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge183" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge184" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge185" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge186" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge187" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge188" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge189" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge190" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge191" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge192" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge193" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge194" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge195" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge196" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge197" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge198" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge199" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge200" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge201" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge202" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge203" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge204" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge205" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge206" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge207" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge208" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge209" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge210" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge211" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge212" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge213" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge214" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge215" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge216" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge217" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge218" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge219" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge220" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge221" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge222" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge223" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge224" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge225" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge226" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge227" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge228" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge229" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge230" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge231" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge232" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge233" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge234" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge235" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge236" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge237" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge238" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge239" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge240" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge241" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge242" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge243" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge244" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge245" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge246" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge247" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge248" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge249" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge250" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge251" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge252" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge253" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge254" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="4" name="craftingChainEdge255" pos="0,0" width="3" height="3" visible="false" sprite="menu_empty3px" color="64,182,218,235" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame00" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame01" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame02" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame03" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame04" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame05" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame06" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame07" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame08" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame09" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame10" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame11" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame12" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame13" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame14" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame15" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame16" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame17" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame18" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame19" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame20" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame21" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame22" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame23" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame24" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame25" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame26" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame27" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame28" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame29" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame30" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame31" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame32" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame33" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame34" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame35" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame36" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame37" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame38" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame39" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame40" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame41" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame42" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame43" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame44" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame45" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame46" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame47" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame48" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame49" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame50" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame51" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame52" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame53" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame54" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame55" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame56" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame57" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame58" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame59" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame60" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame61" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame62" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame63" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame64" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame65" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame66" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame67" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame68" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame69" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame70" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame71" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame72" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame73" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame74" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame75" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame76" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame77" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame78" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame79" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame80" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame81" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame82" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame83" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame84" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame85" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame86" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame87" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame88" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame89" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame90" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame91" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame92" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame93" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame94" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame95" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame96" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame97" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame98" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame99" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame100" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame101" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame102" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame103" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame104" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame105" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame106" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame107" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame108" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame109" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame110" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame111" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame112" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame113" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame114" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame115" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame116" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame117" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame118" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame119" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame120" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame121" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame122" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame123" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame124" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame125" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame126" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
+                <sprite depth="5" name="craftingChainNodeFrame127" pos="0,0" width="76" height="76" visible="false" sprite="menu_empty2px" color="94,151,176,255" type="sliced" />
                 <button depth="6" name="craftingChainNode00" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount00" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
                 <button depth="6" name="craftingChainNode01" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
@@ -470,25 +727,70 @@
                 <label depth="7" name="craftingChainNodeCount126" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
                 <button depth="6" name="craftingChainNode127" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount127" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-              <rect depth="30" name="craftingChainRecipeDropdown" width="330" height="300" visible="false">
-                <sprite depth="1" name="recipeDropdownBackground" width="330" height="300" sprite="menu_empty" color="10,20,32,255" type="sliced" foregroundlayer="true" globalopacitymod="0" />
-                <sprite depth="2" name="recipeDropdownFrame" width="330" height="300" sprite="menu_empty2px" color="60,155,190,255" type="sliced" fillcenter="false" />
-                  <button depth="3" name="craftingChainRecipeOption00" pos="0,0" width="320" height="34" visible="false" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
-                  <label depth="4" name="craftingChainRecipeOptionLabel00" pos="0,0" width="275" height="30" visible="false" font_size="13" />
-                  <button depth="3" name="craftingChainRecipeOption01" pos="0,0" width="320" height="34" visible="false" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
-                  <label depth="4" name="craftingChainRecipeOptionLabel01" pos="0,0" width="275" height="30" visible="false" font_size="13" />
-                  <button depth="3" name="craftingChainRecipeOption02" pos="0,0" width="320" height="34" visible="false" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
-                  <label depth="4" name="craftingChainRecipeOptionLabel02" pos="0,0" width="275" height="30" visible="false" font_size="13" />
-                  <button depth="3" name="craftingChainRecipeOption03" pos="0,0" width="320" height="34" visible="false" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
-                  <label depth="4" name="craftingChainRecipeOptionLabel03" pos="0,0" width="275" height="30" visible="false" font_size="13" />
-                  <button depth="3" name="craftingChainRecipeOption04" pos="0,0" width="320" height="34" visible="false" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
-                  <label depth="4" name="craftingChainRecipeOptionLabel04" pos="0,0" width="275" height="30" visible="false" font_size="13" />
-                  <button depth="3" name="craftingChainRecipeOption05" pos="0,0" width="320" height="34" visible="false" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
-                  <label depth="4" name="craftingChainRecipeOptionLabel05" pos="0,0" width="275" height="30" visible="false" font_size="13" />
-                  <button depth="3" name="craftingChainRecipeOption06" pos="0,0" width="320" height="34" visible="false" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
-                  <label depth="4" name="craftingChainRecipeOptionLabel06" pos="0,0" width="275" height="30" visible="false" font_size="13" />
-                  <button depth="3" name="craftingChainRecipeOption07" pos="0,0" width="320" height="34" visible="false" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
-                  <label depth="4" name="craftingChainRecipeOptionLabel07" pos="0,0" width="275" height="30" visible="false" font_size="13" />
+              <rect depth="30" name="craftingChainRecipeDropdown" width="208" height="296" visible="false">
+                <sprite depth="1" name="recipeDropdownBackground" width="208" height="296" sprite="menu_empty" color="10,20,32,255" type="sliced" foregroundlayer="true" globalopacitymod="0" />
+                <sprite depth="2" name="recipeDropdownFrame" width="208" height="296" sprite="menu_empty2px" color="60,155,190,255" type="sliced" fillcenter="false" />
+                  <button depth="3" name="craftingChainRecipeOption00" pos="0,0" width="194" height="32" visible="false" on_hover="true" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
+                  <label depth="4" name="craftingChainRecipeOptionLabel00" pos="0,0" width="178" height="28" visible="false" font_size="17" />
+                  <button depth="3" name="craftingChainRecipeOption01" pos="0,0" width="194" height="32" visible="false" on_hover="true" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
+                  <label depth="4" name="craftingChainRecipeOptionLabel01" pos="0,0" width="178" height="28" visible="false" font_size="17" />
+                  <button depth="3" name="craftingChainRecipeOption02" pos="0,0" width="194" height="32" visible="false" on_hover="true" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
+                  <label depth="4" name="craftingChainRecipeOptionLabel02" pos="0,0" width="178" height="28" visible="false" font_size="17" />
+                  <button depth="3" name="craftingChainRecipeOption03" pos="0,0" width="194" height="32" visible="false" on_hover="true" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
+                  <label depth="4" name="craftingChainRecipeOptionLabel03" pos="0,0" width="178" height="28" visible="false" font_size="17" />
+                  <button depth="3" name="craftingChainRecipeOption04" pos="0,0" width="194" height="32" visible="false" on_hover="true" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
+                  <label depth="4" name="craftingChainRecipeOptionLabel04" pos="0,0" width="178" height="28" visible="false" font_size="17" />
+                  <button depth="3" name="craftingChainRecipeOption05" pos="0,0" width="194" height="32" visible="false" on_hover="true" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
+                  <label depth="4" name="craftingChainRecipeOptionLabel05" pos="0,0" width="178" height="28" visible="false" font_size="17" />
+                  <button depth="3" name="craftingChainRecipeOption06" pos="0,0" width="194" height="32" visible="false" on_hover="true" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
+                  <label depth="4" name="craftingChainRecipeOptionLabel06" pos="0,0" width="178" height="28" visible="false" font_size="17" />
+                  <button depth="3" name="craftingChainRecipeOption07" pos="0,0" width="194" height="32" visible="false" on_hover="true" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,255" hovercolor="88,72,48,255" sound="[paging_click]" />
+                  <label depth="4" name="craftingChainRecipeOptionLabel07" pos="0,0" width="178" height="28" visible="false" font_size="17" />
+              </rect>
+              <rect depth="31" name="craftingChainRecipePreview" pos="230,-16" width="430" height="416" visible="false">
+                <sprite depth="1" name="recipePreviewBackground" width="430" height="416" sprite="menu_empty" color="15,24,35,255" type="sliced" foregroundlayer="true" globalopacitymod="0" />
+                <sprite depth="2" name="recipePreviewFrame" width="430" height="416" sprite="menu_empty2px" color="90,145,170,255" type="sliced" fillcenter="false" />
+                <label depth="3" name="craftingChainRecipePreviewTitle" pos="14,-9" width="402" height="28" font_size="19" color="170,225,240,255" />
+                <sprite depth="3" name="craftingChainPreviewRow00" pos="8,-43" width="414" height="34" visible="false" sprite="menu_empty" color="54,62,70,245" type="sliced" foregroundlayer="true" globalopacitymod="0" />
+                <sprite depth="4" name="craftingChainPreviewIcon00" pos="14,-45" width="30" height="30" visible="false" />
+                <label depth="4" name="craftingChainPreviewName00" pos="53,-46" width="295" height="30" visible="false" font_size="17" />
+                <label depth="4" name="craftingChainPreviewCount00" pos="348,-46" width="64" height="30" visible="false" font_size="17" justify="right" />
+                <sprite depth="3" name="craftingChainPreviewRow01" pos="8,-79" width="414" height="34" visible="false" sprite="menu_empty" color="43,53,64,245" type="sliced" foregroundlayer="true" globalopacitymod="0" />
+                <sprite depth="4" name="craftingChainPreviewIcon01" pos="14,-81" width="30" height="30" visible="false" />
+                <label depth="4" name="craftingChainPreviewName01" pos="53,-82" width="295" height="30" visible="false" font_size="17" />
+                <label depth="4" name="craftingChainPreviewCount01" pos="348,-82" width="64" height="30" visible="false" font_size="17" justify="right" />
+                <sprite depth="3" name="craftingChainPreviewRow02" pos="8,-115" width="414" height="34" visible="false" sprite="menu_empty" color="54,62,70,245" type="sliced" foregroundlayer="true" globalopacitymod="0" />
+                <sprite depth="4" name="craftingChainPreviewIcon02" pos="14,-117" width="30" height="30" visible="false" />
+                <label depth="4" name="craftingChainPreviewName02" pos="53,-118" width="295" height="30" visible="false" font_size="17" />
+                <label depth="4" name="craftingChainPreviewCount02" pos="348,-118" width="64" height="30" visible="false" font_size="17" justify="right" />
+                <sprite depth="3" name="craftingChainPreviewRow03" pos="8,-151" width="414" height="34" visible="false" sprite="menu_empty" color="43,53,64,245" type="sliced" foregroundlayer="true" globalopacitymod="0" />
+                <sprite depth="4" name="craftingChainPreviewIcon03" pos="14,-153" width="30" height="30" visible="false" />
+                <label depth="4" name="craftingChainPreviewName03" pos="53,-154" width="295" height="30" visible="false" font_size="17" />
+                <label depth="4" name="craftingChainPreviewCount03" pos="348,-154" width="64" height="30" visible="false" font_size="17" justify="right" />
+                <sprite depth="3" name="craftingChainPreviewRow04" pos="8,-187" width="414" height="34" visible="false" sprite="menu_empty" color="54,62,70,245" type="sliced" foregroundlayer="true" globalopacitymod="0" />
+                <sprite depth="4" name="craftingChainPreviewIcon04" pos="14,-189" width="30" height="30" visible="false" />
+                <label depth="4" name="craftingChainPreviewName04" pos="53,-190" width="295" height="30" visible="false" font_size="17" />
+                <label depth="4" name="craftingChainPreviewCount04" pos="348,-190" width="64" height="30" visible="false" font_size="17" justify="right" />
+                <sprite depth="3" name="craftingChainPreviewRow05" pos="8,-223" width="414" height="34" visible="false" sprite="menu_empty" color="43,53,64,245" type="sliced" foregroundlayer="true" globalopacitymod="0" />
+                <sprite depth="4" name="craftingChainPreviewIcon05" pos="14,-225" width="30" height="30" visible="false" />
+                <label depth="4" name="craftingChainPreviewName05" pos="53,-226" width="295" height="30" visible="false" font_size="17" />
+                <label depth="4" name="craftingChainPreviewCount05" pos="348,-226" width="64" height="30" visible="false" font_size="17" justify="right" />
+                <sprite depth="3" name="craftingChainPreviewRow06" pos="8,-259" width="414" height="34" visible="false" sprite="menu_empty" color="54,62,70,245" type="sliced" foregroundlayer="true" globalopacitymod="0" />
+                <sprite depth="4" name="craftingChainPreviewIcon06" pos="14,-261" width="30" height="30" visible="false" />
+                <label depth="4" name="craftingChainPreviewName06" pos="53,-262" width="295" height="30" visible="false" font_size="17" />
+                <label depth="4" name="craftingChainPreviewCount06" pos="348,-262" width="64" height="30" visible="false" font_size="17" justify="right" />
+                <sprite depth="3" name="craftingChainPreviewRow07" pos="8,-295" width="414" height="34" visible="false" sprite="menu_empty" color="43,53,64,245" type="sliced" foregroundlayer="true" globalopacitymod="0" />
+                <sprite depth="4" name="craftingChainPreviewIcon07" pos="14,-297" width="30" height="30" visible="false" />
+                <label depth="4" name="craftingChainPreviewName07" pos="53,-298" width="295" height="30" visible="false" font_size="17" />
+                <label depth="4" name="craftingChainPreviewCount07" pos="348,-298" width="64" height="30" visible="false" font_size="17" justify="right" />
+                <sprite depth="3" name="craftingChainPreviewRow08" pos="8,-331" width="414" height="34" visible="false" sprite="menu_empty" color="54,62,70,245" type="sliced" foregroundlayer="true" globalopacitymod="0" />
+                <sprite depth="4" name="craftingChainPreviewIcon08" pos="14,-333" width="30" height="30" visible="false" />
+                <label depth="4" name="craftingChainPreviewName08" pos="53,-334" width="295" height="30" visible="false" font_size="17" />
+                <label depth="4" name="craftingChainPreviewCount08" pos="348,-334" width="64" height="30" visible="false" font_size="17" justify="right" />
+                <sprite depth="3" name="craftingChainPreviewRow09" pos="8,-367" width="414" height="34" visible="false" sprite="menu_empty" color="43,53,64,245" type="sliced" foregroundlayer="true" globalopacitymod="0" />
+                <sprite depth="4" name="craftingChainPreviewIcon09" pos="14,-369" width="30" height="30" visible="false" />
+                <label depth="4" name="craftingChainPreviewName09" pos="53,-370" width="295" height="30" visible="false" font_size="17" />
+                <label depth="4" name="craftingChainPreviewCount09" pos="348,-370" width="64" height="30" visible="false" font_size="17" justify="right" />
               </rect>
             </rect>
             <sprite depth="3" name="craftingChainTreeFrame" pos="0,0" width="890" height="505" sprite="menu_empty2px" color="45,125,160,255" type="sliced" fillcenter="false" />

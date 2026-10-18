@@ -51,7 +51,14 @@ internal sealed class CraftingChainRecipeInfo
 internal sealed class CraftingChainRecipeOption
 {
     public string Key = string.Empty;
-    public string Label = string.Empty;
+    public string CraftingArea = string.Empty;
+    public CraftingChainRecipeOptionIngredient[] Ingredients = Array.Empty<CraftingChainRecipeOptionIngredient>();
+}
+
+internal sealed class CraftingChainRecipeOptionIngredient
+{
+    public int ItemId;
+    public int Count;
 }
 
 internal sealed class CraftingChainPlanInput
@@ -467,7 +474,7 @@ internal static class CraftingChainPlanner
         int wanted = SafeCount((long)input.RequestedCrafts * rootRecipe.OutputCount);
         plan.RequestedOutput = wanted;
         plan.RootRecipeOptions = byOutput.TryGetValue(input.RootOutputItemId, out List<CraftingChainRecipeInfo> rootOptions)
-            ? BuildRecipeOptions(input, rootOptions) : Array.Empty<CraftingChainRecipeOption>();
+            ? BuildRecipeOptions(rootOptions) : Array.Empty<CraftingChainRecipeOption>();
         long availableRoot = ConsumeSupplies(context, state, input.RootMatchingSupplyIndexes, input.RootOutputItemId, wanted, forgeOnly: false);
         plan.AvailableOutput = SafeCount(availableRoot);
         long remaining = Math.Max(0L, wanted - availableRoot);
@@ -592,7 +599,7 @@ internal static class CraftingChainPlanner
             Batches = batches,
             OutputCount = SafeCount(actualOutput),
             RecipeOptions = context.RecipesByOutput.TryGetValue(recipe.OutputItemId, out List<CraftingChainRecipeInfo> options)
-                ? BuildRecipeOptions(context.Input, options) : Array.Empty<CraftingChainRecipeOption>()
+                ? BuildRecipeOptions(options) : Array.Empty<CraftingChainRecipeOption>()
         };
         state.CreatedNodes++;
         foreach (CraftingChainIngredientInfo ingredient in recipe.Ingredients)
@@ -675,22 +682,18 @@ internal static class CraftingChainPlanner
         return shortage;
     }
 
-    private static CraftingChainRecipeOption[] BuildRecipeOptions(CraftingChainPlanInput input, IEnumerable<CraftingChainRecipeInfo> recipes)
+    private static CraftingChainRecipeOption[] BuildRecipeOptions(IEnumerable<CraftingChainRecipeInfo> recipes)
     {
         return recipes.Select(recipe => new CraftingChainRecipeOption
         {
             Key = recipe.Key,
-            Label = BuildRecipeLabel(input, recipe)
+            CraftingArea = recipe.CraftingArea,
+            Ingredients = recipe.Ingredients.Select(ingredient => new CraftingChainRecipeOptionIngredient
+            {
+                ItemId = ingredient.ItemId,
+                Count = ingredient.Count
+            }).ToArray()
         }).ToArray();
-    }
-
-    private static string BuildRecipeLabel(CraftingChainPlanInput input, CraftingChainRecipeInfo recipe)
-    {
-        string area = string.IsNullOrEmpty(recipe.CraftingArea) ? "背包" : recipe.CraftingArea;
-        string ingredients = string.Join(" + ", recipe.Ingredients.Select(ingredient =>
-            (ingredient.ItemId >= 0 && ingredient.ItemId < input.Items.Count ? input.Items[ingredient.ItemId].Name : ingredient.ItemId.ToString())
-            + " × " + ingredient.Count));
-        return area + " · " + (recipe.Name ?? string.Empty) + (ingredients.Length == 0 ? string.Empty : " · " + ingredients);
     }
 
     private static int SourcePriority(CraftingChainSupplySource source, bool forgeOnly)
