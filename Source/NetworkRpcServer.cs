@@ -706,6 +706,7 @@ internal static class NetworkRpcServer
         string originalKey = request.EntityId + ":" + request.OriginalRequestId;
         if (!CompletedRequests.TryGetValue(originalKey, out CachedRequest original)
             || original.Request.Operation != NetworkRequestOperation.ConsumeRequirements || !original.Result.Success
+            || !string.Equals(original.Request.ExpectedNetworkId, request.ExpectedNetworkId, StringComparison.OrdinalIgnoreCase)
             || request.Requirements == null || request.Requirements.Count == 0)
             return Failure(request, "AuthorizationReturnNotAllowed");
         ReturnedAuthorizations.TryGetValue(originalKey, out List<StorageAddition> previouslyReturned);

@@ -113,6 +113,35 @@ internal static class NetworkRemoteClient
     private static int _authorizedEntityId = -1;
     private static int _authorizedDepth;
     private static long _authorizedRequestId;
+    private static int _craftingChainCaptureEntityId = -1;
+    private static List<ItemStack> _craftingChainCapturedItems;
+
+    private sealed class CraftingChainCaptureScope : IDisposable
+    {
+        private readonly int _entityId;
+        private readonly List<ItemStack> _target;
+        private bool _disposed;
+
+        public CraftingChainCaptureScope(int entityId, List<ItemStack> target)
+        {
+            _entityId = entityId;
+            _target = target;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            lock (Sync)
+            {
+                if (_craftingChainCaptureEntityId == _entityId && ReferenceEquals(_craftingChainCapturedItems, _target))
+                {
+                    _craftingChainCaptureEntityId = -1;
+                    _craftingChainCapturedItems = null;
+                }
+            }
+        }
+    }
 
     private sealed class AuthorizedScope : IDisposable
     {
@@ -148,6 +177,19 @@ internal static class NetworkRemoteClient
     public static bool IsRemoteClient => PlayerNetworkDirectory.IsRemoteClient();
     public static bool IsMutationPending { get { lock (Sync) return _activeMutationRequestId != 0; } }
     public static long Revision { get { lock (Sync) return Math.Max(0, _knownRevision); } }
+
+    public static bool AreMatchingTypesReady(IEnumerable<int> types)
+    {
+        if (types == null) return true;
+        float now = Time.realtimeSinceStartup;
+        lock (Sync)
+        {
+            foreach (int type in types.Where(type => type > 0).Distinct())
+                if (!MatchingTypeFetchedAt.TryGetValue(type, out float fetchedAt) || now - fetchedAt >= 2f)
+                    return false;
+            return true;
+        }
+    }
 
     public static long GetMatchingCount(EntityPlayer player, ItemValue requirement, bool includeModded = false)
     {
@@ -217,6 +259,12 @@ internal static class NetworkRemoteClient
     public static bool RequestConsumption(EntityPlayerLocal player, IList<ItemStack> requirements, NetworkConsumptionSource source,
         Vector3i workstationPosition, Action onSuccess, Action<string> onFailure = null)
     {
+        return RequestConsumption(player, requirements, source, workstationPosition, _ => onSuccess?.Invoke(), onFailure);
+    }
+
+    public static bool RequestConsumption(EntityPlayerLocal player, IList<ItemStack> requirements, NetworkConsumptionSource source,
+        Vector3i workstationPosition, Action<NetworkRemoteResult> onSuccess, Action<string> onFailure = null)
+    {
         if (!IsRemoteClient || !(bool)player || requirements == null || requirements.Count == 0) return false;
         NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.ConsumeRequirements);
         request.ConsumptionSource = source;
@@ -230,8 +278,43 @@ internal static class NetworkRemoteClient
                 onFailure?.Invoke(result.Error);
                 return;
             }
-            using (EnterAuthorizedConsumption(player.entityId, result.RequestId, result.Entries)) onSuccess?.Invoke();
+            using (EnterAuthorizedConsumption(player.entityId, result.RequestId, result.Entries)) onSuccess?.Invoke(result);
         });
+    }
+
+    internal static IDisposable CaptureCraftingChainNetworkConsumption(EntityPlayer player, List<ItemStack> capturedItems)
+    {
+        if (!(bool)player || capturedItems == null) return EmptyScope.Instance;
+        lock (Sync)
+        {
+            if (_craftingChainCaptureEntityId != -1)
+            {
+                NetworkLog.Error("Nested crafting-chain network consumption capture was rejected. activeEntity="
+                    + _craftingChainCaptureEntityId + "; requestedEntity=" + player.entityId);
+                return EmptyScope.Instance;
+            }
+            _craftingChainCaptureEntityId = player.entityId;
+            _craftingChainCapturedItems = capturedItems;
+            return new CraftingChainCaptureScope(player.entityId, capturedItems);
+        }
+    }
+
+    internal static void RecordCraftingChainNetworkConsumption(EntityPlayer player, IEnumerable<StorageAddition> items)
+    {
+        if (!(bool)player || items == null) return;
+        lock (Sync)
+        {
+            if (_craftingChainCaptureEntityId != player.entityId || _craftingChainCapturedItems == null) return;
+            foreach (StorageAddition addition in items)
+            {
+                if (addition?.Value == null || addition.Count <= 0 || addition.Count > int.MaxValue) continue;
+                ItemValue key = NetworkStorage.NormalizeKey(addition.Value);
+                ItemStack existing = _craftingChainCapturedItems.FirstOrDefault(stack =>
+                    NetworkStorage.NormalizeKey(stack.itemValue).Equals(key));
+                if (existing == null) _craftingChainCapturedItems.Add(new ItemStack(key, (int)addition.Count));
+                else existing.count = NetworkItemMatcher.AddClamped(existing.count, (int)addition.Count);
+            }
+        }
     }
 
     public static bool IsAuthorizedConsumption(EntityPlayer player)
@@ -325,6 +408,28 @@ internal static class NetworkRemoteClient
         request.Count = count;
         request.OriginalRequestId = originalRequestId;
         return Send(player, request, false, false, false, callback);
+    }
+
+    public static bool ReturnCraftingChainAuthorization(EntityPlayerLocal player, long originalRequestId,
+        IEnumerable<ItemStack> items, long retryRequestId, out long requestId, Action<NetworkRemoteResult> callback)
+    {
+        requestId = 0;
+        if (!IsRemoteClient || !(bool)player || originalRequestId <= 0 || items == null) return false;
+        List<ItemStack> requirements = CloneRequirements(items);
+        if (requirements.Count == 0 || requirements.Count > 64) return false;
+        NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.ReturnAuthorization);
+        request.OriginalRequestId = originalRequestId;
+        if (retryRequestId > 0) request.RequestId = retryRequestId;
+        request.Requirements = requirements;
+        bool sent = Send(player, request, false, false, false, callback);
+        if (sent || retryRequestId > 0) requestId = request.RequestId;
+        return sent;
+    }
+
+    public static string GetCurrentNetworkId(EntityPlayer player)
+    {
+        if (!(bool)player) return string.Empty;
+        lock (Sync) return NetworkIds.TryGetValue(player.entityId, out string networkId) ? networkId : string.Empty;
     }
 
     public static bool RequestRestock(EntityPlayerLocal player, bool automatic, IEnumerable<int> toolbeltSlots,

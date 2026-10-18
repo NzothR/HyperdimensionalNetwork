@@ -30,3 +30,36 @@ HyperdimensionalNetworkStressTest,Hyperdimensional Network Stress Test,超维网
 HyperdimensionalNetworkStressTestDesc,Adds every registered item variant to your network up to its current stack limit. Quality items are added at every exposed quality level.,将当前注册的所有物品变体按各自堆叠上限加入网络；有品质的物品会加入其全部可用等级。
 HyperdimensionalNetworkStressTestMax,Hyperdimensional Network Extreme Stress Test,超维网络极限压力测试
 HyperdimensionalNetworkStressTestMaxDesc,Adds every registered item variant. Stackable items are added at int32 maximum quantity per variant and will create an extremely large storage journal.,将当前注册的所有物品变体加入网络；可堆叠物品的每个变体加入 int32 最大数量，会产生极端规模的数据。
+HyperdimensionalNetworkCraftingChain,Open crafting chain,打开合成链
+HyperdimensionalNetworkCraftingChainTitle,Crafting Chain,合成链
+HyperdimensionalNetworkCraftingChainNoTarget,Track a recipe to calculate its crafting chain.,请先在原版制作界面追踪配方以计算合成链。
+HyperdimensionalNetworkCraftingChainPlanning,Calculating crafting plan...,正在计算合成计划……
+HyperdimensionalNetworkCraftingChainPlanFailed,Could not calculate a safe crafting plan.,无法计算安全的合成计划。
+HyperdimensionalNetworkCraftingChainSyncing,Syncing network inventory...,正在同步网络库存……
+HyperdimensionalNetworkCraftingChainMissingMaterials,Missing materials,材料不足
+HyperdimensionalNetworkCraftingChainPlanReady,Plan ready,计划已就绪
+HyperdimensionalNetworkCraftingChainForgeSource,Stored in a forge,库存来自锻造炉
+HyperdimensionalNetworkCraftingChainExecutionPending,Crafting is not available for this plan yet.,当前合成计划暂不能启动。
+HyperdimensionalNetworkCraftingChainMaterials,Required materials / available,所需材料 / 可用数量
+HyperdimensionalNetworkCraftingChainStart,Start,启动
+HyperdimensionalNetworkCraftingChainCancel,Cancel,取消
+HyperdimensionalNetworkCraftingChainConfirmCancel,Cancel this crafting chain? Recoverable materials will be returned to the network.,确定取消此合成链？可回收材料将退回网络。
+HyperdimensionalNetworkCraftingChainAlreadyRunning,A crafting chain is already running.,当前已有合成链正在运行。
+HyperdimensionalNetworkCraftingChainNetworkBusy,Wait for the network transaction to finish.,请等待网络物品操作完成。
+HyperdimensionalNetworkCraftingChainQueueBusy,Clear the vanilla crafting queue before starting.,请先清空原版制作队列。
+HyperdimensionalNetworkCraftingChainWorkstationUnavailable,Open and access the required workstation before starting.,请先打开并确保可使用计划所需的工作站。
+HyperdimensionalNetworkCraftingChainRecipeUnavailable,A required recipe is no longer available.,计划中有配方当前不可用。
+HyperdimensionalNetworkCraftingChainAlreadyAvailable,The requested output is already available.,所需成品已在现有库存中。
+HyperdimensionalNetworkCraftingChainStarting,Starting crafting chain...,正在启动合成链……
+HyperdimensionalNetworkCraftingChainReserving,Reserving materials from the network...,正在从网络预留材料……
+HyperdimensionalNetworkCraftingChainStepProgress,Crafting step {0}/{1}: {2},正在制作步骤 {0}/{1}：{2}
+HyperdimensionalNetworkCraftingChainOutputPending,Waiting for output: {0}/{1} {2},等待产物：{0}/{1} {2}
+HyperdimensionalNetworkCraftingChainOutputSpace,Make room in your inventory to collect workstation output.,请为工作站产物腾出背包空间。
+HyperdimensionalNetworkCraftingChainCompleted,Crafting chain completed.,合成链已完成。
+HyperdimensionalNetworkCraftingChainCancelling,Cancelling crafting chain...,正在取消合成链……
+HyperdimensionalNetworkCraftingChainCancelled,Crafting chain cancelled.,合成链已取消。
+HyperdimensionalNetworkCraftingChainOutputLost,Vanilla crafting finished without producing the planned amount.,原版制作队列未产出计划中的数量，合成链已安全停止。
+HyperdimensionalNetworkCraftingChainReturning,Returning unused order materials to the network...,正在将剩余订单材料退回网络……
+HyperdimensionalNetworkCraftingChainReturnFailed,Order materials could not be returned yet; the chain will retry.,订单材料暂时无法退回网络，合成链将重试。
+HyperdimensionalNetworkCraftingChainReturnInventorySpace,Make room in your inventory to receive the remaining order materials.,请为剩余订单材料腾出背包空间。
+HyperdimensionalNetworkCraftingChainPlanTooLarge,This crafting plan is too large to display safely.,合成计划过于复杂，无法安全显示。

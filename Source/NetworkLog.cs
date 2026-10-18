@@ -18,7 +18,11 @@ internal static class NetworkLog
         if (_debugEnabled) Log.Out("[HyperdimensionalNetwork][Debug] " + message);
     }
 
-    public static void Error(string message) => Log.Error("[HyperdimensionalNetwork][Error] " + message);
+    public static void Error(string message)
+    {
+        EnsureInitialized();
+        if (_debugEnabled) Log.Error("[HyperdimensionalNetwork][Error] " + message);
+    }
 
     private static void EnsureInitialized()
     {

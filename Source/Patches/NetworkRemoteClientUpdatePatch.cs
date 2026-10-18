@@ -10,5 +10,7 @@ internal static class NetworkRemoteClientUpdatePatch
     {
         if (NetworkRemoteClient.IsRemoteClient) NetworkRemoteClient.Update();
         AutoRestockClient.Update();
+        LocalPlayerUI playerUI = LocalPlayerUI.GetUIForPrimaryPlayer();
+        if ((bool)playerUI) CraftingChainOrderService.Update(playerUI.xui);
     }
 }

@@ -65,6 +65,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         _retainSearchValue = GetChildById("labelRetainSearchValue");
         _retainSearchButton = GetChildById("btnToggleRetainSearch");
         _settingsStatus = GetChildById("restockSettingsStatus");
+        BindPress("btnHyperdimensionalCraftingChain", OnCraftingChainPressed);
         BindPress("btnHyperdimensionalRestock", OnManualRestockPressed);
         BindPress("btnHyperdimensionalSettings", OnSettingsPressed);
         BindPress("btnRestockSettingsClose", OnCloseSettingsPressed);
@@ -131,6 +132,14 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
             _grid?.Reload();
         });
         if (!sent) NetworkLog.Debug("Manual restock was not queued because an inventory transaction is pending. player=" + player.entityId);
+    }
+
+    private void OnCraftingChainPressed(XUiController sender, int mouseButton)
+    {
+        if (xui?.playerUI?.windowManager == null) return;
+        if (xui.playerUI.windowManager.IsWindowOpen("windowHyperdimensionalCraftingChain")) return;
+        NetworkLog.Debug("Crafting-chain window requested. trackedRecipe=" + (xui?.Recipes?.TrackedRecipe?.GetName() ?? "<none>"));
+        xui.playerUI.windowManager.Open("windowHyperdimensionalCraftingChain", _bModal: true);
     }
 
     private void OnSettingsPressed(XUiController sender, int mouseButton)

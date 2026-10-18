@@ -43,7 +43,7 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         _request.Position = StreamUtils.ReadVector3i(reader);
         _request.ConsumptionSource = (NetworkConsumptionSource)reader.ReadByte();
         int requirementCount = reader.ReadInt32();
-        if (requirementCount < 0 || requirementCount > 64) throw new InvalidDataException("Invalid network material requirement count: " + requirementCount);
+        if (requirementCount < 0 || requirementCount > 128) throw new InvalidDataException("Invalid network material requirement count: " + requirementCount);
         for (int i = 0; i < requirementCount; i++)
         {
             ItemValue value = new ItemValue();
@@ -79,7 +79,7 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         StreamUtils.Write(writer, _request.Position);
         binary.Write((byte)_request.ConsumptionSource);
         int requirementCount = _request.Requirements?.Count ?? 0;
-        if (requirementCount > 64) throw new InvalidDataException("Too many network material requirements: " + requirementCount);
+        if (requirementCount > 128) throw new InvalidDataException("Too many network material requirements: " + requirementCount);
         binary.Write(requirementCount);
         if (_request.Requirements != null)
             foreach (ItemStack requirement in _request.Requirements)

@@ -100,6 +100,7 @@ internal static class PlayerInventoryConsumePatch
                 __instance.dispatchBackpackItemsChanged();
                 __instance.dispatchToolbeltItemsChanged();
             }
+            NetworkRemoteClient.RecordCraftingChainNetworkConsumption(player, networkRequests);
             NetworkLog.Debug("Player materials consumed. physicalSlots=" + slots.FindAll(slot => slot.Take > 0).Count + "; networkVariants=" + networkRequests.Count);
         }
         catch (Exception ex)
