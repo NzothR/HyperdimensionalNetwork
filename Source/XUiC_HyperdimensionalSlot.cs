@@ -1,4 +1,4 @@
-using HyperdimensionalNetwork;
+namespace HyperdimensionalNetwork;
 
 public sealed class XUiC_HyperdimensionalSlot : XUiC_ItemStack
 {
