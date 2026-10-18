@@ -18,6 +18,7 @@ internal static class NetworkRpcServer
     private static readonly Dictionary<string, CachedRequest> CompletedRequests = new Dictionary<string, CachedRequest>(StringComparer.Ordinal);
     private static readonly Queue<string> CompletedRequestOrder = new Queue<string>();
     private static readonly HashSet<string> ReturnedWithdrawals = new HashSet<string>(StringComparer.Ordinal);
+    private static readonly Dictionary<string, List<StorageAddition>> ReturnedAuthorizations = new Dictionary<string, List<StorageAddition>>(StringComparer.Ordinal);
     private const int MaximumCachedRequests = 512;
 
     public static void ProcessRequest(World world, EntityPlayer player, ClientInfo sender, NetworkRemoteRequest request)
@@ -39,6 +40,10 @@ internal static class NetworkRpcServer
             else if (request.Operation == NetworkRequestOperation.QueryPage)
             {
                 result = QueryPage(player, request);
+            }
+            else if (request.Operation == NetworkRequestOperation.QueryMatching)
+            {
+                result = QueryMatching(player, request);
             }
             else
             {
@@ -73,6 +78,19 @@ internal static class NetworkRpcServer
         };
     }
 
+    private static NetworkRemoteResult QueryMatching(EntityPlayer player, NetworkRemoteRequest request)
+    {
+        if (request.Requirements == null || request.Requirements.Count == 0 || request.Requirements.Count > 64)
+            return Failure(request, "InvalidMatchingQuery");
+        List<StoredEntry> entries = NetworkStorage.GetEntriesForRequirements(player, request.Requirements);
+        if (entries.Count > 4096)
+        {
+            NetworkLog.Error("Matching query exceeded the response variant limit. player=" + player.entityId + "; requestId=" + request.RequestId + "; variants=" + entries.Count);
+            return Failure(request, "MatchingQueryTooBroad");
+        }
+        return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Entries = entries };
+    }
+
     private static NetworkRemoteResult ProcessMutation(World world, EntityPlayer player, ClientInfo sender, NetworkRemoteRequest request)
     {
         string key = request.EntityId + ":" + request.RequestId;
@@ -104,6 +122,7 @@ internal static class NetworkRpcServer
                 string oldest = CompletedRequestOrder.Dequeue();
                 CompletedRequests.Remove(oldest);
                 ReturnedWithdrawals.Remove(oldest);
+                ReturnedAuthorizations.Remove(oldest);
             }
             NetworkLog.Debug("Network transaction processed. player=" + player.entityId + "; network=" + result.NetworkId + "; requestId=" + request.RequestId + "; operation=" + request.Operation + "; success=" + result.Success + "; amount=" + result.Amount + "; revision=" + result.Revision + "; error=" + result.Error);
             return result;
@@ -129,6 +148,14 @@ internal static class NetworkRpcServer
                 return Withdraw(player, sender?.latestPlayerData, request);
             case NetworkRequestOperation.ReturnWithdrawal:
                 return ReturnWithdrawal(player, sender?.latestPlayerData, request);
+            case NetworkRequestOperation.ConsumeRequirements:
+                return ConsumeRequirements(world, player, sender?.latestPlayerData, request);
+            case NetworkRequestOperation.VehicleRefuel:
+                return RefuelVehicle(world, player, sender?.latestPlayerData, request);
+            case NetworkRequestOperation.VehicleRepair:
+                return RepairVehicle(world, player, sender?.latestPlayerData, request);
+            case NetworkRequestOperation.ReturnAuthorization:
+                return ReturnAuthorization(player, request);
             default:
                 return Failure(request, "UnsupportedOperation");
         }
@@ -326,6 +353,200 @@ internal static class NetworkRpcServer
         };
     }
 
+    private static NetworkRemoteResult ConsumeRequirements(World world, EntityPlayer player, PlayerDataFile playerData, NetworkRemoteRequest request)
+    {
+        if (request.Requirements == null || request.Requirements.Count == 0 || request.Requirements.Count > 64)
+            return Failure(request, "InvalidMaterialRequirements");
+        List<ItemStack> physical;
+        if (request.ConsumptionSource == NetworkConsumptionSource.WorkstationInput)
+        {
+            TileEntityWorkstation workstation = world?.GetTileEntity(request.Position) as TileEntityWorkstation;
+            if (workstation == null || workstation.Input == null) return Failure(request, "WorkstationUnavailable");
+            Vector3 center = workstation.ToWorldPos().ToVector3() + Vector3.one * 0.5f;
+            if ((player.position - center).sqrMagnitude > 64f) return Failure(request, "WorkstationOutOfRange");
+            physical = new List<ItemStack>();
+            foreach (ItemStack stack in workstation.Input)
+                if (stack != null && !stack.IsEmpty()) physical.Add(stack.Clone());
+        }
+        else if (request.ConsumptionSource == NetworkConsumptionSource.PlayerInventory)
+        {
+            if (playerData == null || playerData.bagData == null || playerData.inventoryData == null)
+                return Failure(request, "PlayerInventoryUnavailable");
+            try { physical = ReadPlayerInventory(playerData); }
+            catch (Exception ex)
+            {
+                NetworkLog.Error("Could not read remote player's inventory for a material transaction. player=" + player.entityId + "; requestId=" + request.RequestId + "; exception=" + ex);
+                return Failure(request, "PlayerInventoryUnavailable");
+            }
+        }
+        else return Failure(request, "InvalidMaterialSource");
+
+        List<StoredEntry> network = NetworkStorage.GetEntriesForRequirements(player, request.Requirements);
+        List<StorageAddition> removals = new List<StorageAddition>();
+        foreach (ItemStack requirement in request.Requirements)
+        {
+            if (requirement?.itemValue == null || requirement.count <= 0) return Failure(request, "InvalidMaterialRequirements");
+            long remaining = requirement.count;
+            foreach (ItemStack carried in physical)
+            {
+                if (remaining == 0) break;
+                if (carried == null || carried.IsEmpty() || !NetworkItemMatcher.Matches(carried.itemValue, requirement.itemValue)) continue;
+                int take = (int)Math.Min(remaining, carried.count);
+                carried.count -= take;
+                remaining -= take;
+            }
+            foreach (StoredEntry entry in network)
+            {
+                if (remaining == 0) break;
+                if (entry.Count <= 0 || !NetworkItemMatcher.Matches(entry.Value, requirement.itemValue)) continue;
+                long take = Math.Min(remaining, entry.Count);
+                entry.Count -= take;
+                remaining -= take;
+                AddPlannedRemoval(removals, entry.Value, take);
+            }
+            if (remaining > 0)
+            {
+                NetworkLog.Debug("Remote material transaction rejected for insufficient exact materials. player=" + player.entityId + "; requestId=" + request.RequestId + "; item=" + requirement.itemValue.type + "; quality=" + requirement.itemValue.Quality + "; missing=" + remaining);
+                return Failure(request, "InsufficientMaterials");
+            }
+        }
+        if (removals.Count > 4096)
+        {
+            NetworkLog.Error("Material transaction exceeded the response variant limit. player=" + player.entityId + "; requestId=" + request.RequestId + "; variants=" + removals.Count);
+            return Failure(request, "MaterialTransactionTooBroad");
+        }
+        if (removals.Count > 0 && !NetworkStorage.RemoveBatch(player, removals))
+            return Failure(request, "NetworkMaterialCommitFailed");
+        NetworkLog.Debug("Remote material transaction committed. player=" + player.entityId + "; requestId=" + request.RequestId + "; source=" + request.ConsumptionSource + "; requirements=" + request.Requirements.Count + "; networkVariants=" + removals.Count);
+        return new NetworkRemoteResult
+        {
+            RequestId = request.RequestId,
+            Success = true,
+            Entries = removals.Select(item => new StoredEntry { Value = item.Value.Clone(), Count = item.Count }).ToList(),
+            Amount = (int)Math.Min(removals.Sum(item => item.Count), int.MaxValue)
+        };
+    }
+
+    private static NetworkRemoteResult RefuelVehicle(World world, EntityPlayer player, PlayerDataFile playerData, NetworkRemoteRequest request)
+    {
+        EntityVehicle entity = world?.GetEntity(request.Slot) as EntityVehicle;
+        if (entity == null || entity.GetVehicle() == null || !IsNearEntity(player, entity, 8f)) return Failure(request, "VehicleUnavailable");
+        string fuelName = entity.GetVehicle().GetFuelItem();
+        ItemValue fuel = string.IsNullOrEmpty(fuelName) ? null : ItemClass.GetItem(fuelName);
+        if (fuel?.ItemClass == null || entity.GetVehicle().GetFuelPercent() >= 1f) return Failure(request, "VehicleFuelUnavailable");
+        if (!SyncPlayerInventoryFromLatest(player, playerData)) return Failure(request, "PlayerInventoryUnavailable");
+        int requested = Mathf.CeilToInt(Mathf.Min(2500f,
+            (entity.GetVehicle().GetMaxFuelLevel() - entity.GetVehicle().GetFuelLevel()) * 25f));
+        int amount = Math.Min(requested, ActionResourceService.Count(player, fuel));
+        if (amount <= 0 || !ActionResourceService.Consume(player, fuel, amount)) return Failure(request, "FuelUnavailable");
+        try
+        {
+            entity.GetVehicle().AddFuel(amount / 25f);
+            CapturePlayerInventory(player, playerData, out byte[] bagData, out byte[] inventoryData);
+            NetworkLog.Debug("Remote vehicle refueled. player=" + player.entityId + "; vehicle=" + entity.entityId + "; item=" + fuel.type + "; amount=" + amount);
+            return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Amount = amount, BagData = bagData, InventoryData = inventoryData };
+        }
+        catch (Exception ex)
+        {
+            NetworkStorage.AddStack(player, new ItemStack(fuel.Clone(), amount));
+            NetworkLog.Error("Remote vehicle refueling failed after material reservation. player=" + player.entityId + "; vehicle=" + entity.entityId + "; exception=" + ex);
+            return Failure(request, "VehicleRefuelFailed");
+        }
+    }
+
+    private static NetworkRemoteResult RepairVehicle(World world, EntityPlayer player, PlayerDataFile playerData, NetworkRemoteRequest request)
+    {
+        EntityVehicle entity = world?.GetEntity(request.Slot) as EntityVehicle;
+        if (entity == null || entity.GetVehicle() == null || !IsNearEntity(player, entity, 8f)
+            || entity.GetVehicle().GetRepairAmountNeeded() <= 0) return Failure(request, "VehicleUnavailable");
+        ItemValue kit = ItemClass.GetItem("resourceRepairKit");
+        if (kit?.ItemClass == null || !SyncPlayerInventoryFromLatest(player, playerData)
+            || !ActionResourceService.Consume(player, kit, 1)) return Failure(request, "RepairKitUnavailable");
+        try
+        {
+            float bonus = 0f;
+            ProgressionValue perk = player.Progression?.GetProgressionValue("perkGreaseMonkey");
+            if (perk != null) bonus = perk.Level * 0.1f;
+            entity.GetVehicle().RepairParts(1000, bonus);
+            CapturePlayerInventory(player, playerData, out byte[] bagData, out byte[] inventoryData);
+            NetworkLog.Debug("Remote vehicle repaired. player=" + player.entityId + "; vehicle=" + entity.entityId + "; item=" + kit.type);
+            return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Amount = 1, BagData = bagData, InventoryData = inventoryData };
+        }
+        catch (Exception ex)
+        {
+            NetworkStorage.AddStack(player, new ItemStack(kit.Clone(), 1));
+            NetworkLog.Error("Remote vehicle repair failed after material reservation. player=" + player.entityId + "; vehicle=" + entity.entityId + "; exception=" + ex);
+            return Failure(request, "VehicleRepairFailed");
+        }
+    }
+
+    private static List<ItemStack> ReadPlayerInventory(PlayerDataFile playerData)
+    {
+        Bag bag = ReadBag(playerData.bagData);
+        if (bag == null) throw new InvalidDataException("Backpack snapshot was empty.");
+        List<ItemStack> result = new List<ItemStack>();
+        for (int i = 0; i < bag.SlotCount; i++)
+        {
+            ItemStack stack = bag.ItemGrid[i];
+            if (stack != null && !stack.IsEmpty()) result.Add(stack.Clone());
+        }
+        using (MemoryStream input = new MemoryStream(playerData.inventoryData.ToArray(), writable: false))
+        using (PooledBinaryReader reader = MemoryPools.poolBinaryReader.AllocSync(false))
+        {
+            reader.SetBaseStream(input);
+            if (reader.ReadByte() != 1) throw new InvalidDataException("Unsupported toolbelt snapshot version.");
+            ItemStackGrid grid = ItemStackGrid.Read(reader, StreamModeRead.Persistency);
+            reader.ReadByte();
+            if (input.Position != input.Length) throw new InvalidDataException("Unexpected trailing toolbelt snapshot data.");
+            for (int i = 0; i < grid.Length; i++)
+            {
+                ItemStack stack = grid[i];
+                if (stack != null && !stack.IsEmpty()) result.Add(stack.Clone());
+            }
+        }
+        return result;
+    }
+
+    private static void AddPlannedRemoval(List<StorageAddition> removals, ItemValue value, long count)
+    {
+        ItemValue key = NetworkStorage.NormalizeKey(value);
+        StorageAddition existing = removals.FirstOrDefault(item => NetworkStorage.NormalizeKey(item.Value).Equals(key));
+        if (existing == null) removals.Add(new StorageAddition { Value = key, Count = count });
+        else existing.Count += count;
+    }
+
+    private static bool SyncPlayerInventoryFromLatest(EntityPlayer player, PlayerDataFile playerData)
+    {
+        if (player == null || playerData?.bagData == null || playerData.inventoryData == null) return false;
+        try
+        {
+            ApplyPlayerInventorySnapshot(player, playerData.bagData, toolbelt: false);
+            ApplyPlayerInventorySnapshot(player, playerData.inventoryData, toolbelt: true);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            NetworkLog.Error("Could not apply latest remote player inventory before a vehicle transaction. player=" + player.entityId + "; exception=" + ex);
+            return false;
+        }
+    }
+
+    private static void CapturePlayerInventory(EntityPlayer player, PlayerDataFile playerData, out byte[] bagData, out byte[] inventoryData)
+    {
+        MemoryStream bag = StreamUtils.ToBlob(writer => player.bag.Write(writer, StreamModeWrite.Persistency));
+        MemoryStream inventory = StreamUtils.ToBlob(writer => player.inventory.Write(writer, StreamModeWrite.Persistency));
+        playerData.bagData = bag;
+        playerData.inventoryData = inventory;
+        playerData.bModifiedSinceLastSave = true;
+        bagData = bag.ToArray();
+        inventoryData = inventory.ToArray();
+    }
+
+    private static bool IsNearEntity(EntityPlayer player, Entity entity, float distance)
+    {
+        return (bool)player && (bool)entity && (player.position - entity.position).sqrMagnitude <= distance * distance;
+    }
+
     private static List<KeyValuePair<int, int>> PlanBagPlacement(Bag bag, ItemValue value, int requested)
     {
         List<KeyValuePair<int, int>> placements = new List<KeyValuePair<int, int>>();
@@ -418,6 +639,37 @@ internal static class NetworkRpcServer
         ReturnedWithdrawals.Add(originalKey);
         NetworkLog.Debug("Unaccepted withdrawal returned to network. player=" + player.entityId + "; originalRequestId=" + request.OriginalRequestId + "; returned=" + request.Count);
         return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Amount = request.Count };
+    }
+
+    private static NetworkRemoteResult ReturnAuthorization(EntityPlayer player, NetworkRemoteRequest request)
+    {
+        string originalKey = request.EntityId + ":" + request.OriginalRequestId;
+        if (!CompletedRequests.TryGetValue(originalKey, out CachedRequest original)
+            || original.Request.Operation != NetworkRequestOperation.ConsumeRequirements || !original.Result.Success
+            || request.Requirements == null || request.Requirements.Count == 0)
+            return Failure(request, "AuthorizationReturnNotAllowed");
+        ReturnedAuthorizations.TryGetValue(originalKey, out List<StorageAddition> previouslyReturned);
+        List<StorageAddition> refunds = new List<StorageAddition>();
+        foreach (ItemStack requested in request.Requirements)
+        {
+            if (requested?.itemValue == null || requested.count <= 0) return Failure(request, "InvalidAuthorizationReturn");
+            ItemValue key = NetworkStorage.NormalizeKey(requested.itemValue);
+            StoredEntry granted = original.Result.Entries.FirstOrDefault(entry => NetworkStorage.NormalizeKey(entry.Value).Equals(key));
+            if (granted == null) return Failure(request, "AuthorizationReturnNotGranted");
+            long alreadyReturned = previouslyReturned?.Where(item => NetworkStorage.NormalizeKey(item.Value).Equals(key)).Sum(item => item.Count) ?? 0;
+            long thisRefund = refunds.Where(item => NetworkStorage.NormalizeKey(item.Value).Equals(key)).Sum(item => item.Count);
+            if (requested.count > granted.Count - alreadyReturned - thisRefund) return Failure(request, "AuthorizationReturnExceedsGrant");
+            AddPlannedRemoval(refunds, key, requested.count);
+        }
+        if (!NetworkStorage.AddBatch(player, refunds)) return Failure(request, "AuthorizationReturnCommitFailed");
+        if (previouslyReturned == null)
+        {
+            previouslyReturned = new List<StorageAddition>();
+            ReturnedAuthorizations[originalKey] = previouslyReturned;
+        }
+        foreach (StorageAddition refund in refunds) AddPlannedRemoval(previouslyReturned, refund.Value, refund.Count);
+        NetworkLog.Debug("Unused network material authorization returned. player=" + player.entityId + "; originalRequestId=" + request.OriginalRequestId + "; variants=" + refunds.Count);
+        return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Amount = (int)Math.Min(refunds.Sum(item => item.Count), int.MaxValue) };
     }
 
     private static bool TryUpdateBag(MemoryStream blob, int slot, ItemValue expected, int count, out ItemStack source, out MemoryStream updated)
@@ -531,9 +783,15 @@ internal static class NetworkRpcServer
     {
         if (left.Operation != right.Operation || left.SourceLocation != right.SourceLocation || left.EntityId != right.EntityId || left.Slot != right.Slot
             || left.Count != right.Count || left.OriginalRequestId != right.OriginalRequestId || !left.Position.Equals(right.Position)
+            || left.ConsumptionSource != right.ConsumptionSource
             || !string.Equals(left.ExpectedNetworkId, right.ExpectedNetworkId, StringComparison.OrdinalIgnoreCase)
             || !string.Equals(left.Category, right.Category, StringComparison.Ordinal)
-            || !string.Equals(left.Search, right.Search, StringComparison.Ordinal)) return false;
+            || !string.Equals(left.Search, right.Search, StringComparison.Ordinal)
+            || (left.Requirements?.Count ?? 0) != (right.Requirements?.Count ?? 0)) return false;
+        if (left.Requirements != null)
+            for (int i = 0; i < left.Requirements.Count; i++)
+                if (left.Requirements[i].count != right.Requirements[i].count
+                    || !left.Requirements[i].itemValue.Equals(right.Requirements[i].itemValue)) return false;
         if (left.Value == null || right.Value == null) return left.Value == right.Value;
         return left.Value.Equals(right.Value);
     }
@@ -555,7 +813,9 @@ internal static class NetworkRpcServer
             Value = request.Value?.Clone(),
             Count = request.Count,
             Slot = request.Slot,
-            Position = request.Position
+            Position = request.Position,
+            ConsumptionSource = request.ConsumptionSource,
+            Requirements = request.Requirements?.Select(item => new ItemStack(item.itemValue.Clone(), item.count)).ToList() ?? new List<ItemStack>()
         };
     }
 

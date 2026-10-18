@@ -1,6 +1,7 @@
 using System;
 using Audio;
 using HarmonyLib;
+using UnityEngine;
 
 namespace HyperdimensionalNetwork.Patches;
 
@@ -19,6 +20,7 @@ internal static class VehicleFuelPatch
     private static bool TakeFuel(EntityVehicle __instance, EntityAlive _entityFocusing, int count, ref float __result)
     {
         if (!(_entityFocusing is EntityPlayerLocal player)) return true;
+        if (NetworkRemoteClient.IsRemoteClient) return true;
         __result = 0f;
         ItemValue fuel = GetFuel(__instance);
         if (fuel == null || count <= 0) return false;
@@ -45,6 +47,22 @@ internal static class VehicleFuelPatch
 [HarmonyPatch(typeof(XUiM_Vehicle), nameof(XUiM_Vehicle.RepairVehicle))]
 internal static class VehicleRepairPatch
 {
+    [HarmonyPrefix]
+    private static bool BeforeRepair(XUi _xui, Vehicle _vehicle, ref bool __result)
+    {
+        EntityPlayerLocal player = _xui?.playerUI?.entityPlayer;
+        if (!NetworkRemoteClient.IsRemoteClient || !(bool)player) return true;
+        Vehicle vehicle = _vehicle ?? _xui.Vehicle?.CurrentVehicle?.GetVehicle();
+        EntityVehicle entity = vehicle?.entity;
+        ItemValue kit = ItemClass.GetItem("resourceRepairKit");
+        if (entity == null || kit?.ItemClass == null || ActionResourceService.PhysicalCount(player, kit) > 0
+            || NetworkStorage.GetMatchingCount(player, kit) <= 0) return true;
+        bool sent = NetworkRemoteClient.RequestVehicleOperation(player, NetworkRequestOperation.VehicleRepair, entity.entityId,
+            result => { if (!result.Success) NetworkLog.Debug("Remote vehicle repair was rejected. player=" + player.entityId + "; vehicle=" + entity.entityId + "; error=" + result.Error); });
+        __result = sent;
+        return false;
+    }
+
     [HarmonyPostfix]
     private static void RepairVehicle(XUi _xui, Vehicle _vehicle, ref bool __result)
     {
@@ -65,5 +83,24 @@ internal static class VehicleRepairPatch
         Manager.PlayInsidePlayerHead("craft_complete_item");
         __result = true;
         NetworkLog.Debug("Vehicle repaired with network kit. item=" + kit.type + "; repairNeeded=" + vehicle.GetRepairAmountNeeded());
+    }
+}
+
+[HarmonyPatch(typeof(EntityVehicle), nameof(EntityVehicle.AddFuelFromInventory))]
+internal static class RemoteVehicleRefuelPatch
+{
+    [HarmonyPrefix]
+    private static bool Prefix(EntityVehicle __instance, EntityAlive entity)
+    {
+        if (!NetworkRemoteClient.IsRemoteClient || !(entity is EntityPlayerLocal player) || __instance?.GetVehicle() == null) return true;
+        string fuelName = __instance.GetVehicle().GetFuelItem();
+        ItemValue fuel = string.IsNullOrEmpty(fuelName) ? null : ItemClass.GetItem(fuelName);
+        if (fuel?.ItemClass == null) return true;
+        int requested = Mathf.CeilToInt(Mathf.Min(2500f, (__instance.GetVehicle().GetMaxFuelLevel() - __instance.GetVehicle().GetFuelLevel()) * 25f));
+        if (requested <= 0 || ActionResourceService.PhysicalCount(player, fuel) >= requested
+            || NetworkStorage.GetMatchingCount(player, fuel) <= 0) return true;
+        bool sent = NetworkRemoteClient.RequestVehicleOperation(player, NetworkRequestOperation.VehicleRefuel, __instance.entityId,
+            result => { if (!result.Success) NetworkLog.Debug("Remote vehicle refueling was rejected. player=" + player.entityId + "; vehicle=" + __instance.entityId + "; error=" + result.Error); });
+        return !sent;
     }
 }

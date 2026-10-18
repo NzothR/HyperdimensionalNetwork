@@ -40,7 +40,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
             _result.Value.Read(reader);
         }
         int entryCount = reader.ReadInt32();
-        if (entryCount < 0 || entryCount > 128) throw new InvalidDataException("Invalid network response entry count: " + entryCount);
+        if (entryCount < 0 || entryCount > 4096) throw new InvalidDataException("Invalid network response entry count: " + entryCount);
         for (int i = 0; i < entryCount; i++)
         {
             ItemValue value = new ItemValue();
@@ -72,6 +72,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         binary.Write(result.Value != null);
         result.Value?.Write(writer);
         int entryCount = result.Entries?.Count ?? 0;
+        if (entryCount > 4096) throw new InvalidDataException("Network response entry count exceeds the protocol limit: " + entryCount);
         binary.Write(entryCount);
         if (result.Entries != null)
         {
@@ -100,8 +101,9 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
     public int GetLength()
     {
         int entries = _result?.Entries?.Count ?? 0;
+        if (entries > 4096) throw new InvalidDataException("Network response entry count exceeds the protocol limit: " + entries);
         int bytes = (_result?.BagData?.Length ?? 0) + (_result?.InventoryData?.Length ?? 0);
-        return 96 + entries * 160 + bytes + Encoding.UTF8.GetByteCount(_result?.Error ?? string.Empty) + Encoding.UTF8.GetByteCount(_result?.NetworkId ?? string.Empty);
+        return 96 + entries * 512 + bytes + Encoding.UTF8.GetByteCount(_result?.Error ?? string.Empty) + Encoding.UTF8.GetByteCount(_result?.NetworkId ?? string.Empty);
     }
 
     private static string ReadBoundedString(BinaryReader reader, int maximumBytes)

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using UnityEngine;
@@ -16,7 +17,18 @@ internal enum NetworkRequestOperation : byte
     DepositLootAll = 6,
     WithdrawCursor = 7,
     WithdrawBackpack = 8,
-    ReturnWithdrawal = 9
+    ReturnWithdrawal = 9,
+    QueryMatching = 10,
+    ConsumeRequirements = 11,
+    VehicleRefuel = 12,
+    VehicleRepair = 13,
+    ReturnAuthorization = 14
+}
+
+internal enum NetworkConsumptionSource : byte
+{
+    PlayerInventory = 0,
+    WorkstationInput = 1
 }
 
 internal sealed class NetworkRemoteResult
@@ -53,6 +65,8 @@ internal sealed class NetworkRemoteRequest
     public int Count;
     public int Slot;
     public Vector3i Position;
+    public NetworkConsumptionSource ConsumptionSource;
+    public List<ItemStack> Requirements = new List<ItemStack>();
 }
 
 internal static class NetworkRemoteClient
@@ -69,12 +83,196 @@ internal static class NetworkRemoteClient
     private static readonly object Sync = new object();
     private static readonly Dictionary<long, PendingRequest> Pending = new Dictionary<long, PendingRequest>();
     private static readonly Dictionary<int, string> NetworkIds = new Dictionary<int, string>();
+    private static readonly Dictionary<ItemValue, long> MatchingEntries = new Dictionary<ItemValue, long>();
+    private static readonly Dictionary<int, float> MatchingTypeFetchedAt = new Dictionary<int, float>();
+    private static readonly HashSet<int> MatchingTypesQueued = new HashSet<int>();
+    private static readonly List<StoredEntry> AuthorizedEntries = new List<StoredEntry>();
     private static long _nextRequestId = BitConverter.ToInt64(Guid.NewGuid().ToByteArray(), 0) & 0x3FFFFFFFFFFFFFFF;
     private static long _activeMutationRequestId;
     private static float _nextTimeoutSweep;
+    private static float _nextMatchingFlush;
+    private static long _knownRevision = -1;
+    private static int _authorizedEntityId = -1;
+    private static int _authorizedDepth;
+    private static long _authorizedRequestId;
+
+    private sealed class AuthorizedScope : IDisposable
+    {
+        private bool _disposed;
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            lock (Sync)
+            {
+                if (_authorizedDepth > 0) _authorizedDepth--;
+                if (_authorizedDepth == 0)
+                {
+                    List<StorageAddition> unused = AuthorizedEntries.Where(entry => entry.Count > 0)
+                        .Select(entry => new StorageAddition { Value = entry.Value.Clone(), Count = entry.Count }).ToList();
+                    int entityId = _authorizedEntityId;
+                    long requestId = _authorizedRequestId;
+                    _authorizedEntityId = -1;
+                    _authorizedRequestId = 0;
+                    AuthorizedEntries.Clear();
+                    if (unused.Count > 0) SendAuthorizationRefund(entityId, requestId, unused);
+                }
+            }
+        }
+    }
+
+    private sealed class EmptyScope : IDisposable
+    {
+        public static readonly EmptyScope Instance = new EmptyScope();
+        public void Dispose() { }
+    }
 
     public static bool IsRemoteClient => PlayerNetworkDirectory.IsRemoteClient();
     public static bool IsMutationPending { get { lock (Sync) return _activeMutationRequestId != 0; } }
+    public static long Revision { get { lock (Sync) return Math.Max(0, _knownRevision); } }
+
+    public static long GetMatchingCount(EntityPlayer player, ItemValue requirement, bool includeModded = false)
+    {
+        if (!(bool)player || requirement == null) return 0;
+        lock (Sync)
+        {
+            QueueMatchingType(requirement.type);
+            long total = 0;
+            foreach (StoredEntry entry in GetAuthorizedEntries(player.entityId))
+                if (NetworkItemMatcher.Matches(entry.Value, requirement, includeModded)) total = SafeAdd(total, entry.Count);
+            foreach (KeyValuePair<ItemValue, long> entry in MatchingEntries)
+                if (NetworkItemMatcher.Matches(entry.Key, requirement, includeModded)) total = SafeAdd(total, entry.Value);
+            return total;
+        }
+    }
+
+    public static long GetExactCount(EntityPlayer player, ItemValue value)
+    {
+        if (!(bool)player || value == null) return 0;
+        lock (Sync)
+        {
+            QueueMatchingType(value.type);
+            ItemValue key = NetworkStorage.NormalizeKey(value);
+            long count = MatchingEntries.TryGetValue(key, out long available) ? available : 0;
+            foreach (StoredEntry entry in GetAuthorizedEntries(player.entityId))
+                if (NetworkStorage.NormalizeKey(entry.Value).Equals(key)) count = SafeAdd(count, entry.Count);
+            return count;
+        }
+    }
+
+    public static List<StoredEntry> GetEntriesForRequirements(EntityPlayer player, IEnumerable<ItemStack> requirements)
+    {
+        List<StoredEntry> result = new List<StoredEntry>();
+        if (!(bool)player || requirements == null) return result;
+        HashSet<int> types = new HashSet<int>();
+        foreach (ItemStack requirement in requirements)
+            if (requirement?.itemValue != null && requirement.itemValue.type > 0) types.Add(requirement.itemValue.type);
+        lock (Sync)
+        {
+            foreach (int type in types) QueueMatchingType(type);
+            foreach (KeyValuePair<ItemValue, long> entry in MatchingEntries)
+                if (types.Contains(entry.Key.type) && entry.Value > 0)
+                    result.Add(new StoredEntry { Value = entry.Key.Clone(), Count = entry.Value });
+            foreach (StoredEntry entry in GetAuthorizedEntries(player.entityId))
+                if (types.Contains(entry.Value.type))
+                    result.Add(new StoredEntry { Value = entry.Value.Clone(), Count = entry.Count });
+        }
+        return result;
+    }
+
+    public static List<StoredEntry> GetAuthorizedEntriesForRequirements(EntityPlayer player, IEnumerable<ItemStack> requirements)
+    {
+        List<StoredEntry> result = new List<StoredEntry>();
+        if (!(bool)player || requirements == null) return result;
+        HashSet<int> types = new HashSet<int>();
+        foreach (ItemStack requirement in requirements)
+            if (requirement?.itemValue != null && requirement.itemValue.type > 0) types.Add(requirement.itemValue.type);
+        lock (Sync)
+        {
+            foreach (StoredEntry entry in GetAuthorizedEntries(player.entityId))
+                if (types.Contains(entry.Value.type))
+                    result.Add(new StoredEntry { Value = entry.Value.Clone(), Count = entry.Count });
+        }
+        return result;
+    }
+
+    public static bool RequestConsumption(EntityPlayerLocal player, IList<ItemStack> requirements, NetworkConsumptionSource source,
+        Vector3i workstationPosition, Action onSuccess, Action<string> onFailure = null)
+    {
+        if (!IsRemoteClient || !(bool)player || requirements == null || requirements.Count == 0) return false;
+        NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.ConsumeRequirements);
+        request.ConsumptionSource = source;
+        request.Position = workstationPosition;
+        request.Requirements = CloneRequirements(requirements);
+        return Send(player, request, true, true, false, result =>
+        {
+            if (!result.Success)
+            {
+                NetworkLog.Debug("Remote material transaction rejected. operation=" + request.Operation + "; requestId=" + result.RequestId + "; error=" + result.Error);
+                onFailure?.Invoke(result.Error);
+                return;
+            }
+            using (EnterAuthorizedConsumption(player.entityId, result.RequestId, result.Entries)) onSuccess?.Invoke();
+        });
+    }
+
+    public static bool IsAuthorizedConsumption(EntityPlayer player)
+    {
+        lock (Sync) return _authorizedDepth > 0 && player != null && player.entityId == _authorizedEntityId;
+    }
+
+    public static bool ConsumeAuthorized(EntityPlayer player, IEnumerable<StorageAddition> used)
+    {
+        if (used == null) return true;
+        List<StorageAddition> pending = used.Where(item => item?.Value != null && item.Count > 0).ToList();
+        if (pending.Count == 0) return true;
+        lock (Sync)
+        {
+            if (_authorizedDepth <= 0 || player == null || player.entityId != _authorizedEntityId) return false;
+            Dictionary<int, long> remainingByIndex = new Dictionary<int, long>();
+            List<KeyValuePair<int, long>> plan = new List<KeyValuePair<int, long>>();
+            foreach (StorageAddition item in pending)
+            {
+                long remaining = item.Count;
+                for (int i = 0; i < AuthorizedEntries.Count && remaining > 0; i++)
+                {
+                    StoredEntry available = AuthorizedEntries[i];
+                    long alreadyPlanned = remainingByIndex.TryGetValue(i, out long reserved) ? reserved : 0;
+                    long usable = available.Count - alreadyPlanned;
+                    if (usable <= 0 || !NetworkStorage.NormalizeKey(available.Value).Equals(NetworkStorage.NormalizeKey(item.Value))) continue;
+                    long take = Math.Min(remaining, usable);
+                    remainingByIndex[i] = alreadyPlanned + take;
+                    plan.Add(new KeyValuePair<int, long>(i, take));
+                    remaining -= take;
+                }
+                if (remaining > 0) return false;
+            }
+            foreach (KeyValuePair<int, long> take in plan) AuthorizedEntries[take.Key].Count -= take.Value;
+            return true;
+        }
+    }
+
+    public static void RestoreAuthorized(EntityPlayer player, IEnumerable<StorageAddition> restored)
+    {
+        if (restored == null) return;
+        lock (Sync)
+        {
+            if (_authorizedDepth <= 0 || player == null || player.entityId != _authorizedEntityId) return;
+            foreach (StorageAddition item in restored) RestoreAuthorizedUnsafe(item);
+        }
+    }
+
+    public static bool RequestVehicleOperation(EntityPlayerLocal player, NetworkRequestOperation operation, int vehicleEntityId, Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player || (operation != NetworkRequestOperation.VehicleRefuel && operation != NetworkRequestOperation.VehicleRepair)) return false;
+        NetworkRemoteRequest request = NewRequest(player, operation);
+        request.Slot = vehicleEntityId;
+        return Send(player, request, true, true, false, result =>
+        {
+            if (result.Success) NetworkInventorySync.Apply(player, result);
+            callback?.Invoke(result);
+        });
+    }
 
     public static bool RequestPage(EntityPlayer player, string category, string search, int page, int pageSize, Action<NetworkRemoteResult> callback)
     {
@@ -146,10 +344,18 @@ internal static class NetworkRemoteClient
     {
         if (result == null) return;
         PendingRequest pending;
+        bool responseCurrent;
         lock (Sync)
         {
             if (!string.IsNullOrEmpty(result.NetworkId))
                 NetworkIds[entityId] = result.NetworkId;
+            if (result.Revision > _knownRevision)
+            {
+                _knownRevision = result.Revision;
+                MatchingEntries.Clear();
+                MatchingTypeFetchedAt.Clear();
+            }
+            responseCurrent = result.Revision >= _knownRevision;
             if (!Pending.TryGetValue(result.RequestId, out pending))
             {
                 NetworkLog.Debug("Ignored unmatched network response. requestId=" + result.RequestId + "; network=" + result.NetworkId);
@@ -163,6 +369,18 @@ internal static class NetworkRemoteClient
             Pending.Remove(result.RequestId);
             if (_activeMutationRequestId == result.RequestId) _activeMutationRequestId = 0;
         }
+        if (pending.Request.Operation == NetworkRequestOperation.QueryMatching && responseCurrent && result.Success)
+        {
+            lock (Sync)
+            {
+                HashSet<int> types = new HashSet<int>(pending.Request.Requirements.Select(item => item.itemValue.type));
+                foreach (ItemValue old in MatchingEntries.Keys.Where(value => types.Contains(value.type)).ToList()) MatchingEntries.Remove(old);
+                foreach (StoredEntry entry in result.Entries)
+                    if (entry?.Value != null && entry.Count > 0 && types.Contains(entry.Value.type))
+                        MatchingEntries[NetworkStorage.NormalizeKey(entry.Value)] = entry.Count;
+                foreach (int type in types) MatchingTypeFetchedAt[type] = Time.realtimeSinceStartup;
+            }
+        }
         try { pending.Callback?.Invoke(result); }
         catch (Exception ex) { NetworkLog.Error("Network response handler failed. requestId=" + result.RequestId + "; exception=" + ex); }
     }
@@ -170,6 +388,31 @@ internal static class NetworkRemoteClient
     public static void Update()
     {
         float now = Time.realtimeSinceStartup;
+        if (now >= _nextMatchingFlush)
+        {
+            _nextMatchingFlush = now + 0.2f;
+            List<int> types = null;
+            lock (Sync)
+            {
+                foreach (int type in MatchingTypesQueued.Take(64))
+                {
+                    MatchingTypesQueued.Remove(type);
+                    if (types == null) types = new List<int>();
+                    types.Add(type);
+                }
+            }
+            if (types != null)
+            {
+                EntityPlayerLocal player = GetLocalPlayer();
+                if ((bool)player)
+                {
+                    NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.QueryMatching);
+                    request.Requirements = types.Select(type => new ItemStack(new ItemValue(type), 1)).ToList();
+                    Send(player, request, false, false, false, null);
+                }
+                else lock (Sync) foreach (int type in types) MatchingTypesQueued.Add(type);
+            }
+        }
         if (now < _nextTimeoutSweep) return;
         _nextTimeoutSweep = now + 1f;
         List<PendingRequest> timedOut = null;
@@ -237,6 +480,96 @@ internal static class NetworkRemoteClient
         };
     }
 
+    private static EntityPlayerLocal GetLocalPlayer()
+    {
+        return GameManager.Instance?.World?.GetPrimaryPlayer() as EntityPlayerLocal;
+    }
+
+    private static void QueueMatchingType(int type)
+    {
+        if (type <= 0) return;
+        float now = Time.realtimeSinceStartup;
+        if (MatchingTypeFetchedAt.TryGetValue(type, out float fetchedAt) && now - fetchedAt < 2f) return;
+        bool alreadyPending = Pending.Values.Any(pending => pending.Request.Operation == NetworkRequestOperation.QueryMatching
+            && pending.Request.Requirements.Any(item => item.itemValue.type == type));
+        if (!alreadyPending) MatchingTypesQueued.Add(type);
+    }
+
+    private static List<StoredEntry> GetAuthorizedEntries(int entityId)
+    {
+        if (_authorizedDepth == 0 || _authorizedEntityId != entityId) return new List<StoredEntry>();
+        return AuthorizedEntries.Where(entry => entry.Count > 0)
+            .Select(entry => new StoredEntry { Value = entry.Value.Clone(), Count = entry.Count }).ToList();
+    }
+
+    private static IDisposable EnterAuthorizedConsumption(int entityId, long requestId, IEnumerable<StoredEntry> entries)
+    {
+        lock (Sync)
+        {
+            if (_authorizedDepth == 0)
+            {
+                _authorizedEntityId = entityId;
+                _authorizedRequestId = requestId;
+                AuthorizedEntries.Clear();
+                if (entries != null)
+                    AuthorizedEntries.AddRange(entries.Where(entry => entry?.Value != null && entry.Count > 0)
+                        .Select(entry => new StoredEntry { Value = entry.Value.Clone(), Count = entry.Count }));
+            }
+            else if (_authorizedEntityId != entityId)
+            {
+                NetworkLog.Error("Could not nest remote material authorization for a different player. active=" + _authorizedEntityId + "; requested=" + entityId);
+                return EmptyScope.Instance;
+            }
+            _authorizedDepth++;
+            return new AuthorizedScope();
+        }
+    }
+
+    private static void RestoreAuthorizedUnsafe(StorageAddition item)
+    {
+        if (item?.Value == null || item.Count <= 0) return;
+        ItemValue key = NetworkStorage.NormalizeKey(item.Value);
+        StoredEntry existing = AuthorizedEntries.FirstOrDefault(entry => NetworkStorage.NormalizeKey(entry.Value).Equals(key));
+        if (existing == null) AuthorizedEntries.Add(new StoredEntry { Value = key, Count = item.Count });
+        else existing.Count = SafeAdd(existing.Count, item.Count);
+    }
+
+    private static void SendAuthorizationRefund(int entityId, long originalRequestId, List<StorageAddition> unused)
+    {
+        EntityPlayerLocal player = GetLocalPlayer();
+        if (!(bool)player || player.entityId != entityId || originalRequestId <= 0)
+        {
+            NetworkLog.Error("Unused network material authorization could not be returned because the local player was unavailable. entity=" + entityId + "; originalRequestId=" + originalRequestId);
+            return;
+        }
+        List<ItemStack> requirements = new List<ItemStack>();
+        foreach (StorageAddition item in unused)
+        {
+            if (item.Count > int.MaxValue)
+            {
+                NetworkLog.Error("Unused network authorization exceeded the refund protocol count limit. originalRequestId=" + originalRequestId + "; item=" + item.Value.type + "; count=" + item.Count);
+                return;
+            }
+            requirements.Add(new ItemStack(item.Value.Clone(), (int)item.Count));
+        }
+        NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.ReturnAuthorization);
+        request.OriginalRequestId = originalRequestId;
+        request.Requirements = requirements;
+        bool sent = Send(player, request, false, false, false, result =>
+        {
+            if (!result.Success) NetworkLog.Error("Unused network authorization refund was rejected. originalRequestId=" + originalRequestId + "; error=" + result.Error);
+        });
+        if (!sent) NetworkLog.Error("Unused network authorization refund could not be sent. originalRequestId=" + originalRequestId);
+    }
+
+    private static List<ItemStack> CloneRequirements(IEnumerable<ItemStack> requirements)
+    {
+        return requirements.Where(item => item?.itemValue != null && !item.IsEmpty())
+            .Select(item => new ItemStack(item.itemValue.Clone(), item.count)).ToList();
+    }
+
+    private static long SafeAdd(long left, long right) => left > long.MaxValue - right ? long.MaxValue : left + right;
+
     private static string LimitUtf8(string value, int maximumBytes)
     {
         if (string.IsNullOrEmpty(value)) return string.Empty;
@@ -262,7 +595,7 @@ internal static class NetworkRemoteClient
         if (!(bool)connection || !connection.IsClient || connection.IsServer) return false;
         lock (Sync)
         {
-            bool mutation = request.Operation != NetworkRequestOperation.QueryPage;
+            bool mutation = request.Operation != NetworkRequestOperation.QueryPage && request.Operation != NetworkRequestOperation.QueryMatching;
             if (mutation && _activeMutationRequestId != 0)
             {
                 NetworkLog.Debug("Remote mutation not queued because another inventory transaction is awaiting confirmation. operation=" + request.Operation + "; activeRequestId=" + _activeMutationRequestId);

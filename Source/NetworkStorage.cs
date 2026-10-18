@@ -45,7 +45,8 @@ internal static class NetworkStorage
 
     public static long GetRevision(EntityPlayer player)
     {
-        if (!(bool)player || PlayerNetworkDirectory.IsRemoteClient()) return 0;
+        if (!(bool)player) return 0;
+        if (PlayerNetworkDirectory.IsRemoteClient()) return NetworkRemoteClient.Revision;
         lock (Sync)
         {
             string path = GetPath(player);
@@ -108,7 +109,8 @@ internal static class NetworkStorage
 
     public static long GetCount(EntityPlayer player, ItemValue value)
     {
-        if (!(bool)player || value == null || PlayerNetworkDirectory.IsRemoteClient()) return 0;
+        if (!(bool)player || value == null) return 0;
+        if (PlayerNetworkDirectory.IsRemoteClient()) return NetworkRemoteClient.GetExactCount(player, value);
         lock (Sync)
         {
             string path = GetPath(player);
@@ -120,7 +122,8 @@ internal static class NetworkStorage
 
     public static long GetMatchingCount(EntityPlayer player, ItemValue requirement, bool includeModded = false)
     {
-        if (!(bool)player || requirement == null || PlayerNetworkDirectory.IsRemoteClient()) return 0;
+        if (!(bool)player || requirement == null) return 0;
+        if (PlayerNetworkDirectory.IsRemoteClient()) return NetworkRemoteClient.GetMatchingCount(player, requirement, includeModded);
         lock (Sync)
         {
             string path = GetPath(player);
@@ -140,8 +143,9 @@ internal static class NetworkStorage
 
     public static List<StoredEntry> GetEntriesForRequirements(EntityPlayer player, IEnumerable<ItemStack> requirements)
     {
+        if (PlayerNetworkDirectory.IsRemoteClient()) return NetworkRemoteClient.GetEntriesForRequirements(player, requirements);
         List<StoredEntry> result = new List<StoredEntry>();
-        if (!(bool)player || requirements == null || PlayerNetworkDirectory.IsRemoteClient()) return result;
+        if (!(bool)player || requirements == null) return result;
         lock (Sync)
         {
             string path = GetPath(player);

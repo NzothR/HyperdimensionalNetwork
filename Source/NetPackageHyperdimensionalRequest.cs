@@ -40,6 +40,17 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         _request.Count = reader.ReadInt32();
         _request.Slot = reader.ReadInt32();
         _request.Position = StreamUtils.ReadVector3i(reader);
+        _request.ConsumptionSource = (NetworkConsumptionSource)reader.ReadByte();
+        int requirementCount = reader.ReadInt32();
+        if (requirementCount < 0 || requirementCount > 64) throw new InvalidDataException("Invalid network material requirement count: " + requirementCount);
+        for (int i = 0; i < requirementCount; i++)
+        {
+            ItemValue value = new ItemValue();
+            value.Read(reader);
+            int count = reader.ReadInt32();
+            if (count <= 0) throw new InvalidDataException("Invalid required material count.");
+            _request.Requirements.Add(new ItemStack(value, count));
+        }
     }
 
     public override void write(PooledBinaryWriter writer)
@@ -61,6 +72,16 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         binary.Write(_request.Count);
         binary.Write(_request.Slot);
         StreamUtils.Write(writer, _request.Position);
+        binary.Write((byte)_request.ConsumptionSource);
+        int requirementCount = _request.Requirements?.Count ?? 0;
+        if (requirementCount > 64) throw new InvalidDataException("Too many network material requirements: " + requirementCount);
+        binary.Write(requirementCount);
+        if (_request.Requirements != null)
+            foreach (ItemStack requirement in _request.Requirements)
+            {
+                requirement.itemValue.Write(writer);
+                binary.Write(requirement.count);
+            }
     }
 
     public override void ProcessPackage(World world, GameManager callbacks)
@@ -80,9 +101,10 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
     public int GetLength()
     {
         int valueBytes = _request?.Value == null ? 0 : 128;
+        int requirementsBytes = (_request?.Requirements?.Count ?? 0) * 512;
         return 64 + Encoding.UTF8.GetByteCount(_request?.ExpectedNetworkId ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_request?.Category ?? string.Empty)
-            + Encoding.UTF8.GetByteCount(_request?.Search ?? string.Empty) + valueBytes;
+            + Encoding.UTF8.GetByteCount(_request?.Search ?? string.Empty) + valueBytes + requirementsBytes;
     }
 
     private static string ReadBoundedString(BinaryReader reader, int maximumBytes)

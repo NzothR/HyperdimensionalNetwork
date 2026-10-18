@@ -14,7 +14,7 @@ internal static class ActionResourceService
         public int Count;
     }
 
-    public static int Count(EntityPlayerLocal player, ItemValue requirement)
+    public static int Count(EntityPlayer player, ItemValue requirement)
     {
         if (!(bool)player || requirement == null || requirement.type <= 0) return 0;
         long count = 0;
@@ -27,9 +27,24 @@ internal static class ActionResourceService
         return NetworkItemMatcher.AddClamped(NetworkItemMatcher.ClampCount(count), NetworkStorage.GetMatchingCount(player, requirement));
     }
 
-    public static bool Consume(EntityPlayerLocal player, ItemValue requirement, int count)
+    public static int PhysicalCount(EntityPlayer player, ItemValue requirement)
+    {
+        if (!(bool)player || requirement == null) return 0;
+        long count = 0;
+        foreach (ItemStackGrid grid in new[] { player.inventory.ItemGrid, player.bag.ItemGrid })
+            for (int i = 0; i < grid.Length; i++)
+            {
+                ItemStack stack = grid[i];
+                if (stack != null && !stack.IsEmpty() && NetworkItemMatcher.Matches(stack.itemValue, requirement)) count += stack.count;
+            }
+        return NetworkItemMatcher.ClampCount(count);
+    }
+
+    public static bool Consume(EntityPlayer player, ItemValue requirement, int count)
     {
         if (!(bool)player || requirement == null || count <= 0 || Count(player, requirement) < count) return false;
+        bool remoteAuthorized = PlayerNetworkDirectory.IsRemoteClient() && NetworkRemoteClient.IsAuthorizedConsumption(player);
+        if (PlayerNetworkDirectory.IsRemoteClient() && !remoteAuthorized) return false;
         var physical = new List<SlotUse>();
         int remaining = count;
         foreach (ItemStackGrid grid in new[] { player.inventory.ItemGrid, player.bag.ItemGrid })
@@ -45,7 +60,11 @@ internal static class ActionResourceService
         var network = new List<StorageAddition>();
         if (remaining > 0)
         {
-            foreach (StoredEntry entry in NetworkStorage.GetEntriesForRequirements(player, new[] { new ItemStack(requirement, remaining) }))
+            IEnumerable<ItemStack> neededItems = new[] { new ItemStack(requirement, remaining) };
+            List<StoredEntry> available = remoteAuthorized
+                ? NetworkRemoteClient.GetAuthorizedEntriesForRequirements(player, neededItems)
+                : NetworkStorage.GetEntriesForRequirements(player, neededItems);
+            foreach (StoredEntry entry in available)
             {
                 if (remaining == 0) break;
                 if (!NetworkItemMatcher.Matches(entry.Value, requirement)) continue;
@@ -53,7 +72,8 @@ internal static class ActionResourceService
                 network.Add(new StorageAddition { Value = entry.Value.Clone(), Count = take });
                 remaining -= take;
             }
-            if (remaining > 0 || !NetworkStorage.RemoveBatch(player, network))
+            bool removed = remoteAuthorized ? NetworkRemoteClient.ConsumeAuthorized(player, network) : NetworkStorage.RemoveBatch(player, network);
+            if (remaining > 0 || !removed)
             {
                 NetworkLog.Debug("Action material withdrawal rejected. item=" + requirement.type + "; requested=" + count + "; missing=" + remaining);
                 return false;
@@ -70,10 +90,19 @@ internal static class ActionResourceService
         catch (Exception ex)
         {
             foreach (SlotUse slot in physical) slot.Grid.SetItem(slot.Index, slot.Original);
-            if (network.Count > 0 && !NetworkStorage.AddBatch(player, network))
+            bool restored = remoteAuthorized
+                ? RestoreRemoteAuthorization(player, network)
+                : network.Count == 0 || NetworkStorage.AddBatch(player, network);
+            if (!restored)
                 NetworkLog.Error("Action material rollback failed to restore network materials. " + ex);
             else NetworkLog.Error("Action material withdrawal rolled back. " + ex);
             return false;
         }
+    }
+
+    private static bool RestoreRemoteAuthorization(EntityPlayer player, IEnumerable<StorageAddition> network)
+    {
+        NetworkRemoteClient.RestoreAuthorized(player, network);
+        return true;
     }
 }

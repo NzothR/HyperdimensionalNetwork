@@ -21,6 +21,8 @@ internal static class PlayerInventoryConsumePatch
     {
         EntityPlayerLocal player = __instance.localPlayer;
         if (!(bool)player || _itemStacks == null || _multiplier <= 0) return true;
+        bool remoteAuthorized = NetworkRemoteClient.IsRemoteClient && NetworkRemoteClient.IsAuthorizedConsumption(player);
+        bool remoteClient = NetworkRemoteClient.IsRemoteClient;
         List<SlotWithdrawal> slots = new List<SlotWithdrawal>();
         AddSlots(slots, __instance.backpack.ItemGrid);
         AddSlots(slots, __instance.toolbelt.ItemGrid);
@@ -47,7 +49,11 @@ internal static class PlayerInventoryConsumePatch
                 needed -= take;
             }
             if (needed == 0) continue;
-            if (network == null) network = NetworkStorage.GetEntriesForRequirements(player, _itemStacks);
+            if (network == null) network = remoteClient && !remoteAuthorized
+                ? new List<StoredEntry>()
+                : remoteAuthorized
+                    ? NetworkRemoteClient.GetAuthorizedEntriesForRequirements(player, _itemStacks)
+                    : NetworkStorage.GetEntriesForRequirements(player, _itemStacks);
             foreach (StoredEntry entry in network)
             {
                 if (needed == 0) break;
@@ -64,7 +70,10 @@ internal static class PlayerInventoryConsumePatch
             }
         }
         if (networkRequests.Count == 0 && !exactQuality) return true;
-        if (networkRequests.Count > 0 && !NetworkStorage.RemoveBatch(player, networkRequests))
+        bool networkRemoved = networkRequests.Count == 0 || (remoteAuthorized
+            ? NetworkRemoteClient.ConsumeAuthorized(player, networkRequests)
+            : NetworkStorage.RemoveBatch(player, networkRequests));
+        if (!networkRemoved)
         {
             NetworkLog.Error("Player material consumption blocked: network batch commit failed. variants=" + networkRequests.Count);
             return false;
@@ -97,11 +106,20 @@ internal static class PlayerInventoryConsumePatch
         {
             foreach (SlotWithdrawal slot in slots)
                 if (slot.Take > 0) slot.Grid.SetItem(slot.Index, slot.Original);
-            if (networkRequests.Count > 0 && !NetworkStorage.AddBatch(player, networkRequests))
+            bool networkRestored = remoteAuthorized
+                ? RestoreRemoteAuthorization(player, networkRequests)
+                : networkRequests.Count == 0 || NetworkStorage.AddBatch(player, networkRequests);
+            if (!networkRestored)
                 NetworkLog.Error("Player material rollback could not restore network items. " + ex);
             else NetworkLog.Error("Player material consumption rolled back after slot error. " + ex);
         }
         return false;
+    }
+
+    private static bool RestoreRemoteAuthorization(EntityPlayer player, IEnumerable<StorageAddition> networkRequests)
+    {
+        NetworkRemoteClient.RestoreAuthorized(player, networkRequests);
+        return true;
     }
 
     private static void AddSlots(List<SlotWithdrawal> slots, ItemStackGrid grid)

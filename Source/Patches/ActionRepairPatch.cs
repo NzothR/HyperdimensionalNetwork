@@ -16,6 +16,7 @@ internal static class ActionRepairPatch
     private static bool RepairBlock(ItemInventoryData _data, ItemStack _itemStack, ref bool __result)
     {
         if (!(_data?.holdingEntity is EntityPlayerLocal player)) return true;
+        if (NetworkRemoteClient.IsRemoteClient && !NetworkRemoteClient.IsAuthorizedConsumption(player)) return true;
         __result = _itemStack != null && !_itemStack.IsEmpty()
             && ActionResourceService.Consume(player, _itemStack.itemValue, _itemStack.count);
         return false;
@@ -33,6 +34,7 @@ internal static class ActionRepairPatch
     private static bool UpgradeBlock(ItemActionRepair __instance, ItemInventoryData data, BlockValue blockValue, ref bool __result)
     {
         if (!(data?.holdingEntity is EntityPlayerLocal player)) return true;
+        if (NetworkRemoteClient.IsRemoteClient && !NetworkRemoteClient.IsAuthorizedConsumption(player)) return true;
         if (!TryUpgradeRequirement(__instance, blockValue, out ItemValue item, out int count)) return true;
         __result = __instance.CanRemoveRequiredResource(data, blockValue)
             && ActionResourceService.Consume(player, item, count);
@@ -44,7 +46,7 @@ internal static class ActionRepairPatch
         return false;
     }
 
-    private static bool TryUpgradeRequirement(ItemActionRepair action, BlockValue value, out ItemValue item, out int count)
+    internal static bool TryUpgradeRequirement(ItemActionRepair action, BlockValue value, out ItemValue item, out int count)
     {
         item = null;
         count = 0;
