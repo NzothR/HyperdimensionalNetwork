@@ -29,12 +29,18 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
         base.Init();
         _pageSize = Math.Max(1, itemControllers?.Length ?? PageSizeFallback);
         items = ItemStack.CreateArray(_pageSize);
+        XUiC_ItemInfoWindow infoWindow = xui?.GetChildByType<XUiC_ItemInfoWindow>();
         for (int i = 0; i < itemControllers.Length; i++)
         {
             XUiC_HyperdimensionalSlot slot = itemControllers[i] as XUiC_HyperdimensionalSlot;
             if (slot == null) { NetworkLog.Error("Grid item controller is not XUiC_HyperdimensionalSlot at index " + i); continue; }
             slot.Bind(this, i);
+            slot.SlotNumber = i;
+            slot.InfoWindow = infoWindow;
+            slot.StackLocation = StackLocation;
+            slot.ViewComponent.IsVisible = true;
         }
+        NetworkLog.Debug("Grid initialized. visibleSlots=" + _pageSize + "; infoWindow=" + (infoWindow != null));
         Reload();
     }
 
@@ -58,7 +64,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
     public void Reload()
     {
         EntityPlayer player = xui?.playerUI?.entityPlayer;
-        if (!(bool)player) return;
+        if (!(bool)player) { NetworkLog.Debug("Grid reload skipped because player is unavailable."); return; }
         _allEntries.Clear();
         _allEntries.AddRange(NetworkStorage.GetEntries(player));
         _entryIndex.Clear();

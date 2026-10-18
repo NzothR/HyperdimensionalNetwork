@@ -22,7 +22,9 @@ internal static class SelectorPatch
     public static bool PressPrefix(XUiC_WindowSelector __instance, XUiController _sender, int _mouseButton)
     {
         if (!string.Equals(_sender?.ViewComponent?.ID, "hyperdimensionalNetwork", StringComparison.OrdinalIgnoreCase)) return true;
-        return !(__instance?.xui?.playerUI?.windowManager?.IsWindowOpen("hyperdimensionalNetwork") ?? false);
+        bool open = __instance?.xui?.playerUI?.windowManager?.IsWindowOpen("hyperdimensionalNetwork") ?? false;
+        NetworkLog.Debug("Navigation entry clicked. mouse=" + _mouseButton + "; openBeforeClick=" + open + "; selector=" + (__instance?.ViewComponent?.ID ?? "<none>"));
+        return !open;
     }
 
     private static void Setup(XUiC_WindowSelector selector)
@@ -43,5 +45,6 @@ internal static class SelectorPatch
         }
         else if (Buttons?.GetValue(selector) == null) Buttons?.SetValue(selector, new[] { selectable });
         if (Bound.Add(button)) button.OnPress += selector.HandleOnPress;
+        NetworkLog.Debug("Navigation entry ready. registered=" + (ButtonsByName?.GetValue(selector) is Dictionary<string, XUiC_ButtonSelectable> entries && entries.ContainsKey("hyperdimensionalNetwork")) + "; x=" + (button.ViewComponent.UiTransform != null ? button.ViewComponent.UiTransform.localPosition.x.ToString("F1") : "<no transform>"));
     }
 }
