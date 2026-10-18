@@ -131,101 +131,101 @@
                 <sprite depth="4" name="craftingChainEdge44" pos="0,0" width="100" height="3" visible="false" sprite="menu_empty3px" color="210,200,180,220" type="sliced" />
                 <sprite depth="4" name="craftingChainEdge45" pos="0,0" width="100" height="3" visible="false" sprite="menu_empty3px" color="210,200,180,220" type="sliced" />
                 <sprite depth="4" name="craftingChainEdge46" pos="0,0" width="100" height="3" visible="false" sprite="menu_empty3px" color="210,200,180,220" type="sliced" />
-                <button depth="6" name="craftingChainNode00" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode00" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount00" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode01" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode01" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount01" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode02" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode02" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount02" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode03" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode03" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount03" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode04" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode04" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount04" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode05" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode05" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount05" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode06" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode06" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount06" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode07" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode07" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount07" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode08" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode08" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount08" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode09" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode09" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount09" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode10" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode10" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount10" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode11" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode11" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount11" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode12" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode12" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount12" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode13" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode13" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount13" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode14" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode14" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount14" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode15" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode15" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount15" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode16" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode16" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount16" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode17" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode17" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount17" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode18" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode18" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount18" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode19" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode19" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount19" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode20" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode20" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount20" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode21" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode21" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount21" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode22" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode22" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount22" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode23" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode23" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount23" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode24" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode24" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount24" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode25" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode25" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount25" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode26" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode26" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount26" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode27" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode27" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount27" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode28" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode28" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount28" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode29" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode29" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount29" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode30" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode30" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount30" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode31" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode31" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount31" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode32" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode32" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount32" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode33" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode33" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount33" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode34" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode34" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount34" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode35" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode35" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount35" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode36" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode36" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount36" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode37" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode37" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount37" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode38" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode38" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount38" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode39" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode39" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount39" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode40" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode40" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount40" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode41" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode41" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount41" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode42" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode42" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount42" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode43" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode43" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount43" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode44" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode44" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount44" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode45" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode45" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount45" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode46" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode46" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount46" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
-                <button depth="6" name="craftingChainNode47" pos="0,0" width="60" height="60" visible="false" style="icon48px, press, hover" sound="[paging_click]" />
+                <button depth="6" name="craftingChainNode47" pos="0,0" width="60" height="60" visible="false" style="icon32px, press, hover" sound="[paging_click]" />
                 <label depth="7" name="craftingChainNodeCount47" pos="0,0" width="75" height="22" visible="false" font_size="15" justify="right" />
               <rect depth="30" name="craftingChainRecipeDropdown" width="330" height="300" visible="false">
                 <sprite depth="1" name="recipeDropdownBackground" width="330" height="300" sprite="menu_empty3px" color="32,32,32,250" type="sliced" fillcenter="true" />
@@ -353,6 +353,5 @@
     <sprite depth="-1" name="hyperdimensionalNetworkAddonBg" pos="-117,0" width="42" height="42" sprite="menu_empty3px" color="48,38,28,235" type="sliced" fillcenter="true" />
     <sprite depth="0" name="hyperdimensionalNetworkAddonBorder" pos="-117,0" width="42" height="42" sprite="menu_empty3px" color="210,160,80,230" type="sliced" fillcenter="false" />
     <iconbutton pos="-96,-21" depth="3" selectable="true" collider_scale="1.5" name="hyperdimensionalNetwork" sprite="hdn_network" atlas="SymbolAtlas" tooltip_key="HyperdimensionalNetworkOpen" snap="false" gamepad_selectable="false" />
-    <sprite depth="4" name="hyperdimensionalNetworkEntryIcon" pos="-96,-21" width="32" height="32" sprite="hdn_network" atlas="SymbolAtlas" />
   </append>
 </configs>

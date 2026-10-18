@@ -3,7 +3,7 @@
     <window_group name="hyperdimensionalNetwork" controller="HyperdimensionalNetwork.XUiC_HyperdimensionalNetworkWindowGroup,HyperdimensionalNetwork" open_backpack_on_open="true" defaultselected="queue">
       <window name="windowHyperdimensionalNetwork" />
     </window_group>
-    <window_group name="hyperdimensionalCraftingChain" controller="HyperdimensionalNetwork.XUiC_CraftingChainWindow,HyperdimensionalNetwork">
+    <window_group name="hyperdimensionalCraftingChain">
       <window name="windowHyperdimensionalCraftingChain" />
     </window_group>
   </append>

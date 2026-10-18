@@ -136,10 +136,16 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
 
     private void OnCraftingChainPressed(XUiController sender, int mouseButton)
     {
-        if (xui?.playerUI?.windowManager == null) return;
-        if (xui.playerUI.windowManager.IsWindowOpen("windowHyperdimensionalCraftingChain")) return;
+        GUIWindowManager windowManager = xui?.playerUI?.windowManager;
+        if (windowManager == null) return;
+        const string windowGroupName = "hyperdimensionalCraftingChain";
+        if (windowManager.IsWindowOpen(windowGroupName)) return;
         NetworkLog.Debug("Crafting-chain window requested. trackedRecipe=" + (xui?.Recipes?.TrackedRecipe?.GetName() ?? "<none>"));
-        xui.playerUI.windowManager.Open("windowHyperdimensionalCraftingChain", _bModal: true);
+        windowManager.Open(windowGroupName, _bModal: true);
+        if (!windowManager.IsWindowOpen(windowGroupName))
+            NetworkLog.Error("Crafting-chain window group failed to open. group=" + windowGroupName);
+        else
+            NetworkLog.Debug("Crafting-chain window group opened. group=" + windowGroupName);
     }
 
     private void OnSettingsPressed(XUiController sender, int mouseButton)

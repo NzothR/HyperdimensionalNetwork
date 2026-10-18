@@ -454,7 +454,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     {
         if (!CraftingChainOrderService.IsActive(xui?.playerUI?.entityPlayer))
         {
-            xui?.playerUI?.windowManager?.Close("windowHyperdimensionalCraftingChain");
+            xui?.playerUI?.windowManager?.Close("hyperdimensionalCraftingChain");
             return;
         }
         SetVisible(_confirmCancelPanel, true);
@@ -465,7 +465,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         SetVisible(_confirmCancelPanel, false);
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
         if (!CraftingChainOrderService.RequestCancel(player))
-            xui?.playerUI?.windowManager?.Close("windowHyperdimensionalCraftingChain");
+            xui?.playerUI?.windowManager?.Close("hyperdimensionalCraftingChain");
         else
             UpdateOrderPresentation();
     }
@@ -477,7 +477,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
 
     private void OnClosePressed(XUiController sender, int mouseButton)
     {
-        xui?.playerUI?.windowManager?.Close("windowHyperdimensionalCraftingChain");
+        xui?.playerUI?.windowManager?.Close("hyperdimensionalCraftingChain");
     }
 
     private void UpdateStartAvailability()
@@ -530,7 +530,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
 
     private void CloseWindow()
     {
-        xui?.playerUI?.windowManager?.Close("windowHyperdimensionalCraftingChain");
+        xui?.playerUI?.windowManager?.Close("hyperdimensionalCraftingChain");
     }
 
     private void OnTreeScroll(XUiController sender, float delta)
