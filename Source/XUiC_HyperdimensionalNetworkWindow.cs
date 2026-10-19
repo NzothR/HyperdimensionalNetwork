@@ -161,9 +161,14 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         GUIWindowManager windowManager = xui?.playerUI?.windowManager;
         if (windowManager == null || windowManager.IsWindowOpen("hyperdimensionalTraderMarket")) return;
         NetworkLog.Debug("Trader market window requested by player=" + (xui?.playerUI?.entityPlayer?.entityId ?? -1));
-        windowManager.Open("hyperdimensionalTraderMarket", _bModal: true);
+        windowManager.Close("hyperdimensionalNetwork");
+        windowManager.Close("windowpaging");
+        windowManager.Open("hyperdimensionalTraderMarket", _bModal: false);
         if (!windowManager.IsWindowOpen("hyperdimensionalTraderMarket"))
+        {
             NetworkLog.Error("Trader market window group failed to open.");
+            windowManager.Open("hyperdimensionalNetwork", _bModal: false);
+        }
     }
 
     private void OnTraderRulesPressed(XUiController sender, int mouseButton)
