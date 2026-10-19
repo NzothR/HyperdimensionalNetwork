@@ -372,6 +372,12 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         if (_closing) return;
         if (!result.Success)
         {
+            if (result.Error == "TraderDisabled")
+            {
+                NetworkLog.Debug("Trader market closed after its network feature was disabled. session=" + _sessionId);
+                OnClosePressed(null, 0);
+                return;
+            }
             SetStatus(Localization.Get("HyperdimensionalNetworkTraderMarketRefreshFailed") + ": " + result.Error);
             NetworkLog.Debug("Trader market refresh failed. session=" + _sessionId + "; error=" + result.Error);
             return;

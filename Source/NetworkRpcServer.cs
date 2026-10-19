@@ -42,6 +42,11 @@ internal static class NetworkRpcServer
             {
                 result = Failure(request, "MembershipTransitionInProgress");
             }
+            else if (IsTraderOperation(request.Operation) && !NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled))
+            {
+                NetworkLog.Debug("Trader request rejected because the network feature is disabled. player=" + player.entityId + "; network=" + networkId + "; operation=" + request.Operation);
+                result = Failure(request, "TraderDisabled");
+            }
             else if (request.Operation == NetworkRequestOperation.MembershipQuery)
             {
                 result = NetworkMembershipService.ProcessRequest(world, player, request);
@@ -94,6 +99,15 @@ internal static class NetworkRpcServer
         }
 
         SendResponse(request.EntityId, result);
+    }
+
+    private static bool IsTraderOperation(NetworkRequestOperation operation)
+    {
+        return operation == NetworkRequestOperation.TraderVoidSell || operation == NetworkRequestOperation.TraderOpenMarket
+            || operation == NetworkRequestOperation.TraderQueryMarket || operation == NetworkRequestOperation.TraderBuyItem
+            || operation == NetworkRequestOperation.TraderQueryRules || operation == NetworkRequestOperation.TraderSaveRule
+            || operation == NetworkRequestOperation.TraderDeleteRule || operation == NetworkRequestOperation.TraderMoveRule
+            || operation == NetworkRequestOperation.TraderRunRules;
     }
 
     private static NetworkRemoteResult QueryPage(EntityPlayer player, NetworkRemoteRequest request)
@@ -268,6 +282,11 @@ internal static class NetworkRpcServer
             AutoRestockCooldownMs = settings.AutoRestockCooldownMs,
             ReplenishmentEnabled = settings.ReplenishmentEnabled,
             AmmoBankEnabled = settings.AmmoBankEnabled,
+            TraderEnabled = settings.TraderEnabled,
+            CraftingChainEnabled = settings.CraftingChainEnabled,
+            AutoDepositEnabled = settings.AutoDepositEnabled,
+            TrashEnabled = settings.TrashEnabled,
+            BookReadingEnabled = settings.BookReadingEnabled,
             RetainSearchOnClose = settings.RetainSearchOnClose,
             ManualSaleEnabled = settings.ManualSaleEnabled
         };
@@ -571,9 +590,15 @@ internal static class NetworkRpcServer
 
     private static NetworkRemoteResult ConsumeRequirements(World world, EntityPlayer player, PlayerDataFile playerData, NetworkRemoteRequest request)
     {
+        if (request.ConsumptionSource == NetworkConsumptionSource.CraftingChainReservation
+            && !NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.CraftingChainEnabled))
+        {
+            NetworkLog.Debug("Crafting-chain reservation rejected because the network feature is disabled. player=" + player.entityId + "; requestId=" + request.RequestId);
+            return Failure(request, "CraftingChainDisabled");
+        }
         if (request.Requirements == null || request.Requirements.Count == 0 || request.Requirements.Count > 64)
             return Failure(request, "InvalidMaterialRequirements");
-        if (request.ConsumptionSource == NetworkConsumptionSource.NetworkPreferredPlayerInventory && request.Count > 0)
+        if (request.ConsumptionSource == NetworkConsumptionSource.CraftingChainReservation && request.Count > 0)
         {
             if (request.Value == null || request.Count > request.Requirements.Where(item => item != null
                 && NetworkItemMatcher.Matches(item.itemValue, request.Value)).Sum(item => (long)item.count)
@@ -596,7 +621,8 @@ internal static class NetworkRpcServer
                 if (stack != null && !stack.IsEmpty()) physical.Add(stack.Clone());
         }
         else if (request.ConsumptionSource == NetworkConsumptionSource.PlayerInventory
-            || request.ConsumptionSource == NetworkConsumptionSource.NetworkPreferredPlayerInventory)
+            || request.ConsumptionSource == NetworkConsumptionSource.NetworkPreferredPlayerInventory
+            || request.ConsumptionSource == NetworkConsumptionSource.CraftingChainReservation)
         {
             if (playerData == null || playerData.bagData == null || playerData.inventoryData == null)
                 return Failure(request, "PlayerInventoryUnavailable");
@@ -615,7 +641,8 @@ internal static class NetworkRpcServer
         {
             if (requirement?.itemValue == null || requirement.count <= 0) return Failure(request, "InvalidMaterialRequirements");
             long remaining = requirement.count;
-            if (request.ConsumptionSource == NetworkConsumptionSource.NetworkPreferredPlayerInventory)
+            if (request.ConsumptionSource == NetworkConsumptionSource.NetworkPreferredPlayerInventory
+                || request.ConsumptionSource == NetworkConsumptionSource.CraftingChainReservation)
                 ConsumeNetwork(requirement, network, removals, ref remaining);
             foreach (ItemStack carried in physical)
             {
@@ -1156,6 +1183,11 @@ internal static class NetworkRpcServer
             AutoRestockCooldownMs = result.AutoRestockCooldownMs,
             ReplenishmentEnabled = result.ReplenishmentEnabled,
             AmmoBankEnabled = result.AmmoBankEnabled,
+            TraderEnabled = result.TraderEnabled,
+            CraftingChainEnabled = result.CraftingChainEnabled,
+            AutoDepositEnabled = result.AutoDepositEnabled,
+            TrashEnabled = result.TrashEnabled,
+            BookReadingEnabled = result.BookReadingEnabled,
             RetainSearchOnClose = result.RetainSearchOnClose,
             ManualSaleEnabled = result.ManualSaleEnabled,
             TraderSessionId = result.TraderSessionId,

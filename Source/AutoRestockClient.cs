@@ -24,6 +24,11 @@ internal static class AutoRestockClient
         public bool AutoRestockEnabled;
         public bool ReplenishmentEnabled = true;
         public bool AmmoBankEnabled = true;
+        public bool TraderEnabled = true;
+        public bool CraftingChainEnabled = true;
+        public bool AutoDepositEnabled = true;
+        public bool TrashEnabled = true;
+        public bool BookReadingEnabled = true;
         public bool RetainSearchOnClose = true;
         public bool ManualSaleEnabled;
         public RestockTargetMode TargetMode;
@@ -476,10 +481,10 @@ internal static class AutoRestockClient
 
     private static void RequestSettingsIfNeeded(PlayerState state, bool force)
     {
-        if (!NetworkRemoteClient.IsRemoteClient || state.SettingsPending || state.SettingsLoaded && !force) return;
+        if (!NetworkRemoteClient.IsRemoteClient || state.SettingsPending) return;
         float now = UnityEngine.Time.realtimeSinceStartup;
         if (!force && now < state.NextSettingsRequestAt) return;
-        state.NextSettingsRequestAt = now + 2f;
+        state.NextSettingsRequestAt = now + (state.SettingsLoaded ? 5f : 2f);
         bool sent = NetworkRemoteClient.RequestRestockSettings(state.Player, result =>
         {
             state.SettingsPending = false;
@@ -494,6 +499,11 @@ internal static class AutoRestockClient
         state.AutoRestockEnabled = result.AutoRestockEnabled;
         state.ReplenishmentEnabled = result.ReplenishmentEnabled;
         state.AmmoBankEnabled = result.AmmoBankEnabled;
+        state.TraderEnabled = result.TraderEnabled;
+        state.CraftingChainEnabled = result.CraftingChainEnabled;
+        state.AutoDepositEnabled = result.AutoDepositEnabled;
+        state.TrashEnabled = result.TrashEnabled;
+        state.BookReadingEnabled = result.BookReadingEnabled;
         state.RetainSearchOnClose = result.RetainSearchOnClose;
         state.ManualSaleEnabled = result.ManualSaleEnabled;
         state.TargetMode = result.RestockTargetMode;
@@ -507,6 +517,11 @@ internal static class AutoRestockClient
         state.AutoRestockEnabled = settings.AutoRestockEnabled;
         state.ReplenishmentEnabled = settings.ReplenishmentEnabled;
         state.AmmoBankEnabled = settings.AmmoBankEnabled;
+        state.TraderEnabled = settings.TraderEnabled;
+        state.CraftingChainEnabled = settings.CraftingChainEnabled;
+        state.AutoDepositEnabled = settings.AutoDepositEnabled;
+        state.TrashEnabled = settings.TrashEnabled;
+        state.BookReadingEnabled = settings.BookReadingEnabled;
         state.RetainSearchOnClose = settings.RetainSearchOnClose;
         state.ManualSaleEnabled = settings.ManualSaleEnabled;
         state.TargetMode = settings.TargetMode;
@@ -522,6 +537,11 @@ internal static class AutoRestockClient
             AutoRestockEnabled = state.AutoRestockEnabled,
             ReplenishmentEnabled = state.ReplenishmentEnabled,
             AmmoBankEnabled = state.AmmoBankEnabled,
+            TraderEnabled = state.TraderEnabled,
+            CraftingChainEnabled = state.CraftingChainEnabled,
+            AutoDepositEnabled = state.AutoDepositEnabled,
+            TrashEnabled = state.TrashEnabled,
+            BookReadingEnabled = state.BookReadingEnabled,
             RetainSearchOnClose = state.RetainSearchOnClose,
             ManualSaleEnabled = state.ManualSaleEnabled,
             TargetMode = state.TargetMode,
@@ -536,6 +556,25 @@ internal static class AutoRestockClient
         if (!NetworkRemoteClient.IsRemoteClient) return RestockSettingsService.Get(player).AmmoBankEnabled;
         PlayerState state = GetState(player);
         return state.SettingsLoaded && state.AmmoBankEnabled;
+    }
+
+    public static bool IsFeatureEnabled(EntityPlayerLocal player, NetworkFeatureSetting key)
+    {
+        if (!(bool)player) return false;
+        if (!NetworkRemoteClient.IsRemoteClient) return NetworkFeatureSettingsService.IsEnabled(player, key);
+        PlayerState state = GetState(player);
+        if (!state.SettingsLoaded) return false;
+        return key switch
+        {
+            NetworkFeatureSetting.TraderEnabled => state.TraderEnabled,
+            NetworkFeatureSetting.CraftingChainEnabled => state.CraftingChainEnabled,
+            NetworkFeatureSetting.AutoDepositEnabled => state.AutoDepositEnabled,
+            NetworkFeatureSetting.TrashEnabled => state.TrashEnabled,
+            NetworkFeatureSetting.BookReadingEnabled => state.BookReadingEnabled,
+            NetworkFeatureSetting.ReplenishmentEnabled => state.ReplenishmentEnabled,
+            NetworkFeatureSetting.AmmoBankEnabled => state.AmmoBankEnabled,
+            _ => false
+        };
     }
 
     public static bool ShouldRetainSearchOnClose(EntityPlayerLocal player)

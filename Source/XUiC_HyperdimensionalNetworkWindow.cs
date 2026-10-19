@@ -16,18 +16,23 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     private XUiController _traderPayoutButton;
     private XUiController _categoryBar;
     private XUiController _settingsPanel;
+    private XUiController _personalSettingsPageButton;
+    private XUiController _adminSettingsPageButton;
+    private XUiController _adminSettingsPageLabel;
+    private readonly Dictionary<RestockSettingKey, SettingControls> _adminSettingControls = new Dictionary<RestockSettingKey, SettingControls>();
+    private bool _showAdminSettings;
+    private sealed class SettingControls
+    {
+        public XUiController Label;
+        public XUiController Value;
+        public XUiController Button;
+    }
     private XUiController _autoRestockLabel;
     private XUiController _autoRestockValue;
     private XUiController _autoRestockToggle;
     private XUiController _autoRestockTargetLabel;
     private XUiController _autoRestockTargetValue;
     private XUiController _autoRestockTargetButton;
-    private XUiController _replenishmentEnabledLabel;
-    private XUiController _replenishmentEnabledValue;
-    private XUiController _replenishmentEnabledButton;
-    private XUiController _ammoBankEnabledLabel;
-    private XUiController _ammoBankEnabledValue;
-    private XUiController _ammoBankEnabledButton;
     private XUiController _retainSearchLabel;
     private XUiController _retainSearchValue;
     private XUiController _retainSearchButton;
@@ -35,6 +40,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     private XUiController _managementButton;
     private RestockSettingsSnapshot _settings;
     private bool _settingsRequestPending;
+    private float _nextSettingsRefreshAt;
 
     public override void Init()
     {
@@ -55,18 +61,28 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         _traderPayoutButton = GetChildById("btnHyperdimensionalTraderPayout");
         _categoryBar = GetChildById("categoryBar");
         _settingsPanel = GetChildById("restockSettingsPanel");
+        _personalSettingsPageButton = GetChildById("btnPersonalSettingsPage");
+        _adminSettingsPageButton = GetChildById("btnAdminSettingsPage");
+        _adminSettingsPageLabel = GetChildById("labelAdminSettingsPage");
         _autoRestockLabel = GetChildById("labelAutoRestock");
         _autoRestockValue = GetChildById("labelAutoRestockValue");
         _autoRestockToggle = GetChildById("btnToggleAutoRestock");
         _autoRestockTargetLabel = GetChildById("labelAutoRestockTarget");
         _autoRestockTargetValue = GetChildById("labelAutoRestockTargetValue");
         _autoRestockTargetButton = GetChildById("btnCycleAutoRestockTarget");
-        _replenishmentEnabledLabel = GetChildById("labelReplenishmentEnabled");
-        _replenishmentEnabledValue = GetChildById("labelReplenishmentEnabledValue");
-        _replenishmentEnabledButton = GetChildById("btnToggleReplenishmentEnabled");
-        _ammoBankEnabledLabel = GetChildById("labelAmmoBankEnabled");
-        _ammoBankEnabledValue = GetChildById("labelAmmoBankEnabledValue");
-        _ammoBankEnabledButton = GetChildById("btnToggleAmmoBankEnabled");
+        foreach (RestockSettingDefinition definition in RestockSettingCatalog.All)
+        {
+            if (definition.Permission != RestockSettingPermission.NetworkAdministrator) continue;
+            string name = definition.Name;
+            _adminSettingControls[definition.Key] = new SettingControls
+            {
+                Label = GetChildById("label" + name),
+                Value = GetChildById("label" + name + "Value"),
+                Button = GetChildById("btnToggle" + name)
+            };
+            RestockSettingKey key = definition.Key;
+            BindPress("btnToggle" + name, (sender, button) => OnToggleAdminFeaturePressed(key));
+        }
         _retainSearchLabel = GetChildById("labelRetainSearch");
         _retainSearchValue = GetChildById("labelRetainSearchValue");
         _retainSearchButton = GetChildById("btnToggleRetainSearch");
@@ -79,15 +95,15 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         BindPress("btnHyperdimensionalRestock", OnManualRestockPressed);
         BindPress("btnHyperdimensionalSettings", OnSettingsPressed);
         BindPress("btnRestockSettingsClose", OnCloseSettingsPressed);
+        BindPress("btnPersonalSettingsPage", (sender, button) => ShowSettingsPage(false));
+        BindPress("btnAdminSettingsPage", (sender, button) => ShowSettingsPage(true));
         BindPress("btnNetworkManagement", OnManagementPressed);
         BindPress("btnToggleAutoRestock", OnToggleAutoRestockPressed);
         BindPress("btnCycleAutoRestockTarget", OnCycleRestockTargetPressed);
-        BindPress("btnToggleReplenishmentEnabled", OnToggleReplenishmentPressed);
-        BindPress("btnToggleAmmoBankEnabled", OnToggleAmmoBankPressed);
         BindPress("btnToggleRetainSearch", OnToggleRetainSearchPressed);
         BindPress("btnHyperdimensionalManualSale", OnToggleManualSalePressed);
         SetVisible(_settingsPanel, false);
-        HideNetworkAdminSettings();
+        ShowSettingsPage(false);
         List<XUiC_ItemStack> slots = new List<XUiC_ItemStack>();
         GetChildrenByType(slots);
         foreach (XUiC_ItemStack slot in slots) slot.OnScroll += OnNetworkScroll;
@@ -99,13 +115,20 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     {
         base.OnOpen();
         SetSettingsVisible(false);
+        _showAdminSettings = false;
         _settings = null;
         TraderTransactionService.DisableVoidSaleMode();
         SetVisible(_manualRestockButton, false);
-        HideNetworkAdminSettings();
+        SetVisible(_manualSaleButton, false);
+        SetVisible(_traderPayoutButton, false);
+        SetVisible(GetChildById("btnHyperdimensionalTraderBuy"), false);
+        SetVisible(GetChildById("btnHyperdimensionalTraderRules"), false);
+        SetVisible(GetChildById("btnHyperdimensionalCraftingChain"), false);
+        ShowSettingsPage(false);
         TraderTransactionService.LoadPersonalPayoutMode(xui?.playerUI?.entityPlayer);
         RefreshTraderPayoutButtonState();
         LoadRestockSettings();
+        _nextSettingsRefreshAt = UnityEngine.Time.realtimeSinceStartup + 5f;
         _grid?.Reload();
         RefreshPager();
         NetworkLog.Debug("Network window opened. entries=" + (_grid?.EntryCount ?? 0));
@@ -123,6 +146,15 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         }
         base.OnClose();
         TraderSellActionPatch.RefreshSelectedItem(xui);
+    }
+
+    public override void Update(float _dt)
+    {
+        base.Update(_dt);
+        if (xui?.playerUI?.windowManager?.IsWindowOpen("hyperdimensionalNetwork") != true) return;
+        if (UnityEngine.Time.realtimeSinceStartup < _nextSettingsRefreshAt) return;
+        _nextSettingsRefreshAt = UnityEngine.Time.realtimeSinceStartup + 5f;
+        LoadRestockSettings(quiet: true);
     }
 
     private void OnCategoryChanged(XUiC_CategoryEntry category) => _grid?.SetCategory(category?.CategoryName);
@@ -211,7 +243,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         if (visible)
         {
             _settings = null;
-            HideNetworkAdminSettings();
+            ShowSettingsPage(false);
             LoadRestockSettings();
         }
     }
@@ -244,16 +276,22 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         SetSetting(RestockSettingKey.AutoRestockTarget, next);
     }
 
-    private void OnToggleReplenishmentPressed(XUiController sender, int mouseButton)
+    private void OnToggleAdminFeaturePressed(RestockSettingKey key)
     {
         if (_settings == null || _settingsRequestPending || !_settings.IsNetworkAdministrator) return;
-        SetSetting(RestockSettingKey.ReplenishmentEnabled, _settings.ReplenishmentEnabled ? 0 : 1);
-    }
-
-    private void OnToggleAmmoBankPressed(XUiController sender, int mouseButton)
-    {
-        if (_settings == null || _settingsRequestPending || !_settings.IsNetworkAdministrator) return;
-        SetSetting(RestockSettingKey.AmmoBankEnabled, _settings.AmmoBankEnabled ? 0 : 1);
+        bool enabled = key switch
+        {
+            RestockSettingKey.ReplenishmentEnabled => _settings.ReplenishmentEnabled,
+            RestockSettingKey.AmmoBankEnabled => _settings.AmmoBankEnabled,
+            RestockSettingKey.TraderEnabled => _settings.TraderEnabled,
+            RestockSettingKey.CraftingChainEnabled => _settings.CraftingChainEnabled,
+            RestockSettingKey.AutoDepositEnabled => _settings.AutoDepositEnabled,
+            RestockSettingKey.TrashEnabled => _settings.TrashEnabled,
+            RestockSettingKey.BookReadingEnabled => _settings.BookReadingEnabled,
+            _ => true
+        };
+        NetworkLog.Debug("Administrator feature toggle requested. player=" + (xui?.playerUI?.entityPlayer?.entityId ?? -1) + "; feature=" + key + "; enabled=" + !enabled);
+        SetSetting(key, enabled ? 0 : 1);
     }
 
     private void OnToggleRetainSearchPressed(XUiController sender, int mouseButton)
@@ -270,13 +308,13 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         SetSetting(RestockSettingKey.ManualSaleEnabled, _settings.ManualSaleEnabled ? 0 : 1);
     }
 
-    private void LoadRestockSettings()
+    private void LoadRestockSettings(bool quiet = false)
     {
         if (_settingsRequestPending) return;
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
         if (!(bool)player) return;
         _settingsRequestPending = true;
-        SetLabel(_settingsStatus, Localization.Get("HyperdimensionalNetworkSettingsLoading"));
+        if (!quiet) SetLabel(_settingsStatus, Localization.Get("HyperdimensionalNetworkSettingsLoading"));
         AutoRestockClient.GetSettings(player, (snapshot, error) =>
         {
             _settingsRequestPending = false;
@@ -327,57 +365,40 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
                 ? "HyperdimensionalNetworkSettingLockedOnly"
                 : "HyperdimensionalNetworkSettingHotbarOnly";
         SetLabel(_autoRestockTargetValue, Localization.Get(targetKey));
-        SetLabel(_replenishmentEnabledValue, Localization.Get(_settings.ReplenishmentEnabled
-            ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
-        SetLabel(_ammoBankEnabledValue, Localization.Get(_settings.AmmoBankEnabled
-            ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
+        foreach (KeyValuePair<RestockSettingKey, SettingControls> entry in _adminSettingControls)
+        {
+            bool enabled = entry.Key switch
+            {
+                RestockSettingKey.ReplenishmentEnabled => _settings.ReplenishmentEnabled,
+                RestockSettingKey.AmmoBankEnabled => _settings.AmmoBankEnabled,
+                RestockSettingKey.TraderEnabled => _settings.TraderEnabled,
+                RestockSettingKey.CraftingChainEnabled => _settings.CraftingChainEnabled,
+                RestockSettingKey.AutoDepositEnabled => _settings.AutoDepositEnabled,
+                RestockSettingKey.TrashEnabled => _settings.TrashEnabled,
+                RestockSettingKey.BookReadingEnabled => _settings.BookReadingEnabled,
+                _ => false
+            };
+            SetLabel(entry.Value.Value, Localization.Get(enabled ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
+        }
         SetLabel(_retainSearchValue, Localization.Get(_settings.RetainSearchOnClose
             ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
-        TraderTransactionService.SetVoidSaleMode(_settings.ManualSaleEnabled);
+        TraderTransactionService.SetVoidSaleMode(_settings.ManualSaleEnabled && _settings.TraderEnabled);
         TraderSellActionPatch.RefreshSelectedItem(xui);
         if (_manualSaleButton?.ViewComponent is XUiV_Button manualSaleButton)
             manualSaleButton.Selected = _settings.ManualSaleEnabled;
         NetworkLog.Debug("Manual sale setting applied. player=" + (xui?.playerUI?.entityPlayer?.entityId ?? -1)
             + "; enabled=" + _settings.ManualSaleEnabled);
         SetVisible(_manualRestockButton, _settings.ReplenishmentEnabled);
+        SetVisible(_manualSaleButton, _settings.TraderEnabled);
+        SetVisible(_traderPayoutButton, _settings.TraderEnabled);
+        SetVisible(GetChildById("btnHyperdimensionalTraderBuy"), _settings.TraderEnabled);
+        SetVisible(GetChildById("btnHyperdimensionalTraderRules"), _settings.TraderEnabled);
+        SetVisible(GetChildById("btnHyperdimensionalCraftingChain"), _settings.CraftingChainEnabled);
         string status = Localization.Get("HyperdimensionalNetworkSettingsReady");
         if (_settings.AutoRestockCooldownMs > 0)
             status += " (" + _settings.AutoRestockCooldownMs + " ms)";
         SetLabel(_settingsStatus, status);
-        foreach (RestockSettingDefinition definition in RestockSettingCatalog.All)
-        {
-            bool visible = definition.Permission == RestockSettingPermission.NetworkMember || _settings.IsNetworkAdministrator;
-            switch (definition.Key)
-            {
-                case RestockSettingKey.AutoRestockEnabled:
-                    SetVisible(_autoRestockLabel, visible);
-                    SetVisible(_autoRestockValue, visible);
-                    SetVisible(_autoRestockToggle, visible);
-                    break;
-                case RestockSettingKey.AutoRestockTarget:
-                    SetVisible(_autoRestockTargetLabel, visible);
-                    SetVisible(_autoRestockTargetValue, visible);
-                    SetVisible(_autoRestockTargetButton, visible);
-                    break;
-                case RestockSettingKey.ReplenishmentEnabled:
-                    SetVisible(_replenishmentEnabledLabel, visible);
-                    SetVisible(_replenishmentEnabledValue, visible);
-                    SetVisible(_replenishmentEnabledButton, visible);
-                    break;
-                case RestockSettingKey.AmmoBankEnabled:
-                    SetVisible(_ammoBankEnabledLabel, visible);
-                    SetVisible(_ammoBankEnabledValue, visible);
-                    SetVisible(_ammoBankEnabledButton, visible);
-                    break;
-                case RestockSettingKey.RetainSearchOnClose:
-                    SetVisible(_retainSearchLabel, visible);
-                    SetVisible(_retainSearchValue, visible);
-                    SetVisible(_retainSearchButton, visible);
-                    break;
-                case RestockSettingKey.ManualSaleEnabled:
-                    break;
-            }
-        }
+        ShowSettingsPage(_showAdminSettings);
     }
 
     private void SetSettingsVisible(bool visible)
@@ -390,14 +411,31 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         if (visible && _settings == null) SetLabel(_settingsStatus, Localization.Get("HyperdimensionalNetworkSettingsLoading"));
     }
 
-    private void HideNetworkAdminSettings()
+    private void ShowSettingsPage(bool admin)
     {
-        SetVisible(_replenishmentEnabledLabel, false);
-        SetVisible(_replenishmentEnabledValue, false);
-        SetVisible(_replenishmentEnabledButton, false);
-        SetVisible(_ammoBankEnabledLabel, false);
-        SetVisible(_ammoBankEnabledValue, false);
-        SetVisible(_ammoBankEnabledButton, false);
+        _showAdminSettings = admin && _settings?.IsNetworkAdministrator == true;
+        bool personal = !_showAdminSettings;
+        SetVisible(_autoRestockLabel, personal);
+        SetVisible(_autoRestockValue, personal);
+        SetVisible(_autoRestockToggle, personal);
+        SetVisible(_autoRestockTargetLabel, personal);
+        SetVisible(_autoRestockTargetValue, personal);
+        SetVisible(_autoRestockTargetButton, personal);
+        SetVisible(_retainSearchLabel, personal);
+        SetVisible(_retainSearchValue, personal);
+        SetVisible(_retainSearchButton, personal);
+        SetVisible(_managementButton, personal);
+        SetVisible(GetChildById("networkManagementButtonLabel"), personal);
+        SetVisible(_adminSettingsPageButton, _settings?.IsNetworkAdministrator == true);
+        SetVisible(_adminSettingsPageLabel, _settings?.IsNetworkAdministrator == true);
+        if (_personalSettingsPageButton?.ViewComponent is XUiV_Button personalButton) personalButton.Selected = personal;
+        if (_adminSettingsPageButton?.ViewComponent is XUiV_Button adminButton) adminButton.Selected = _showAdminSettings;
+        foreach (SettingControls controls in _adminSettingControls.Values)
+        {
+            SetVisible(controls.Label, _showAdminSettings);
+            SetVisible(controls.Value, _showAdminSettings);
+            SetVisible(controls.Button, _showAdminSettings);
+        }
     }
 
     private void BindPress(string id, XUiEvent_OnPressEventHandler handler)

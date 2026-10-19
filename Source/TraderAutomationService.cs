@@ -142,6 +142,8 @@ internal static class TraderAutomationService
 
     public static NetworkRemoteResult QueryRules(EntityPlayer player, NetworkRemoteRequest request)
     {
+        if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled))
+            return new NetworkRemoteResult { RequestId = request?.RequestId ?? 0, Success = false, Error = "TraderDisabled" };
         bool isAdmin = (bool)player && PlayerNetworkDirectory.IsNetworkAdministrator(player);
         NetworkRemoteResult result = new NetworkRemoteResult
         {
@@ -218,6 +220,8 @@ internal static class TraderAutomationService
 
     public static NetworkRemoteResult ExecuteRuleRequest(World world, EntityPlayer player, NetworkRemoteRequest request)
     {
+        if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled))
+            return new NetworkRemoteResult { RequestId = request?.RequestId ?? 0, Success = false, Error = "TraderDisabled" };
         string error;
         bool success;
         switch (request.Operation)
@@ -353,6 +357,7 @@ internal static class TraderAutomationService
     public static void OnNetworkDeposit(EntityPlayer player, IEnumerable<StorageAddition> additions)
     {
         if (!(bool)player || additions == null) return;
+        if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled)) return;
         string networkId = PlayerNetworkDirectory.GetNetworkId(player);
         if (string.IsNullOrEmpty(networkId)) return;
         lock (Sync)
@@ -426,6 +431,7 @@ internal static class TraderAutomationService
             if (string.IsNullOrEmpty(networkId) || NetworkMembershipService.IsNetworkFrozen(networkId)) continue;
             EntityPlayer player = ResolveOnlineAdministrator(world, networkId) ?? networkPlayers.FirstOrDefault();
             if (!(bool)player) continue;
+            if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled)) continue;
             List<TraderAutomationRule> due;
             lock (Sync)
             {
@@ -466,6 +472,7 @@ internal static class TraderAutomationService
     public static bool RunNow(World world, EntityPlayer player, string ruleId, out string error)
     {
         error = string.Empty;
+        if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled)) { error = "TraderDisabled"; return false; }
         if (!(bool)player || !PlayerNetworkDirectory.IsNetworkAdministrator(player)) { error = "PermissionDenied"; return false; }
         string networkId = PlayerNetworkDirectory.GetNetworkId(player);
         if (string.IsNullOrEmpty(networkId)) { error = "NetworkUnavailable"; return false; }
@@ -552,6 +559,14 @@ internal static class TraderAutomationService
             if (!ReferenceEquals(run.World, world)) { TraderMarketplaceService.ForceClose(run.SessionId); FinishManualRun(run, "规则执行中断：世界已切换"); PendingRuns.Remove(run); continue; }
             EntityPlayer player = world.GetEntity(run.PlayerEntityId) as EntityPlayer;
             if (!(bool)player) { TraderMarketplaceService.ForceClose(run.SessionId); FinishManualRun(run, "规则执行中断：玩家已离线"); PendingRuns.Remove(run); continue; }
+            if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled))
+            {
+                TraderMarketplaceService.ForceClose(run.SessionId);
+                FinishManualRun(run, "规则执行中断：商人功能已关闭");
+                PendingRuns.Remove(run);
+                NetworkLog.Debug("Pending trader run cancelled because the network feature was disabled. network=" + run.NetworkId);
+                continue;
+            }
             if (Time.realtimeSinceStartup < run.NextQueryAt) continue;
             if (!run.OffersReady && !string.IsNullOrEmpty(run.SessionId))
             {

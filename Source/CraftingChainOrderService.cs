@@ -156,6 +156,12 @@ internal static class CraftingChainOrderService
     public static bool CanStart(XUi xui, EntityPlayerLocal player, CraftingChainPlanInput input, CraftingChainPlan plan, out string error)
     {
         error = string.Empty;
+        if (!AutoRestockClient.IsFeatureEnabled(player, NetworkFeatureSetting.CraftingChainEnabled))
+        {
+            error = "HyperdimensionalNetworkCraftingChainDisabled";
+            NetworkLog.Debug("Crafting-chain start rejected because the network feature is disabled. player=" + player?.entityId);
+            return false;
+        }
         if (!(bool)player || xui == null || input == null || plan == null || !string.IsNullOrEmpty(plan.Error))
         {
             error = plan?.Error == "PlanTooLarge"
@@ -311,7 +317,7 @@ internal static class CraftingChainOrderService
             order.PendingReservation = true;
             order.Status = Localization.Get("HyperdimensionalNetworkCraftingChainReserving");
             bool sent = NetworkRemoteClient.RequestConsumption(order.player, requirements,
-                NetworkConsumptionSource.NetworkPreferredPlayerInventory, Vector3i.zero,
+                NetworkConsumptionSource.CraftingChainReservation, Vector3i.zero,
                 (NetworkRemoteResult result) =>
                 {
                     if (!Orders.TryGetValue(order.player.entityId, out Order current)
@@ -458,6 +464,12 @@ internal static class CraftingChainOrderService
         if (!TryGetLiveOrder(player, out Order order)) return;
         if (LastPumpFrameByPlayer.TryGetValue(player.entityId, out int lastFrame) && lastFrame == UnityEngine.Time.frameCount) return;
         LastPumpFrameByPlayer[player.entityId] = UnityEngine.Time.frameCount;
+        if (!order.CancelRequested && !AutoRestockClient.IsFeatureEnabled(player, NetworkFeatureSetting.CraftingChainEnabled))
+        {
+            order.CancelRequested = true;
+            order.Status = Localization.Get("HyperdimensionalNetworkCraftingChainCancelling");
+            NetworkLog.Debug("Crafting-chain order cancellation requested because the network feature is disabled. player=" + player.entityId);
+        }
         if (order.CancelRequested)
         {
             if (!order.PendingReservation) CancelOrder(order, "cancel-requested");

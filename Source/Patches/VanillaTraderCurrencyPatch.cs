@@ -17,6 +17,7 @@ internal static class VanillaTraderCurrencyPatch
     {
         if (__result || _slotNumber != -1 || !IsCurrency(_removedStack) || _addedStack == null
             || _addedStack.IsEmpty() || !(bool)__instance.localPlayer) return;
+        if (!AutoRestockClient.IsFeatureEnabled(__instance.localPlayer, NetworkFeatureSetting.TraderEnabled)) return;
         int physical = PhysicalCurrency(__instance, _removedStack.itemValue);
         long network = NetworkStorage.GetMatchingCount(__instance.localPlayer, _removedStack.itemValue);
         if ((long)physical + network < _removedStack.count) return;
@@ -38,6 +39,7 @@ internal static class VanillaTraderCurrencyPatch
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
         ItemStack item = entry?.Item;
         if (!(bool)player || item == null || item.IsEmpty() || xui.Trader?.TraderData == null) return true;
+        if (!AutoRestockClient.IsFeatureEnabled(player, NetworkFeatureSetting.TraderEnabled)) return true;
         int count = entry.InfoWindow?.BuySellCounter?.Count ?? 0;
         if (count <= 0) return true;
         int price = XUiM_Trader.GetBuyPrice(xui, item.itemValue, count,

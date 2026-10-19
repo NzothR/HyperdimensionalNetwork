@@ -61,6 +61,11 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         _result.AutoRestockCooldownMs = reader.ReadInt32();
         _result.ReplenishmentEnabled = reader.ReadBoolean();
         _result.AmmoBankEnabled = reader.ReadBoolean();
+        _result.TraderEnabled = reader.ReadBoolean();
+        _result.CraftingChainEnabled = reader.ReadBoolean();
+        _result.AutoDepositEnabled = reader.ReadBoolean();
+        _result.TrashEnabled = reader.ReadBoolean();
+        _result.BookReadingEnabled = reader.ReadBoolean();
         _result.RetainSearchOnClose = reader.ReadBoolean();
         _result.ManualSaleEnabled = reader.ReadBoolean();
         _result.TraderSessionId = ReadBoundedString(reader, 64);
@@ -151,6 +156,11 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         binary.Write(result.AutoRestockCooldownMs);
         binary.Write(result.ReplenishmentEnabled);
         binary.Write(result.AmmoBankEnabled);
+        binary.Write(result.TraderEnabled);
+        binary.Write(result.CraftingChainEnabled);
+        binary.Write(result.AutoDepositEnabled);
+        binary.Write(result.TrashEnabled);
+        binary.Write(result.BookReadingEnabled);
         binary.Write(result.RetainSearchOnClose);
         binary.Write(result.ManualSaleEnabled);
         binary.Write(result.TraderSessionId ?? string.Empty);

@@ -40,6 +40,7 @@ internal static class TraderMarketplaceService
 
     public static NetworkRemoteResult Open(World world, EntityPlayer player, NetworkRemoteRequest request)
     {
+        if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled)) return Failure(request, "TraderDisabled");
         if (!(bool)player || world == null) return Failure(request, "TraderMarketUnavailable");
         string networkId = PlayerNetworkDirectory.GetNetworkId(player);
         string playerId = PlayerNetworkDirectory.GetStablePlayerId(player);
@@ -97,6 +98,7 @@ internal static class TraderMarketplaceService
 
     public static NetworkRemoteResult Query(World world, EntityPlayer player, NetworkRemoteRequest request)
     {
+        if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled)) return Failure(request, "TraderDisabled");
         lock (Sync)
         {
             if (!TryGetSession(world, player, request, out Session session, out string error)) return Failure(request, error);
@@ -121,6 +123,7 @@ internal static class TraderMarketplaceService
 
     public static NetworkRemoteResult Buy(World world, EntityPlayer player, PlayerDataFile playerData, NetworkRemoteRequest request)
     {
+        if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled)) return Failure(request, "TraderDisabled");
         lock (Sync)
         {
             if (!TryGetSession(world, player, request, out Session session, out string error)) return Failure(request, error);
@@ -253,6 +256,7 @@ internal static class TraderMarketplaceService
             TraderSessionId = sessionId ?? string.Empty,
             TraderAutomation = true
         };
+        if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled)) return Failure(request, "TraderDisabled");
         lock (Sync)
         {
             if (rule == null || offers == null || maximumCount <= 0 || spendLimit <= 0)
@@ -419,6 +423,19 @@ internal static class TraderMarketplaceService
         if (string.IsNullOrWhiteSpace(networkId)) return false;
         lock (Sync) return Sessions.Values.Any(session =>
             string.Equals(session.NetworkId, networkId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    internal static int CloseForDisabledNetwork(string networkId)
+    {
+        if (string.IsNullOrWhiteSpace(networkId)) return 0;
+        lock (Sync)
+        {
+            int[] players = Sessions.Values.Where(session => string.Equals(session.NetworkId, networkId, StringComparison.OrdinalIgnoreCase))
+                .Select(session => session.PlayerEntityId).ToArray();
+            foreach (int playerId in players) ReleaseUnsafe(playerId);
+            if (players.Length > 0) NetworkLog.Debug("Trader sessions released after network feature was disabled. network=" + networkId + "; sessions=" + players.Length);
+            return players.Length;
+        }
     }
 
     internal static bool CloseForMembershipChange(int playerEntityId)

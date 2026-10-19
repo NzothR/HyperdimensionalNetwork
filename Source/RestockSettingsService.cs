@@ -13,7 +13,12 @@ internal enum RestockSettingKey : byte
     ReplenishmentEnabled = 3,
     AmmoBankEnabled = 4,
     RetainSearchOnClose = 5,
-    ManualSaleEnabled = 6
+    ManualSaleEnabled = 6,
+    TraderEnabled = 7,
+    CraftingChainEnabled = 8,
+    AutoDepositEnabled = 9,
+    TrashEnabled = 10,
+    BookReadingEnabled = 11
 }
 
 internal enum RestockTargetMode : byte
@@ -44,6 +49,11 @@ internal sealed class RestockSettingsSnapshot
     public bool IsNetworkAdministrator;
     public bool ReplenishmentEnabled = true;
     public bool AmmoBankEnabled = true;
+    public bool TraderEnabled = true;
+    public bool CraftingChainEnabled = true;
+    public bool AutoDepositEnabled = true;
+    public bool TrashEnabled = true;
+    public bool BookReadingEnabled = true;
     public bool RetainSearchOnClose = true;
     public bool ManualSaleEnabled;
     public int AutoRestockCooldownMs;
@@ -81,6 +91,11 @@ internal static class RestockSettingCatalog
             LabelKey = "HyperdimensionalNetworkSettingAmmoBankEnabled",
             Permission = RestockSettingPermission.NetworkAdministrator
         },
+        new RestockSettingDefinition { Key = RestockSettingKey.TraderEnabled, Name = "TraderEnabled", LabelKey = "HyperdimensionalNetworkSettingTraderEnabled", Permission = RestockSettingPermission.NetworkAdministrator },
+        new RestockSettingDefinition { Key = RestockSettingKey.CraftingChainEnabled, Name = "CraftingChainEnabled", LabelKey = "HyperdimensionalNetworkSettingCraftingChainEnabled", Permission = RestockSettingPermission.NetworkAdministrator },
+        new RestockSettingDefinition { Key = RestockSettingKey.AutoDepositEnabled, Name = "AutoDepositEnabled", LabelKey = "HyperdimensionalNetworkSettingAutoDepositEnabled", Permission = RestockSettingPermission.NetworkAdministrator },
+        new RestockSettingDefinition { Key = RestockSettingKey.TrashEnabled, Name = "TrashEnabled", LabelKey = "HyperdimensionalNetworkSettingTrashEnabled", Permission = RestockSettingPermission.NetworkAdministrator },
+        new RestockSettingDefinition { Key = RestockSettingKey.BookReadingEnabled, Name = "BookReadingEnabled", LabelKey = "HyperdimensionalNetworkSettingBookReadingEnabled", Permission = RestockSettingPermission.NetworkAdministrator },
         new RestockSettingDefinition
         {
             Key = RestockSettingKey.RetainSearchOnClose,
@@ -154,12 +169,27 @@ internal static class RestockSettingsService
         RestockSettingDefinition definition = RestockSettingCatalog.Get(key);
         if (definition == null) { error = "UnknownSetting"; return false; }
         if (!CanConfigure(player, definition.Permission)) { error = "PermissionDenied"; return false; }
-        if (key == RestockSettingKey.ReplenishmentEnabled || key == RestockSettingKey.AmmoBankEnabled)
+        if (definition.Permission == RestockSettingPermission.NetworkAdministrator)
         {
             if (value != 0 && value != 1) { error = "InvalidSettingValue"; return false; }
-            NetworkFeatureSetting networkKey = key == RestockSettingKey.ReplenishmentEnabled
-                ? NetworkFeatureSetting.ReplenishmentEnabled : NetworkFeatureSetting.AmmoBankEnabled;
+            NetworkFeatureSetting networkKey = key switch
+            {
+                RestockSettingKey.ReplenishmentEnabled => NetworkFeatureSetting.ReplenishmentEnabled,
+                RestockSettingKey.AmmoBankEnabled => NetworkFeatureSetting.AmmoBankEnabled,
+                RestockSettingKey.TraderEnabled => NetworkFeatureSetting.TraderEnabled,
+                RestockSettingKey.CraftingChainEnabled => NetworkFeatureSetting.CraftingChainEnabled,
+                RestockSettingKey.AutoDepositEnabled => NetworkFeatureSetting.AutoDepositEnabled,
+                RestockSettingKey.TrashEnabled => NetworkFeatureSetting.TrashEnabled,
+                RestockSettingKey.BookReadingEnabled => NetworkFeatureSetting.BookReadingEnabled,
+                _ => throw new InvalidOperationException("Unknown administrator setting: " + key)
+            };
             if (!NetworkFeatureSettingsService.TrySet(player, networkKey, value == 1, out error)) return false;
+            if (key == RestockSettingKey.TraderEnabled && value == 0)
+            {
+                string networkId = PlayerNetworkDirectory.GetNetworkId(player);
+                TraderAutomationService.CancelNetworkRuntime(networkId, "feature-disabled");
+                TraderMarketplaceService.CloseForDisabledNetwork(networkId);
+            }
             return TryGet(player, out snapshot, out error);
         }
         string playerId = PlayerNetworkDirectory.GetStablePlayerId(player);
@@ -269,6 +299,11 @@ internal static class RestockSettingsService
             IsNetworkAdministrator = isAdmin,
             ReplenishmentEnabled = networkSettings?.ReplenishmentEnabled ?? true,
             AmmoBankEnabled = networkSettings?.AmmoBankEnabled ?? true,
+            TraderEnabled = networkSettings?.TraderEnabled ?? true,
+            CraftingChainEnabled = networkSettings?.CraftingChainEnabled ?? true,
+            AutoDepositEnabled = networkSettings?.AutoDepositEnabled ?? true,
+            TrashEnabled = networkSettings?.TrashEnabled ?? true,
+            BookReadingEnabled = networkSettings?.BookReadingEnabled ?? true,
             RetainSearchOnClose = value.RetainSearchOnClose,
             ManualSaleEnabled = value.ManualSaleEnabled,
             AutoRestockCooldownMs = AutoRestockCooldownMs

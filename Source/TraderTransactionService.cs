@@ -86,6 +86,7 @@ internal static class TraderTransactionService
 
     public static NetworkRemoteResult ExecuteVoidSell(EntityPlayer player, PlayerDataFile playerData, NetworkRemoteRequest request)
     {
+        if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled)) return Failure(request, "TraderDisabled");
         if (!(bool)player || request?.Value == null || request.Value.type <= 0 || request.Count <= 0)
             return Failure(request, "InvalidTraderSale");
 

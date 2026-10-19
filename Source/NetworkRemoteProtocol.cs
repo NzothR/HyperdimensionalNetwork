@@ -76,7 +76,8 @@ internal enum NetworkConsumptionSource : byte
 {
     PlayerInventory = 0,
     WorkstationInput = 1,
-    NetworkPreferredPlayerInventory = 2
+    NetworkPreferredPlayerInventory = 2,
+    CraftingChainReservation = 3
 }
 
 internal sealed class NetworkRemoteResult
@@ -103,6 +104,11 @@ internal sealed class NetworkRemoteResult
     public int AutoRestockCooldownMs;
     public bool ReplenishmentEnabled = true;
     public bool AmmoBankEnabled = true;
+    public bool TraderEnabled = true;
+    public bool CraftingChainEnabled = true;
+    public bool AutoDepositEnabled = true;
+    public bool TrashEnabled = true;
+    public bool BookReadingEnabled = true;
     public bool RetainSearchOnClose = true;
     public bool ManualSaleEnabled;
     public string TraderSessionId = string.Empty;
@@ -350,7 +356,7 @@ internal static class NetworkRemoteClient
         request.ConsumptionSource = source;
         request.Position = workstationPosition;
         request.Requirements = CloneRequirements(requirements);
-        if (source == NetworkConsumptionSource.NetworkPreferredPlayerInventory && requiredNetworkCount > 0)
+        if (source == NetworkConsumptionSource.CraftingChainReservation && requiredNetworkCount > 0)
         {
             request.Value = requiredNetworkValue?.Clone();
             request.Count = requiredNetworkCount;
