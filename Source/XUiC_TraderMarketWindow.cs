@@ -22,6 +22,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
     private XUiC_Paging _pager;
     private XUiC_TextInput _search;
     private XUiC_CategoryList _categories;
+    private XUiController _scrollArea;
     private string _category = string.Empty;
     private XUiController _status;
     private TraderOffer _selected;
@@ -45,9 +46,9 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             _qualities[i] = GetChildById("marketRowQuality" + i);
             _prices[i] = GetChildById("marketRowPrice" + i);
             if (_rowButtons[i] != null) _rowButtons[i].OnPress += (sender, button) => SelectAt(index);
-            if (_rowButtons[i] != null) _rowButtons[i].OnScroll += OnMarketScroll;
         }
-        OnScroll += OnMarketScroll;
+        _scrollArea = GetChildById("marketRows");
+        if (_scrollArea != null) _scrollArea.OnScroll += OnMarketScroll;
         _pager = GetChildByType<XUiC_Paging>();
         if (_pager != null) _pager.OnPageChanged += RefreshRows;
         _search = GetChildById("traderMarketSearch") as XUiC_TextInput;
@@ -187,8 +188,12 @@ public sealed class XUiC_TraderMarketWindow : XUiController
 
     private void OnMarketScroll(XUiController sender, float delta)
     {
+        int before = _pager?.CurrentPageNumber ?? 0;
         if (delta > 0f) _pager?.PageDown();
         else _pager?.PageUp();
+        NetworkLog.Debug("Trader market wheel page request. delta=" + delta + "; page=" + before + "->"
+            + (_pager?.CurrentPageNumber ?? 0) + "; filtered=" + _filtered.Count + "; sender="
+            + (sender?.ViewComponent?.ID ?? "<none>"));
     }
 
     internal static bool TryGetAggregateOffer(XUiC_ItemInfoWindow info, out XUiC_TraderMarketWindow window,
@@ -433,7 +438,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         _pendingReturnPlayerId = -1;
         if (!manager.IsWindowOpen("hyperdimensionalNetwork"))
         {
-            manager.Open("hyperdimensionalNetwork", false);
+            manager.Open("hyperdimensionalNetwork", true);
             NetworkLog.Debug("Trader market close returned to the network window. player=" + player.entityId
                 + "; networkOpen=" + manager.IsWindowOpen("hyperdimensionalNetwork")
                 + "; modal=" + (manager.GetModalWindow()?.Id ?? "none") + "; inputLocked=" + manager.IsInputLocked);

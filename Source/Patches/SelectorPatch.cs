@@ -23,9 +23,20 @@ internal static class SelectorPatch
     public static bool PressPrefix(XUiC_WindowSelector __instance, XUiController _sender, int _mouseButton)
     {
         if (!string.Equals(_sender?.ViewComponent?.ID, "hyperdimensionalNetwork", StringComparison.OrdinalIgnoreCase)) return true;
-        bool open = __instance?.xui?.playerUI?.windowManager?.IsWindowOpen("hyperdimensionalNetwork") ?? false;
-        NetworkLog.Debug("Navigation entry clicked. mouse=" + _mouseButton + "; openBeforeClick=" + open + "; selector=" + (__instance?.ViewComponent?.ID ?? "<none>"));
-        return !open;
+        GUIWindowManager manager = __instance?.xui?.playerUI?.windowManager;
+        bool open = manager?.IsWindowOpen("hyperdimensionalNetwork") ?? false;
+        NetworkLog.Debug("Navigation entry clicked. mouse=" + _mouseButton + "; openBeforeClick=" + open
+            + "; modal=" + (manager?.GetModalWindow()?.Id ?? "none")
+            + "; selector=" + (__instance?.ViewComponent?.ID ?? "<none>"));
+        if (!open || manager == null) return true;
+        manager.CloseAllOpenModalWindows();
+        if (manager.IsWindowOpen("hyperdimensionalNetwork")) manager.Close("hyperdimensionalNetwork");
+        if (manager.IsWindowOpen("windowpaging")) manager.Close("windowpaging");
+        NetworkLog.Debug("Network navigation close completed. open=" + manager.IsWindowOpen("hyperdimensionalNetwork")
+            + "; pagingOpen=" + manager.IsWindowOpen("windowpaging")
+            + "; modal=" + (manager.GetModalWindow()?.Id ?? "none")
+            + "; inputLocked=" + manager.IsInputLocked);
+        return false;
     }
 
     private static void Setup(XUiC_WindowSelector selector)

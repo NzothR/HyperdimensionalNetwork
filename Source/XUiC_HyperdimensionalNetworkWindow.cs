@@ -163,7 +163,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         if (!windowManager.IsWindowOpen("hyperdimensionalTraderMarket"))
         {
             NetworkLog.Error("Trader market window group failed to open.");
-            windowManager.Open("hyperdimensionalNetwork", _bModal: false);
+            windowManager.Open("hyperdimensionalNetwork", _bModal: true);
         }
     }
 
