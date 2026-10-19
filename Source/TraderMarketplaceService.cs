@@ -268,10 +268,16 @@ internal static class TraderMarketplaceService
             EntityPlayer pricePlayer = TraderAutomationService.ResolveOnlineAdministrator(world, session.NetworkId);
             List<AutomaticBuyLine> plan = new List<AutomaticBuyLine>();
             HashSet<string> plannedEntries = new HashSet<string>(StringComparer.Ordinal);
+            List<TraderOffer> matchingOffers = offers.Where(candidate => candidate?.Value != null
+                && TraderAutomationService.Matches(rule, candidate.Value)
+                && candidate.BundleSize > 0 && candidate.BundlePrice > 0).ToList();
+            NetworkLog.Debug("Automatic trader batch matching offers. player=" + player.entityId + "; rule=" + rule.Id
+                + "; matched=" + matchingOffers.Count + "; candidates=" + offers.Count + "; maximumCount=" + maximumCount
+                + "; spendLimit=" + spendLimit + "; excludedItems=" + rule.ExcludedItemTypes
+                + "; excludedCategories=" + rule.ExcludedCategories
+                + "; cheapestBundle=" + (matchingOffers.Count == 0 ? 0 : matchingOffers.Min(candidate => candidate.BundlePrice)));
 
-            foreach (TraderOffer offer in offers.Where(candidate => candidate?.Value != null
-                    && TraderAutomationService.Matches(rule, candidate.Value)
-                    && candidate.BundleSize > 0 && candidate.BundlePrice > 0)
+            foreach (TraderOffer offer in matchingOffers
                 .OrderBy(candidate => candidate.BundlePrice)
                 .ThenBy(candidate => candidate.TraderEntityId)
                 .ThenBy(candidate => candidate.InventoryIndex))
@@ -341,7 +347,9 @@ internal static class TraderMarketplaceService
             if (plan.Count == 0)
             {
                 NetworkLog.Debug("Automatic trader batch found no affordable matching offers. player=" + player.entityId
-                    + "; rule=" + rule.Id + "; candidates=" + offers.Count + "; spendLimit=" + spendLimit);
+                    + "; rule=" + rule.Id + "; matched=" + matchingOffers.Count + "; candidates=" + offers.Count
+                    + "; spendLimit=" + spendLimit + "; cheapestBundle="
+                    + (matchingOffers.Count == 0 ? 0 : matchingOffers.Min(candidate => candidate.BundlePrice)));
                 return new NetworkRemoteResult
                 {
                     RequestId = request.RequestId, Success = true, Amount = 0,

@@ -367,7 +367,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         bool unlimitedCount = TraderAutomationService.AllowsUnlimitedMaximumCount(_editing);
         SetText(_maximumCountTitle, unlimitedCount ? "单次最大物品数（0=不限）" : "单次最大物品数");
         string countHelp = unlimitedCount
-            ? "单件商品自动购入的本次最多购买数量。设为 0 时不限制数量，会持续购买直到商人售罄、公爵币不足，或其他规则条件阻止。"
+            ? "自动购入本次最多购买的物品总数。设为 0 时不限制数量，会持续购买直到商人售罄、公爵币不足，或其他规则条件阻止。"
             : "本规则每次执行时最多处理的物品总数，必须大于 0。";
         if (_maximumCountTitle?.ViewComponent != null) _maximumCountTitle.ViewComponent.ToolTip = countHelp;
         if (_maximumCount?.ViewComponent != null) _maximumCount.ViewComponent.ToolTip = countHelp;
@@ -631,8 +631,12 @@ public sealed class XUiC_TraderRulesWindow : XUiController
                 SetText(_pickerNames[i], category == null ? (string.IsNullOrEmpty(_editing?.Category) ? "✓  全部商品" : "全部商品") :
                     (selected ? "✓  " : "") + category.DisplayName);
                 string categoryIcon = category?.Icon;
-                SetSprite(_pickerIcons[i], "SymbolAtlas",
-                    string.IsNullOrEmpty(categoryIcon) ? "ui_game_symbol_loot_sack" : categoryIcon);
+                string icon = category == null ? "ui_game_symbol_shopping_cart"
+                    : string.IsNullOrEmpty(categoryIcon) ? "ui_game_symbol_other" : categoryIcon;
+                SetSprite(_pickerIcons[i], "SymbolAtlas", icon);
+                NetworkLog.Debug("Trader rule category icon assigned. category=" + (category?.Name ?? "<all>")
+                    + "; icon=" + icon
+                    + "; atlas=SymbolAtlas");
             }
         }
         SetText(_pickerStockLabel, _stockOnly ? (_stockLoading ? "正在读取现有库存…" : "仅现有库存") : "全部有售价物品");
@@ -648,7 +652,13 @@ public sealed class XUiC_TraderRulesWindow : XUiController
             if (index < 0 || index >= _visibleTypes.Count) return;
             int type = _visibleTypes[index];
             if (_pickerMode == PickerMode.TargetItem) { _editing.ItemType = type; ClosePicker(); }
-            else { _editing.ExcludedItemTypes = ToggleId(_editing.ExcludedItemTypes, type); RefreshPicker(); RefreshEditor(); }
+            else
+            {
+                _editing.ExcludedItemTypes = ToggleId(_editing.ExcludedItemTypes, type);
+                NetworkLog.Debug("Trader rule item exclusion toggled. rule=" + _editing.Id + "; item=" + type
+                    + "; excluded=" + ContainsId(_editing.ExcludedItemTypes, type) + "; excludedItems=" + _editing.ExcludedItemTypes);
+                RefreshPicker(); RefreshEditor();
+            }
             return;
         }
         List<CraftingCategoryDisplayEntry> categories = _pickerCategories.Where(category =>
@@ -708,6 +718,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private static void SetSprite(XUiController controller, string atlas, string name)
     {
         if (!(controller?.ViewComponent is XUiV_Sprite sprite)) return;
+        sprite.SpriteName = string.Empty;
         sprite.UIAtlas = atlas;
         sprite.SpriteName = name;
         controller.IsDirty = true;

@@ -161,7 +161,7 @@ internal static class TraderAutomationService
             Rules[networkId] = updated;
             if (Save())
             {
-                NetworkLog.Debug("Trader automation rule saved. player=" + player.entityId + "; network=" + networkId + "; rule=" + rule.Id + "; type=" + rule.Kind + "; scope=" + rule.Scope + "; item=" + rule.ItemType + "; maximumCount=" + rule.MaximumCount + "; zeroMeansUnlimited=" + AllowsUnlimitedMaximumCount(rule));
+                NetworkLog.Debug("Trader automation rule saved. player=" + player.entityId + "; network=" + networkId + "; rule=" + rule.Id + "; type=" + rule.Kind + "; scope=" + rule.Scope + "; item=" + rule.ItemType + "; category=" + rule.Category + "; excludedItems=" + rule.ExcludedItemTypes + "; excludedCategories=" + rule.ExcludedCategories + "; maximumCount=" + rule.MaximumCount + "; zeroMeansUnlimited=" + AllowsUnlimitedMaximumCount(rule));
             }
             else
             {
@@ -515,7 +515,7 @@ internal static class TraderAutomationService
     }
 
     internal static bool AllowsUnlimitedMaximumCount(TraderAutomationRule rule)
-        => rule != null && rule.Kind == TraderAutomationRuleKind.AutoBuy && rule.Scope == TraderRuleScope.SingleItem;
+        => rule != null && rule.Kind == TraderAutomationRuleKind.AutoBuy;
 
     internal static bool Matches(TraderAutomationRule rule, ItemValue value)
     {

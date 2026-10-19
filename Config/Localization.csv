@@ -55,7 +55,7 @@ HyperdimensionalNetworkTraderRuleScheduleOff,Schedule: off,计划：关闭
 HyperdimensionalNetworkTraderRuleScheduleOn,Schedule: daily time and interval,计划：按游戏时间和间隔
 HyperdimensionalNetworkTraderRuleItemType,Item type ID (0 = any),物品类型 ID（0=任意）
 HyperdimensionalNetworkTraderRuleMaximumCount,Maximum item count,单次最大物品数
-HyperdimensionalNetworkTraderRuleMaximumCountHelp,"Maximum items handled in one run. For a single-item auto-buy rule, 0 means no item limit; buying stops when stock or currency runs out, or another condition blocks it. Other rules require a positive number.","每次执行最多处理的物品数。单件商品自动购入填 0 表示不限制数量；商人售罄、公爵币不足或其他条件阻止时停止。其他规则必须填写大于 0 的数字。"
+HyperdimensionalNetworkTraderRuleMaximumCountHelp,"Maximum items handled in one run. For any auto-buy rule, 0 means no item limit; buying stops when stock or currency runs out, or another condition blocks it. Auto-sell rules require a positive number.","每次执行最多处理的物品数。所有自动购入规则填 0 表示不限制数量；商人售罄、公爵币不足或其他条件阻止时停止。自动出售规则必须填写大于 0 的数字。"
 HyperdimensionalNetworkTraderRuleMinimumNetworkCount,Network count threshold,网络数量阈值
 HyperdimensionalNetworkTraderRuleMinimumCurrencyCount,Network ducals threshold,网络公爵币阈值
 HyperdimensionalNetworkTraderRuleQualityValue,Quality level (1–6),品质等级（1–6）
