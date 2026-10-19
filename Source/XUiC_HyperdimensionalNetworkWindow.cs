@@ -13,6 +13,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     private XUiController _pagerControls;
     private XUiController _manualRestockButton;
     private XUiController _manualSaleButton;
+    private XUiController _traderPayoutButton;
     private XUiController _categoryBar;
     private XUiController _settingsPanel;
     private XUiController _autoRestockLabel;
@@ -49,6 +50,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         _pagerControls = GetChildById("pagerControls");
         _manualRestockButton = GetChildById("btnHyperdimensionalRestock");
         _manualSaleButton = GetChildById("btnHyperdimensionalManualSale");
+        _traderPayoutButton = GetChildById("btnHyperdimensionalTraderPayout");
         _categoryBar = GetChildById("categoryBar");
         _settingsPanel = GetChildById("restockSettingsPanel");
         _autoRestockLabel = GetChildById("labelAutoRestock");
@@ -98,6 +100,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         SetVisible(_manualRestockButton, false);
         HideNetworkAdminSettings();
         TraderTransactionService.LoadPersonalPayoutMode(xui?.playerUI?.entityPlayer);
+        RefreshTraderPayoutButtonState();
         LoadRestockSettings();
         _grid?.Reload();
         RefreshPager();
@@ -148,8 +151,15 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     {
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
         bool personal = TraderTransactionService.TogglePersonalPayoutMode(player);
+        RefreshTraderPayoutButtonState();
         if ((bool)player)
             GameManager.ShowTooltip(player, Localization.Get(personal ? "HyperdimensionalNetworkTraderPayoutPersonal" : "HyperdimensionalNetworkTraderPayoutNetwork"), false, false, 0f);
+    }
+
+    private void RefreshTraderPayoutButtonState()
+    {
+        if (_traderPayoutButton?.ViewComponent is XUiV_Button button)
+            button.Selected = TraderTransactionService.PersonalPayoutMode;
     }
 
     private void OnTraderMarketPressed(XUiController sender, int mouseButton)

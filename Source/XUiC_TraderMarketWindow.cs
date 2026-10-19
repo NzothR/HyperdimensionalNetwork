@@ -7,7 +7,7 @@ namespace HyperdimensionalNetwork;
 
 public sealed class XUiC_TraderMarketWindow : XUiController
 {
-    private const int PageSize = 11;
+    private const int PageSize = 13;
     private static bool _buyToBackpack;
     private static int _pendingReturnPlayerId = -1;
     private static XUiC_TraderMarketWindow _activeWindow;
@@ -25,6 +25,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
     private XUiController _scrollArea;
     private string _category = string.Empty;
     private XUiController _status;
+    private XUiController _outputButton;
     private TraderOffer _selected;
     private int _selectedCount;
     private string _sessionId = string.Empty;
@@ -46,6 +47,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             _qualities[i] = GetChildById("marketRowQuality" + i);
             _prices[i] = GetChildById("marketRowPrice" + i);
             if (_rowButtons[i] != null) _rowButtons[i].OnPress += (sender, button) => SelectAt(index);
+            if (_rowButtons[i] != null) _rowButtons[i].OnScroll += OnMarketScroll;
         }
         _scrollArea = GetChildById("marketRows");
         if (_scrollArea != null) _scrollArea.OnScroll += OnMarketScroll;
@@ -61,6 +63,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             ApplyFilter();
         };
         _status = GetChildById("traderMarketStatus");
+        _outputButton = GetChildById("btnTraderMarketOutput");
         BindPress("btnTraderMarketClose", OnClosePressed);
         BindPress("btnTraderMarketOutput", OnOutputPressed);
         NetworkLog.Debug("Trader market list initialized. rows=" + _rows.Count(row => row != null)
@@ -81,6 +84,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         string playerId = PlayerNetworkDirectory.GetStablePlayerId(xui?.playerUI?.entityPlayer);
         _buyToBackpack = !string.IsNullOrEmpty(playerId)
             && PlayerPrefs.GetInt("HyperdimensionalNetwork.TraderBuyToBackpack." + playerId, 0) != 0;
+        RefreshOutputButtonState();
         _offers.Clear();
         _filtered.Clear();
         _category = string.Empty;
@@ -381,6 +385,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
     private void OnOutputPressed(XUiController sender, int mouseButton)
     {
         _buyToBackpack = !_buyToBackpack;
+        RefreshOutputButtonState();
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
         string playerId = PlayerNetworkDirectory.GetStablePlayerId(player);
         if (!string.IsNullOrEmpty(playerId))
@@ -408,6 +413,12 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             + (xui?.playerUI?.entityPlayer?.entityId ?? -1) + "; marketOpen="
             + manager.IsWindowOpen("hyperdimensionalTraderMarket") + "; modal="
             + (manager.GetModalWindow()?.Id ?? "none") + "; inputLocked=" + manager.IsInputLocked);
+    }
+
+    private void RefreshOutputButtonState()
+    {
+        if (_outputButton?.ViewComponent is XUiV_Button button)
+            button.Selected = _buyToBackpack;
     }
 
     internal static void ProcessPendingReturn(LocalPlayerUI playerUI)
