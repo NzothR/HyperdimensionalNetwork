@@ -267,6 +267,21 @@
           <label depth="32" name="labelRetainSearch" pos="30,-275" width="220" height="36" font_size="22" text_key="HyperdimensionalNetworkSettingRetainSearch" />
           <button depth="33" name="btnToggleRetainSearch" pos="270,-269" width="190" height="42" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,245" hovercolor="82,82,82,255" selectedcolor="70,105,120,255" disabledcolor="45,45,45,180" sound="[paging_click]" />
           <label depth="34" name="labelRetainSearchValue" pos="270,-274" width="190" height="32" font_size="21" color="255,255,255,255" justify="center" text_key="HyperdimensionalNetworkSettingOn" />
+          <label depth="32" name="labelPersonalAutoDeposit" pos="30,-320" width="230" height="32" font_size="19" text_key="HyperdimensionalNetworkPersonalAutoDeposit" />
+          <button depth="33" name="btnTogglePersonalAutoDeposit" pos="270,-316" width="190" height="36" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,245" hovercolor="82,82,82,255" sound="[paging_click]" />
+          <label depth="34" name="labelPersonalAutoDepositValue" pos="270,-320" width="190" height="28" font_size="19" justify="center" text_key="HyperdimensionalNetworkSettingOn" />
+          <label depth="32" name="labelPersonalAutoTrash" pos="30,-364" width="230" height="32" font_size="19" text_key="HyperdimensionalNetworkPersonalAutoTrash" />
+          <button depth="33" name="btnTogglePersonalAutoTrash" pos="270,-360" width="190" height="36" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,245" hovercolor="82,82,82,255" sound="[paging_click]" />
+          <label depth="34" name="labelPersonalAutoTrashValue" pos="270,-364" width="190" height="28" font_size="19" justify="center" text_key="HyperdimensionalNetworkSettingOn" />
+          <label depth="32" name="labelPersonalTrashScope" pos="30,-408" width="230" height="32" font_size="19" text_key="HyperdimensionalNetworkPersonalTrashScope" />
+          <button depth="33" name="btnTogglePersonalTrashScope" pos="270,-404" width="190" height="36" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,245" hovercolor="82,82,82,255" sound="[paging_click]" />
+          <label depth="34" name="labelPersonalTrashScopeValue" pos="270,-408" width="190" height="28" font_size="19" justify="center" text_key="HyperdimensionalNetworkTrashScopeBackpack" />
+          <label depth="32" name="labelPersonalAutoRead" pos="30,-452" width="230" height="32" font_size="19" text_key="HyperdimensionalNetworkPersonalAutoRead" />
+          <button depth="33" name="btnTogglePersonalAutoRead" pos="270,-448" width="190" height="36" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,245" hovercolor="82,82,82,255" sound="[paging_click]" />
+          <label depth="34" name="labelPersonalAutoReadValue" pos="270,-452" width="190" height="28" font_size="19" justify="center" text_key="HyperdimensionalNetworkSettingOn" />
+          <label depth="32" name="labelReadBookPolicy" pos="30,-496" width="230" height="32" font_size="19" text_key="HyperdimensionalNetworkReadBookPolicy" />
+          <button depth="33" name="btnToggleReadBookPolicy" pos="270,-492" width="190" height="36" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,245" hovercolor="82,82,82,255" sound="[paging_click]" />
+          <label depth="34" name="labelReadBookPolicyValue" pos="270,-496" width="190" height="28" font_size="19" justify="center" text_key="HyperdimensionalNetworkReadPolicySell" />
           <label depth="32" name="restockSettingsStatus" pos="20,-555" width="470" height="40" font_size="18" justify="center" text_key="HyperdimensionalNetworkSettingsReady" />
           <button depth="33" name="btnNetworkManagement" pos="34,-615" width="450" height="44" style="press, hover" sprite="menu_empty3px" defaultcolor="35,70,90,250" hovercolor="55,115,145,255" selectedcolor="55,115,145,255" sound="[paging_click]" />
           <label depth="34" name="networkManagementButtonLabel" pos="34,-620" width="450" height="34" font_size="20" justify="center" text_key="HyperdimensionalNetworkManagementOpen" />

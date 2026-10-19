@@ -18,8 +18,16 @@ internal enum RestockSettingKey : byte
     CraftingChainEnabled = 8,
     AutoDepositEnabled = 9,
     TrashEnabled = 10,
-    BookReadingEnabled = 11
+    BookReadingEnabled = 11,
+    PersonalAutoDeposit = 12,
+    PersonalAutoTrash = 13,
+    PersonalTrashScope = 14,
+    PersonalAutoRead = 15,
+    ReadBookPolicy = 16
 }
+
+internal enum TrashScope : byte { EntireInventory, Backpack, Toolbelt, LockedSlots, Network }
+internal enum ReadBookPolicy : byte { Sell, Scrap, ReadAll }
 
 internal enum RestockTargetMode : byte
 {
@@ -56,6 +64,11 @@ internal sealed class RestockSettingsSnapshot
     public bool BookReadingEnabled = true;
     public bool RetainSearchOnClose = true;
     public bool ManualSaleEnabled;
+    public bool PersonalAutoDeposit = true;
+    public bool PersonalAutoTrash = true;
+    public TrashScope PersonalTrashScope = TrashScope.Backpack;
+    public bool PersonalAutoRead = true;
+    public ReadBookPolicy ReadBookPolicy = ReadBookPolicy.Sell;
     public int AutoRestockCooldownMs;
 }
 
@@ -109,7 +122,12 @@ internal static class RestockSettingCatalog
             Name = "ManualSaleEnabled",
             LabelKey = "HyperdimensionalNetworkSettingManualSale",
             Permission = RestockSettingPermission.NetworkMember
-        }
+        },
+        new RestockSettingDefinition { Key = RestockSettingKey.PersonalAutoDeposit, Name = "PersonalAutoDeposit", Permission = RestockSettingPermission.NetworkMember },
+        new RestockSettingDefinition { Key = RestockSettingKey.PersonalAutoTrash, Name = "PersonalAutoTrash", Permission = RestockSettingPermission.NetworkMember },
+        new RestockSettingDefinition { Key = RestockSettingKey.PersonalTrashScope, Name = "PersonalTrashScope", Permission = RestockSettingPermission.NetworkMember },
+        new RestockSettingDefinition { Key = RestockSettingKey.PersonalAutoRead, Name = "PersonalAutoRead", Permission = RestockSettingPermission.NetworkMember },
+        new RestockSettingDefinition { Key = RestockSettingKey.ReadBookPolicy, Name = "ReadBookPolicy", Permission = RestockSettingPermission.NetworkMember }
     };
 
     public static IReadOnlyList<RestockSettingDefinition> All => Definitions;
@@ -128,10 +146,15 @@ internal static class RestockSettingsService
         public RestockTargetMode TargetMode = RestockTargetMode.ToolbeltAndLockedBackpackStacks;
         public bool RetainSearchOnClose = true;
         public bool ManualSaleEnabled;
+        public bool PersonalAutoDeposit = true;
+        public bool PersonalAutoTrash = true;
+        public TrashScope PersonalTrashScope = TrashScope.Backpack;
+        public bool PersonalAutoRead = true;
+        public ReadBookPolicy ReadBookPolicy = ReadBookPolicy.Sell;
     }
 
     private const int FileMagic = 0x31545352; // RST1
-    private const int FileVersion = 4;
+    private const int FileVersion = 5;
     private const int MaximumPlayers = 100000;
     private static readonly object Sync = new object();
     private static readonly Dictionary<string, PlayerSettings> Settings = new Dictionary<string, PlayerSettings>(StringComparer.Ordinal);
@@ -205,7 +228,12 @@ internal static class RestockSettingsService
                 AutoRestockEnabled = current.AutoRestockEnabled,
                 TargetMode = current.TargetMode,
                 RetainSearchOnClose = current.RetainSearchOnClose,
-                ManualSaleEnabled = current.ManualSaleEnabled
+                ManualSaleEnabled = current.ManualSaleEnabled,
+                PersonalAutoDeposit = current.PersonalAutoDeposit,
+                PersonalAutoTrash = current.PersonalAutoTrash,
+                PersonalTrashScope = current.PersonalTrashScope,
+                PersonalAutoRead = current.PersonalAutoRead,
+                ReadBookPolicy = current.ReadBookPolicy
             };
             switch (key)
             {
@@ -227,6 +255,24 @@ internal static class RestockSettingsService
                 case RestockSettingKey.ManualSaleEnabled:
                     if (value != 0 && value != 1) { error = "InvalidSettingValue"; return false; }
                     updated.ManualSaleEnabled = value == 1;
+                    break;
+                case RestockSettingKey.PersonalAutoDeposit:
+                case RestockSettingKey.PersonalAutoTrash:
+                case RestockSettingKey.PersonalAutoRead:
+                    if (value != 0 && value != 1) { error = "InvalidSettingValue"; return false; }
+                    if (key == RestockSettingKey.PersonalAutoDeposit) updated.PersonalAutoDeposit = value == 1;
+                    else if (key == RestockSettingKey.PersonalAutoTrash) updated.PersonalAutoTrash = value == 1;
+                    else updated.PersonalAutoRead = value == 1;
+                    break;
+                case RestockSettingKey.PersonalTrashScope:
+                    if (value < 0 || value > (int)TrashScope.Network) { error = "InvalidSettingValue"; return false; }
+                    if ((value == (int)TrashScope.Network || value == (int)TrashScope.EntireInventory)
+                        && !PlayerNetworkDirectory.IsNetworkAdministrator(player)) { error = "PermissionDenied"; return false; }
+                    updated.PersonalTrashScope = (TrashScope)value;
+                    break;
+                case RestockSettingKey.ReadBookPolicy:
+                    if (value < 0 || value > (int)ReadBookPolicy.ReadAll) { error = "InvalidSettingValue"; return false; }
+                    updated.ReadBookPolicy = (ReadBookPolicy)value;
                     break;
             }
 
@@ -306,6 +352,11 @@ internal static class RestockSettingsService
             BookReadingEnabled = networkSettings?.BookReadingEnabled ?? true,
             RetainSearchOnClose = value.RetainSearchOnClose,
             ManualSaleEnabled = value.ManualSaleEnabled,
+            PersonalAutoDeposit = value.PersonalAutoDeposit,
+            PersonalAutoTrash = value.PersonalAutoTrash,
+            PersonalTrashScope = value.PersonalTrashScope,
+            PersonalAutoRead = value.PersonalAutoRead,
+            ReadBookPolicy = value.ReadBookPolicy,
             AutoRestockCooldownMs = AutoRestockCooldownMs
         };
     }
@@ -355,7 +406,15 @@ internal static class RestockSettingsService
                         throw new InvalidDataException("Invalid or duplicate restock settings record.");
                     bool retainSearch = version < 3 || reader.ReadBoolean();
                     bool manualSaleEnabled = version >= 4 && reader.ReadBoolean();
-                    Settings.Add(playerId, new PlayerSettings { AutoRestockEnabled = enabled, TargetMode = mode, RetainSearchOnClose = retainSearch, ManualSaleEnabled = manualSaleEnabled });
+                    bool autoDeposit = version < 5 || reader.ReadBoolean();
+                    bool autoTrash = version < 5 || reader.ReadBoolean();
+                    TrashScope trashScope = version < 5 ? TrashScope.Backpack : (TrashScope)reader.ReadByte();
+                    bool autoRead = version < 5 || reader.ReadBoolean();
+                    ReadBookPolicy bookPolicy = version < 5 ? ReadBookPolicy.Sell : (ReadBookPolicy)reader.ReadByte();
+                    if (trashScope > TrashScope.Network || bookPolicy > ReadBookPolicy.ReadAll) throw new InvalidDataException("Invalid personal automation setting.");
+                    Settings.Add(playerId, new PlayerSettings { AutoRestockEnabled = enabled, TargetMode = mode, RetainSearchOnClose = retainSearch,
+                        ManualSaleEnabled = manualSaleEnabled, PersonalAutoDeposit = autoDeposit, PersonalAutoTrash = autoTrash,
+                        PersonalTrashScope = trashScope, PersonalAutoRead = autoRead, ReadBookPolicy = bookPolicy });
                 }
                 if (stream.Position != stream.Length) throw new InvalidDataException("Unexpected trailing restock settings data.");
             }
@@ -394,6 +453,11 @@ internal static class RestockSettingsService
                     writer.Write((byte)entry.Value.TargetMode);
                     writer.Write(entry.Value.RetainSearchOnClose);
                     writer.Write(entry.Value.ManualSaleEnabled);
+                    writer.Write(entry.Value.PersonalAutoDeposit);
+                    writer.Write(entry.Value.PersonalAutoTrash);
+                    writer.Write((byte)entry.Value.PersonalTrashScope);
+                    writer.Write(entry.Value.PersonalAutoRead);
+                    writer.Write((byte)entry.Value.ReadBookPolicy);
                 }
                 writer.Flush();
                 stream.Flush(true);

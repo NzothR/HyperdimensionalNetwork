@@ -20,6 +20,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     private XUiController _adminSettingsPageButton;
     private XUiController _adminSettingsPageLabel;
     private readonly Dictionary<RestockSettingKey, SettingControls> _adminSettingControls = new Dictionary<RestockSettingKey, SettingControls>();
+    private readonly Dictionary<RestockSettingKey, SettingControls> _personalAutomationControls = new Dictionary<RestockSettingKey, SettingControls>();
     private bool _showAdminSettings;
     private sealed class SettingControls
     {
@@ -82,6 +83,15 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
             };
             RestockSettingKey key = definition.Key;
             BindPress("btnToggle" + name, (sender, button) => OnToggleAdminFeaturePressed(key));
+        }
+        foreach (RestockSettingKey key in new[] { RestockSettingKey.PersonalAutoDeposit, RestockSettingKey.PersonalAutoTrash,
+            RestockSettingKey.PersonalTrashScope, RestockSettingKey.PersonalAutoRead, RestockSettingKey.ReadBookPolicy })
+        {
+            string name = key.ToString();
+            _personalAutomationControls[key] = new SettingControls { Label = GetChildById("label" + name),
+                Value = GetChildById("label" + name + "Value"), Button = GetChildById("btnToggle" + name) };
+            RestockSettingKey selected = key;
+            BindPress("btnToggle" + name, (sender, button) => OnPersonalAutomationSettingPressed(selected));
         }
         _retainSearchLabel = GetChildById("labelRetainSearch");
         _retainSearchValue = GetChildById("labelRetainSearchValue");
@@ -308,6 +318,29 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         SetSetting(RestockSettingKey.ManualSaleEnabled, _settings.ManualSaleEnabled ? 0 : 1);
     }
 
+    private void OnPersonalAutomationSettingPressed(RestockSettingKey key)
+    {
+        if (_settings == null || _settingsRequestPending) return;
+        int next = key switch
+        {
+            RestockSettingKey.PersonalAutoDeposit => _settings.PersonalAutoDeposit ? 0 : 1,
+            RestockSettingKey.PersonalAutoTrash => _settings.PersonalAutoTrash ? 0 : 1,
+            RestockSettingKey.PersonalAutoRead => _settings.PersonalAutoRead ? 0 : 1,
+            RestockSettingKey.ReadBookPolicy => ((int)_settings.ReadBookPolicy + 1) % 3,
+            RestockSettingKey.PersonalTrashScope => NextTrashScope(_settings.PersonalTrashScope, _settings.IsNetworkAdministrator),
+            _ => -1
+        };
+        if (next >= 0) SetSetting(key, next);
+    }
+
+    private static int NextTrashScope(TrashScope current, bool admin)
+    {
+        int next = ((int)current + 1) % (admin ? 5 : 3);
+        if (!admin && current == TrashScope.Toolbelt) next = (int)TrashScope.LockedSlots;
+        if (!admin && current == TrashScope.LockedSlots) next = (int)TrashScope.Backpack;
+        return next;
+    }
+
     private void LoadRestockSettings(bool quiet = false)
     {
         if (_settingsRequestPending) return;
@@ -382,6 +415,19 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         }
         SetLabel(_retainSearchValue, Localization.Get(_settings.RetainSearchOnClose
             ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
+        foreach (KeyValuePair<RestockSettingKey, SettingControls> entry in _personalAutomationControls)
+        {
+            string valueKey = entry.Key switch
+            {
+                RestockSettingKey.PersonalAutoDeposit => _settings.PersonalAutoDeposit ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff",
+                RestockSettingKey.PersonalAutoTrash => _settings.PersonalAutoTrash ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff",
+                RestockSettingKey.PersonalAutoRead => _settings.PersonalAutoRead ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff",
+                RestockSettingKey.PersonalTrashScope => "HyperdimensionalNetworkTrashScope" + _settings.PersonalTrashScope,
+                RestockSettingKey.ReadBookPolicy => "HyperdimensionalNetworkReadPolicy" + _settings.ReadBookPolicy,
+                _ => "HyperdimensionalNetworkSettingOff"
+            };
+            SetLabel(entry.Value.Value, Localization.Get(valueKey));
+        }
         TraderTransactionService.SetVoidSaleMode(_settings.ManualSaleEnabled && _settings.TraderEnabled);
         TraderSellActionPatch.RefreshSelectedItem(xui);
         if (_manualSaleButton?.ViewComponent is XUiV_Button manualSaleButton)
@@ -424,6 +470,12 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         SetVisible(_retainSearchLabel, personal);
         SetVisible(_retainSearchValue, personal);
         SetVisible(_retainSearchButton, personal);
+        foreach (SettingControls controls in _personalAutomationControls.Values)
+        {
+            SetVisible(controls.Label, personal);
+            SetVisible(controls.Value, personal);
+            SetVisible(controls.Button, personal);
+        }
         SetVisible(_managementButton, personal);
         SetVisible(GetChildById("networkManagementButtonLabel"), personal);
         SetVisible(_adminSettingsPageButton, _settings?.IsNetworkAdministrator == true);

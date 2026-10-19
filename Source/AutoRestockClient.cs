@@ -31,6 +31,11 @@ internal static class AutoRestockClient
         public bool BookReadingEnabled = true;
         public bool RetainSearchOnClose = true;
         public bool ManualSaleEnabled;
+        public bool PersonalAutoDeposit = true;
+        public bool PersonalAutoTrash = true;
+        public TrashScope PersonalTrashScope = TrashScope.Backpack;
+        public bool PersonalAutoRead = true;
+        public ReadBookPolicy ReadBookPolicy = ReadBookPolicy.Sell;
         public RestockTargetMode TargetMode;
         public bool IsAdmin;
         public int CooldownMs = 1000;
@@ -506,6 +511,11 @@ internal static class AutoRestockClient
         state.BookReadingEnabled = result.BookReadingEnabled;
         state.RetainSearchOnClose = result.RetainSearchOnClose;
         state.ManualSaleEnabled = result.ManualSaleEnabled;
+        state.PersonalAutoDeposit = result.PersonalAutoDeposit;
+        state.PersonalAutoTrash = result.PersonalAutoTrash;
+        state.PersonalTrashScope = result.PersonalTrashScope;
+        state.PersonalAutoRead = result.PersonalAutoRead;
+        state.ReadBookPolicy = result.ReadBookPolicy;
         state.TargetMode = result.RestockTargetMode;
         state.IsAdmin = result.IsNetworkAdministrator;
         state.CooldownMs = Math.Max(0, Math.Min(60000, result.AutoRestockCooldownMs));
@@ -524,6 +534,11 @@ internal static class AutoRestockClient
         state.BookReadingEnabled = settings.BookReadingEnabled;
         state.RetainSearchOnClose = settings.RetainSearchOnClose;
         state.ManualSaleEnabled = settings.ManualSaleEnabled;
+        state.PersonalAutoDeposit = settings.PersonalAutoDeposit;
+        state.PersonalAutoTrash = settings.PersonalAutoTrash;
+        state.PersonalTrashScope = settings.PersonalTrashScope;
+        state.PersonalAutoRead = settings.PersonalAutoRead;
+        state.ReadBookPolicy = settings.ReadBookPolicy;
         state.TargetMode = settings.TargetMode;
         state.IsAdmin = settings.IsNetworkAdministrator;
         state.CooldownMs = Math.Max(0, Math.Min(60000, settings.AutoRestockCooldownMs));
@@ -544,6 +559,11 @@ internal static class AutoRestockClient
             BookReadingEnabled = state.BookReadingEnabled,
             RetainSearchOnClose = state.RetainSearchOnClose,
             ManualSaleEnabled = state.ManualSaleEnabled,
+            PersonalAutoDeposit = state.PersonalAutoDeposit,
+            PersonalAutoTrash = state.PersonalAutoTrash,
+            PersonalTrashScope = state.PersonalTrashScope,
+            PersonalAutoRead = state.PersonalAutoRead,
+            ReadBookPolicy = state.ReadBookPolicy,
             TargetMode = state.TargetMode,
             IsNetworkAdministrator = state.IsAdmin,
             AutoRestockCooldownMs = state.CooldownMs

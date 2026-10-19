@@ -288,7 +288,12 @@ internal static class NetworkRpcServer
             TrashEnabled = settings.TrashEnabled,
             BookReadingEnabled = settings.BookReadingEnabled,
             RetainSearchOnClose = settings.RetainSearchOnClose,
-            ManualSaleEnabled = settings.ManualSaleEnabled
+            ManualSaleEnabled = settings.ManualSaleEnabled,
+            PersonalAutoDeposit = settings.PersonalAutoDeposit,
+            PersonalAutoTrash = settings.PersonalAutoTrash,
+            PersonalTrashScope = settings.PersonalTrashScope,
+            PersonalAutoRead = settings.PersonalAutoRead,
+            ReadBookPolicy = settings.ReadBookPolicy
         };
     }
 
@@ -1190,6 +1195,11 @@ internal static class NetworkRpcServer
             BookReadingEnabled = result.BookReadingEnabled,
             RetainSearchOnClose = result.RetainSearchOnClose,
             ManualSaleEnabled = result.ManualSaleEnabled,
+            PersonalAutoDeposit = result.PersonalAutoDeposit,
+            PersonalAutoTrash = result.PersonalAutoTrash,
+            PersonalTrashScope = result.PersonalTrashScope,
+            PersonalAutoRead = result.PersonalAutoRead,
+            ReadBookPolicy = result.ReadBookPolicy,
             TraderSessionId = result.TraderSessionId,
             TraderOffers = result.TraderOffers?.Select(offer => new TraderOffer
             {

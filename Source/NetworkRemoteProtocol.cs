@@ -111,6 +111,11 @@ internal sealed class NetworkRemoteResult
     public bool BookReadingEnabled = true;
     public bool RetainSearchOnClose = true;
     public bool ManualSaleEnabled;
+    public bool PersonalAutoDeposit = true;
+    public bool PersonalAutoTrash = true;
+    public TrashScope PersonalTrashScope = TrashScope.Backpack;
+    public bool PersonalAutoRead = true;
+    public ReadBookPolicy ReadBookPolicy = ReadBookPolicy.Sell;
     public string TraderSessionId = string.Empty;
     public List<TraderOffer> TraderOffers = new List<TraderOffer>();
     public List<TraderAutomationRule> TraderRules = new List<TraderAutomationRule>();
