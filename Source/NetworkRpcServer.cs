@@ -173,6 +173,8 @@ internal static class NetworkRpcServer
                 return AmmoBankService.ExecuteRemoteReload(player, request);
             case NetworkRequestOperation.AmmoBankRefund:
                 return ReturnAmmoBankSupply(player, request);
+            case NetworkRequestOperation.TraderVoidSell:
+                return TraderTransactionService.ExecuteVoidSell(player, sender?.latestPlayerData, request);
             default:
                 return Failure(request, "UnsupportedOperation");
         }
@@ -866,6 +868,7 @@ internal static class NetworkRpcServer
             || left.Count != right.Count || left.OriginalRequestId != right.OriginalRequestId || !left.Position.Equals(right.Position)
             || left.ConsumptionSource != right.ConsumptionSource
             || left.RestockSetting != right.RestockSetting || left.RestockSettingValue != right.RestockSettingValue
+            || left.TraderNetworkSource != right.TraderNetworkSource
             || !string.Equals(left.ExpectedNetworkId, right.ExpectedNetworkId, StringComparison.OrdinalIgnoreCase)
             || !string.Equals(left.Category, right.Category, StringComparison.Ordinal)
             || !string.Equals(left.Search, right.Search, StringComparison.Ordinal)
@@ -909,6 +912,7 @@ internal static class NetworkRpcServer
             Requirements = request.Requirements?.Select(item => new ItemStack(item.itemValue.Clone(), item.count)).ToList() ?? new List<ItemStack>(),
             RestockSetting = request.RestockSetting,
             RestockSettingValue = request.RestockSettingValue,
+            TraderNetworkSource = request.TraderNetworkSource,
             RestockToolbeltSlots = request.RestockToolbeltSlots?.ToList() ?? new List<int>(),
             RestockBackpackSlots = request.RestockBackpackSlots?.ToList() ?? new List<int>()
         };

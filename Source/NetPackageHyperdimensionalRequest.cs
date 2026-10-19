@@ -54,6 +54,7 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         }
         _request.RestockSetting = (RestockSettingKey)reader.ReadByte();
         _request.RestockSettingValue = reader.ReadInt32();
+        _request.TraderNetworkSource = reader.ReadBoolean();
         ReadSlotList(reader, _request.RestockToolbeltSlots);
         ReadSlotList(reader, _request.RestockBackpackSlots);
     }
@@ -89,6 +90,7 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
             }
         binary.Write((byte)_request.RestockSetting);
         binary.Write(_request.RestockSettingValue);
+        binary.Write(_request.TraderNetworkSource);
         WriteSlotList(binary, _request.RestockToolbeltSlots);
         WriteSlotList(binary, _request.RestockBackpackSlots);
     }
@@ -112,7 +114,7 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         int valueBytes = _request?.Value == null ? 0 : 128;
         int requirementsBytes = (_request?.Requirements?.Count ?? 0) * 512;
         int slotBytes = ((_request?.RestockToolbeltSlots?.Count ?? 0) + (_request?.RestockBackpackSlots?.Count ?? 0)) * sizeof(int);
-        return 64 + Encoding.UTF8.GetByteCount(_request?.ExpectedNetworkId ?? string.Empty)
+        return 65 + Encoding.UTF8.GetByteCount(_request?.ExpectedNetworkId ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_request?.Category ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_request?.Search ?? string.Empty) + valueBytes + requirementsBytes + slotBytes;
     }

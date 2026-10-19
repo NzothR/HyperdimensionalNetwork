@@ -9,6 +9,12 @@ HyperdimensionalNetworkManualRestock,Restock existing stacks,补充已有堆叠
 HyperdimensionalNetworkSettings,Network settings,网络设置
 HyperdimensionalNetworkSettingsTitle,Network Settings,网络设置
 HyperdimensionalNetworkSettingsHint,Restock and search settings apply only to you. Network feature switches are administrator-only.,补货与搜索设置只影响你自己。网络功能开关仅管理员可见和设置。
+HyperdimensionalNetworkTraderSellMode,Toggle network sale buttons,切换网络出售按钮
+HyperdimensionalNetworkTraderSellItem,Sell this network stack,出售此网络物品堆
+HyperdimensionalNetworkTraderSellModeOn,Sale mode enabled. Sell buttons are shown on sellable network items.,已开启出售模式。可出售的网络物品旁将显示出售按钮。
+HyperdimensionalNetworkTraderSellModeOff,Virtual trader sale mode disabled.,已关闭虚空商人出售模式。
+HyperdimensionalNetworkTraderSaleComplete,Virtual trader sale complete. Proceeds deposited to network:,虚空商人出售完成，收益已存入网络：
+HyperdimensionalNetworkTraderSaleFailed,Sale failed,出售失败
 HyperdimensionalNetworkSettingAutoRestock,Automatic restock,自动补货
 HyperdimensionalNetworkSettingAutoRestockTarget,Restock range,补货范围
 HyperdimensionalNetworkSettingOn,On,开启

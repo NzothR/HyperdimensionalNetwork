@@ -13,8 +13,9 @@
           <button depth="4" name="btnHyperdimensionalCraftingChain" pos="25,-22" style="icon30px, press, hover" sprite="hdn_crafting_chain" atlas="SymbolAtlas" tooltip_key="HyperdimensionalNetworkCraftingChain" pivot="center" sound="[paging_click]" />
           <button depth="4" name="btnHyperdimensionalRestock" pos="65,-22" style="icon30px, press, hover" sprite="hdn_manual_restock" atlas="SymbolAtlas" tooltip_key="HyperdimensionalNetworkManualRestock" pivot="center" sound="[paging_click]" />
           <button depth="4" name="btnHyperdimensionalSettings" pos="105,-22" style="icon30px, press, hover" sprite="hdn_settings" atlas="SymbolAtlas" tooltip_key="HyperdimensionalNetworkSettings" pivot="center" sound="[paging_click]" />
-          <panel name="searchInputControls" pos="144,0" width="260" disableautobackground="true">
-            <textfield depth="5" pos="0,-7" width="260" height="30" name="searchInput" focus_on_open="true" search_field="true" close_group_on_tab="true" clear_button="true" />
+          <button depth="4" name="btnHyperdimensionalTraderSell" pos="145,-22" style="icon30px, press, hover" sprite="ui_game_symbol_coin" tooltip_key="HyperdimensionalNetworkTraderSellMode" pivot="center" sound="[paging_click]" />
+          <panel name="searchInputControls" pos="184,0" width="220" disableautobackground="true">
+            <textfield depth="5" pos="0,-7" width="220" height="30" name="searchInput" focus_on_open="true" search_field="true" close_group_on_tab="true" clear_button="true" />
           </panel>
           <panel name="pagerControls" pos="404,0" width="118" height="43" disableautobackground="true">
             <pager name="pager" pos="7,-6" contents_parent="content" />
@@ -43,7 +44,9 @@
           </grid>
         </rect>
         <grid depth="10" name="queue" rows="9" cols="7" pos="101,-97" cell_width="75" cell_height="75" repeat_content="true" controller="HyperdimensionalNetwork.XUiC_HyperdimensionalGrid,HyperdimensionalNetwork">
-          <item_stack name="0" controller="HyperdimensionalNetwork.XUiC_HyperdimensionalSlot,HyperdimensionalNetwork" on_scroll="true" allow_dropping="true" prefix_id="true" show_favorites="true" />
+          <item_stack name="0" controller="HyperdimensionalNetwork.XUiC_HyperdimensionalSlot,HyperdimensionalNetwork" on_scroll="true" allow_dropping="true" prefix_id="true" show_favorites="true">
+            <button depth="20" name="btnNetworkItemSell" pos="49,-2" width="22" height="22" style="press, hover" sprite="ui_game_symbol_coin" tooltip_key="HyperdimensionalNetworkTraderSellItem" visible="false" pivot="center" sound="[paging_click]" />
+          </item_stack>
         </grid>
         <sprite depth="8" name="backgroundMain" pos="98,-97" width="528" height="675" sprite="menu_empty3px" color="[black]" type="sliced" fillcenter="false" on_press="true" gamepad_selectable="false" />
         <rect depth="30" name="restockSettingsPanel" pos="101,-97" width="522" height="675">

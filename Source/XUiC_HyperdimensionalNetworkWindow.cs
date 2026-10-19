@@ -66,6 +66,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         _retainSearchButton = GetChildById("btnToggleRetainSearch");
         _settingsStatus = GetChildById("restockSettingsStatus");
         BindPress("btnHyperdimensionalCraftingChain", OnCraftingChainPressed);
+        BindPress("btnHyperdimensionalTraderSell", OnTraderSellPressed);
         BindPress("btnHyperdimensionalRestock", OnManualRestockPressed);
         BindPress("btnHyperdimensionalSettings", OnSettingsPressed);
         BindPress("btnRestockSettingsClose", OnCloseSettingsPressed);
@@ -98,6 +99,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
 
     public override void OnClose()
     {
+        TraderTransactionService.DisableVoidSaleMode();
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
         if (_search != null && !AutoRestockClient.ShouldRetainSearchOnClose(player))
         {
@@ -132,6 +134,14 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
             _grid?.Reload();
         });
         if (!sent) NetworkLog.Debug("Manual restock was not queued because an inventory transaction is pending. player=" + player.entityId);
+    }
+
+    private void OnTraderSellPressed(XUiController sender, int mouseButton)
+    {
+        bool enabled = TraderTransactionService.ToggleVoidSaleMode();
+        EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
+        if ((bool)player)
+            GameManager.ShowTooltip(player, Localization.Get(enabled ? "HyperdimensionalNetworkTraderSellModeOn" : "HyperdimensionalNetworkTraderSellModeOff"), false, false, 0f);
     }
 
     private void OnCraftingChainPressed(XUiController sender, int mouseButton)

@@ -28,7 +28,8 @@ internal enum NetworkRequestOperation : byte
     ManualRestock = 17,
     AutomaticRestock = 18,
     AmmoBankReload = 19,
-    AmmoBankRefund = 20
+    AmmoBankRefund = 20,
+    TraderVoidSell = 21
 }
 
 internal enum NetworkConsumptionSource : byte
@@ -84,6 +85,7 @@ internal sealed class NetworkRemoteRequest
     public List<ItemStack> Requirements = new List<ItemStack>();
     public RestockSettingKey RestockSetting;
     public int RestockSettingValue;
+    public bool TraderNetworkSource;
     public List<int> RestockToolbeltSlots = new List<int>();
     public List<int> RestockBackpackSlots = new List<int>();
 }
@@ -415,6 +417,20 @@ internal static class NetworkRemoteClient
         request.Count = count;
         request.OriginalRequestId = originalRequestId;
         return Send(player, request, false, false, false, callback);
+    }
+
+    public static bool RequestTraderVoidSell(EntityPlayerLocal player, ItemValue value, int count, bool networkSource,
+        XUiC_ItemStack.StackLocationTypes sourceLocation, int slot, Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player || value == null || value.type <= 0 || count <= 0 || slot < 0) return false;
+        NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.TraderVoidSell);
+        request.Value = value.Clone();
+        request.Count = count;
+        request.TraderNetworkSource = networkSource;
+        request.SourceLocation = sourceLocation;
+        request.Slot = slot;
+        return Send(player, request, sourceLocation == XUiC_ItemStack.StackLocationTypes.ToolBelt && !networkSource,
+            sourceLocation == XUiC_ItemStack.StackLocationTypes.Backpack && !networkSource, false, callback);
     }
 
     public static bool ReturnCraftingChainAuthorization(EntityPlayerLocal player, long originalRequestId,
