@@ -11,6 +11,7 @@
     <Reference Include="Assembly-CSharp"><HintPath>..\..\Lib\refs\Assembly-CSharp.dll</HintPath></Reference>
     <Reference Include="0Harmony"><HintPath>..\..\Lib\refs\0Harmony.dll</HintPath></Reference>
     <Reference Include="UnityEngine.CoreModule"><HintPath>..\..\Lib\refs\UnityEngine.CoreModule.dll</HintPath></Reference>
+    <Reference Include="UnityEngine.InputLegacyModule"><HintPath>..\..\Lib\refs\UnityEngine.InputLegacyModule.dll</HintPath></Reference>
     <Reference Include="UnityEngine.AnimationModule"><HintPath>..\..\Lib\refs\UnityEngine.AnimationModule.dll</HintPath></Reference>
     <Reference Include="NGUI"><HintPath>..\..\Lib\refs\NGUI.dll</HintPath></Reference>
     <Reference Include="LogLibrary"><HintPath>..\..\Lib\refs\LogLibrary.dll</HintPath></Reference>
