@@ -41,6 +41,7 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         _request.Count = reader.ReadInt32();
         _request.Slot = reader.ReadInt32();
         _request.Position = StreamUtils.ReadVector3i(reader);
+        _request.TargetEntityId = reader.ReadInt32();
         _request.ConsumptionSource = (NetworkConsumptionSource)reader.ReadByte();
         int requirementCount = reader.ReadInt32();
         if (requirementCount < 0 || requirementCount > 128) throw new InvalidDataException("Invalid network material requirement count: " + requirementCount);
@@ -90,6 +91,7 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         binary.Write(_request.Count);
         binary.Write(_request.Slot);
         StreamUtils.Write(writer, _request.Position);
+        binary.Write(_request.TargetEntityId);
         binary.Write((byte)_request.ConsumptionSource);
         int requirementCount = _request.Requirements?.Count ?? 0;
         if (requirementCount > 128) throw new InvalidDataException("Too many network material requirements: " + requirementCount);
@@ -139,7 +141,7 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         int valueBytes = _request?.Value == null ? 0 : 128;
         int requirementsBytes = (_request?.Requirements?.Count ?? 0) * 512;
         int slotBytes = ((_request?.RestockToolbeltSlots?.Count ?? 0) + (_request?.RestockBackpackSlots?.Count ?? 0)) * sizeof(int);
-        return 96 + Encoding.UTF8.GetByteCount(_request?.ExpectedNetworkId ?? string.Empty)
+        return 100 + Encoding.UTF8.GetByteCount(_request?.ExpectedNetworkId ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_request?.Category ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_request?.Search ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_request?.TraderSessionId ?? string.Empty)

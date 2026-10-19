@@ -5,6 +5,24 @@ namespace HyperdimensionalNetwork;
 
 internal static class NetworkInventorySync
 {
+    public static bool ApplyLootBag(EntityLootContainer lootBag, byte[] data)
+    {
+        if (!(bool)lootBag || lootBag.bag == null || data == null || data.Length == 0) return false;
+        try
+        {
+            using (MemoryStream snapshot = new MemoryStream(data, writable: false))
+                StreamUtils.FromBlob(snapshot, reader => lootBag.bag.ReadInto(reader, StreamModeRead.FromServer));
+            NetworkStackCompatibility.RestoreExtendedCounts(NetworkStackCompatibility.GetSlots(lootBag.bag));
+            NetworkLog.Debug("Server-confirmed zombie loot bag snapshot applied. entity=" + lootBag.entityId + "; bytes=" + data.Length);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            NetworkLog.Error("Could not apply the server-confirmed zombie loot bag snapshot. entity=" + lootBag.entityId + "; exception=" + ex);
+            return false;
+        }
+    }
+
     public static bool Apply(EntityPlayerLocal player, NetworkRemoteResult result, bool suppressRestockEvents = false)
     {
         if (!(bool)player || result == null) return false;

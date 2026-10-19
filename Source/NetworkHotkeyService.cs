@@ -80,10 +80,22 @@ internal static class NetworkHotkeyService
     {
         GUIWindowManager manager = playerUI.windowManager;
         string lootWindowId = XUiC_LootWindowGroup.ID;
-        if (!manager.IsWindowOpen(lootWindowId)) return;
+        if (manager.IsWindowOpen(lootWindowId))
+        {
+            XUiC_LootWindow window = playerUI.xui.FindWindowGroupByName(lootWindowId)?.GetChildByType<XUiC_LootWindow>();
+            bool started = ContainerDepositPatch.DepositLootFromWindow(window);
+            NetworkLog.Debug("Container deposit hotkey processed. player=" + playerUI.entityPlayer.entityId + "; started=" + started);
+            return;
+        }
 
-        XUiC_LootWindow window = playerUI.xui.FindWindowGroupByName(lootWindowId)?.GetChildByType<XUiC_LootWindow>();
-        bool started = ContainerDepositPatch.DepositLootFromWindow(window);
-        NetworkLog.Debug("Container deposit hotkey processed. player=" + playerUI.entityPlayer.entityId + "; started=" + started);
+        string bagWindowId = XUiC_BagStorageWindowGroup.ID;
+        if (string.IsNullOrEmpty(bagWindowId) || !manager.IsWindowOpen(bagWindowId)) return;
+        XUiController groupController = playerUI.xui.FindWindowGroupByName(bagWindowId);
+        XUiC_BagStorageWindowGroup bagWindow = groupController?.GetChildByType<XUiC_BagStorageWindowGroup>();
+        if (!(bagWindow?.Entity is EntityLootContainer)) return;
+        XUiC_BagContainer bagContainer = bagWindow.GetChildByType<XUiC_BagContainer>();
+        bool bagStarted = ContainerDepositPatch.DepositLootBagFromWindow(bagContainer);
+        NetworkLog.Debug("Zombie loot bag deposit hotkey processed. player=" + playerUI.entityPlayer.entityId
+            + "; lootBag=" + bagWindow.Entity.entityId + "; started=" + bagStarted);
     }
 }

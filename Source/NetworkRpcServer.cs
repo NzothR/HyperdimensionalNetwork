@@ -179,6 +179,8 @@ internal static class NetworkRpcServer
                 return DepositBackpackAll(player, sender?.latestPlayerData, request);
             case NetworkRequestOperation.DepositLootAll:
                 return DepositLootAll(world, player, request);
+            case NetworkRequestOperation.DepositLootBagAll:
+                return DepositLootBagAll(world, player, request);
             case NetworkRequestOperation.WithdrawCursor:
             case NetworkRequestOperation.WithdrawBackpack:
                 return Withdraw(player, sender?.latestPlayerData, request);
@@ -361,13 +363,22 @@ internal static class NetworkRpcServer
         TEFeatureStorage storage = tileEntity?.GetSelfOrFeature<TEFeatureStorage>();
         if (storage == null || !PlayerHoldsLootLock(player.entityId, storage)) return Failure(request, "LootContainerUnavailable");
         Vector3 center = storage.ToWorldPos().ToVector3() + Vector3.one * 0.5f;
-        if ((player.position - center).sqrMagnitude > 64f) return Failure(request, "OutOfRange");
+        float interactDistance = Constants.cPlayerInteractDistance;
+        float distanceSq = (player.position - center).sqrMagnitude;
+        if (distanceSq > interactDistance * interactDistance)
+        {
+            NetworkLog.Debug("Remote loot container deposit rejected by the vanilla interaction-distance check. player=" + player.entityId
+                + "; position=" + request.Position + "; distance=" + Math.Sqrt(distanceSq) + "; maximum=" + interactDistance);
+            return Failure(request, "OutOfRange");
+        }
 
         List<StorageAddition> additions = new List<StorageAddition>();
         List<KeyValuePair<int, ItemStack>> originalStacks = new List<KeyValuePair<int, ItemStack>>();
         NetworkStackCompatibility.RestoreExtendedCounts(NetworkStackCompatibility.GetSlots(storage.ItemGrid));
+        PackedBoolArray lockedSlots = storage.ItemGrid.SlotLocks;
         for (int i = 0; i < storage.ItemGrid.Length; i++)
         {
+            if (lockedSlots != null && i < lockedSlots.Length && lockedSlots[i]) continue;
             ItemStack stack = storage.ItemGrid[i];
             if (stack == null || stack.IsEmpty()) continue;
             ItemStack clone = stack.Clone();
@@ -381,7 +392,8 @@ internal static class NetworkRpcServer
         try
         {
             for (int i = 0; i < storage.ItemGrid.Length; i++)
-                if (storage.ItemGrid[i] == null || !storage.ItemGrid[i].IsEmpty()) storage.UpdateSlot(i, ItemStack.Empty.Clone());
+                if ((lockedSlots == null || i >= lockedSlots.Length || !lockedSlots[i])
+                    && (storage.ItemGrid[i] == null || !storage.ItemGrid[i].IsEmpty())) storage.UpdateSlot(i, ItemStack.Empty.Clone());
             storage.SetModified();
             committed = true;
         }
@@ -398,6 +410,89 @@ internal static class NetworkRpcServer
         }
         if (!committed) return Failure(request, "LootContainerCommitFailed");
         return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Amount = additions.Sum(entry => (int)Math.Min(entry.Count, int.MaxValue)) };
+    }
+
+    private static NetworkRemoteResult DepositLootBagAll(World world, EntityPlayer player, NetworkRemoteRequest request)
+    {
+        EntityLootContainer lootBag = world.GetEntity(request.TargetEntityId) as EntityLootContainer;
+        if (lootBag?.bag == null || !PlayerHoldsLootLock(player.entityId, lootBag))
+            return Failure(request, "LootBagUnavailable");
+
+        float interactDistance = Constants.cPlayerInteractDistance;
+        float distanceSq = lootBag.GetDistanceSq(player);
+        if (distanceSq > interactDistance * interactDistance)
+        {
+            NetworkLog.Debug("Remote zombie loot bag deposit rejected by the vanilla interaction-distance check. player=" + player.entityId
+                + "; lootBag=" + lootBag.entityId + "; distance=" + Math.Sqrt(distanceSq) + "; maximum=" + interactDistance);
+            return Failure(request, "OutOfRange");
+        }
+
+        Bag bag = lootBag.bag;
+        NetworkStackCompatibility.RestoreExtendedCounts(NetworkStackCompatibility.GetSlots(bag));
+        List<StorageAddition> additions = new List<StorageAddition>();
+        List<KeyValuePair<int, ItemStack>> originalStacks = new List<KeyValuePair<int, ItemStack>>();
+        PackedBoolArray lockedSlots = bag.LockedSlots;
+        for (int i = 0; i < bag.SlotCount; i++)
+        {
+            if (lockedSlots != null && i < lockedSlots.Length && lockedSlots[i]) continue;
+            ItemStack stack = bag.ItemGrid[i];
+            if (stack == null || stack.IsEmpty()) continue;
+            ItemStack clone = stack.Clone();
+            originalStacks.Add(new KeyValuePair<int, ItemStack>(i, clone));
+            additions.Add(new StorageAddition { Value = clone.itemValue.Clone(), Count = clone.count });
+        }
+        if (additions.Count == 0) return Failure(request, "NoItems");
+        if (!NetworkStorage.AddBatch(player, additions)) return Failure(request, "StorageCommitFailed");
+
+        byte[] updatedBag;
+        bool committed = false;
+        try
+        {
+            for (int i = 0; i < bag.SlotCount; i++)
+                if ((lockedSlots == null || i >= lockedSlots.Length || !lockedSlots[i])
+                    && (bag.ItemGrid[i] == null || !bag.ItemGrid[i].IsEmpty())) bag.SetSlot(i, ItemStack.Empty.Clone());
+            bag.ItemGrid.Touch();
+            updatedBag = WriteLootBag(bag);
+            committed = true;
+        }
+        finally
+        {
+            if (!committed)
+            {
+                if (!NetworkStorage.RemoveBatch(player, additions))
+                    NetworkLog.Error("Could not compensate network items after a zombie loot bag update failure. player=" + player.entityId + "; requestId=" + request.RequestId);
+                foreach (KeyValuePair<int, ItemStack> original in originalStacks)
+                {
+                    try
+                    {
+                        if (original.Key < bag.SlotCount) bag.SetSlot(original.Key, original.Value);
+                    }
+                    catch (Exception ex)
+                    {
+                        NetworkLog.Error("Zombie loot bag rollback could not restore a slot. entity=" + lootBag.entityId + "; slot=" + original.Key + "; exception=" + ex);
+                    }
+                }
+                try { bag.ItemGrid.Touch(); }
+                catch (Exception ex) { NetworkLog.Error("Zombie loot bag rollback could not refresh its inventory state. entity=" + lootBag.entityId + "; exception=" + ex); }
+            }
+        }
+
+        NetworkLog.Debug("Zombie loot bag deposited into network. player=" + player.entityId + "; lootBag=" + lootBag.entityId
+            + "; variants=" + additions.Count + "; total=" + additions.Sum(item => item.Count) + "; requestId=" + request.RequestId);
+        return new NetworkRemoteResult
+        {
+            RequestId = request.RequestId,
+            Success = true,
+            Amount = additions.Sum(entry => (int)Math.Min(entry.Count, int.MaxValue)),
+            LootBagData = updatedBag
+        };
+    }
+
+    private static byte[] WriteLootBag(Bag bag)
+    {
+        List<ItemValue> writeMetadata = NetworkStackCompatibility.PrepareForWrite(NetworkStackCompatibility.GetSlots(bag));
+        try { return StreamUtils.ToBlob(writer => bag.Write(writer, StreamModeWrite.ToClient)).ToArray(); }
+        finally { NetworkStackCompatibility.ClearWriteMetadata(writeMetadata); }
     }
 
     private static NetworkRemoteResult Withdraw(EntityPlayer player, PlayerDataFile playerData, NetworkRemoteRequest request)
@@ -928,13 +1023,13 @@ internal static class NetworkRpcServer
         finally { NetworkStackCompatibility.ClearWriteMetadata(writeMetadata); }
     }
 
-    private static bool PlayerHoldsLootLock(int playerEntityId, TEFeatureStorage storage)
+    private static bool PlayerHoldsLootLock(int playerEntityId, ILockTarget target)
     {
         LockManager manager = LockManager.Instance;
-        return manager != null && (HasLock(manager.singleLocks, playerEntityId, storage) || HasLock(manager.sharedLocks, playerEntityId, storage));
+        return manager != null && (HasLock(manager.singleLocks, playerEntityId, target) || HasLock(manager.sharedLocks, playerEntityId, target));
     }
 
-    private static bool HasLock(object locks, int playerEntityId, TEFeatureStorage storage)
+    private static bool HasLock(object locks, int playerEntityId, ILockTarget target)
     {
         if (locks == null) return false;
         System.Reflection.MethodInfo lookup = locks.GetType().GetMethods()
@@ -946,9 +1041,9 @@ internal static class NetworkRpcServer
         foreach (object entry in entries)
         {
             Type type = entry.GetType();
-            object target = type.GetField("Target")?.GetValue(entry) ?? type.GetProperty("Target")?.GetValue(entry, null);
+            object lockTarget = type.GetField("Target")?.GetValue(entry) ?? type.GetProperty("Target")?.GetValue(entry, null);
             object channel = type.GetField("Channel")?.GetValue(entry) ?? type.GetProperty("Channel")?.GetValue(entry, null);
-            if (ReferenceEquals(target, storage) && channel is ushort value && value == 0) return true;
+            if (ReferenceEquals(lockTarget, target) && channel is ushort value && value == 0) return true;
         }
         return false;
     }
@@ -962,7 +1057,7 @@ internal static class NetworkRpcServer
             || left.TraderNetworkSource != right.TraderNetworkSource
             || left.TraderPersonalPayout != right.TraderPersonalPayout || left.TraderBuyToBackpack != right.TraderBuyToBackpack || left.TraderAutomation != right.TraderAutomation
             || left.TraderRuleMove != right.TraderRuleMove || !string.Equals(left.TraderRuleId, right.TraderRuleId, StringComparison.Ordinal)
-            || left.TraderEntityId != right.TraderEntityId || left.TraderInventoryIndex != right.TraderInventoryIndex
+            || left.TraderEntityId != right.TraderEntityId || left.TraderInventoryIndex != right.TraderInventoryIndex || left.TargetEntityId != right.TargetEntityId
             || !string.Equals(left.TraderSessionId, right.TraderSessionId, StringComparison.Ordinal)
             || !string.Equals(left.ExpectedNetworkId, right.ExpectedNetworkId, StringComparison.OrdinalIgnoreCase)
             || !string.Equals(left.MembershipTargetPlayerId, right.MembershipTargetPlayerId, StringComparison.Ordinal)
@@ -1006,6 +1101,7 @@ internal static class NetworkRpcServer
             Count = request.Count,
             Slot = request.Slot,
             Position = request.Position,
+            TargetEntityId = request.TargetEntityId,
             ConsumptionSource = request.ConsumptionSource,
             Requirements = request.Requirements?.Select(item => new ItemStack(item.itemValue.Clone(), item.count)).ToList() ?? new List<ItemStack>(),
             RestockSetting = request.RestockSetting,
@@ -1043,6 +1139,7 @@ internal static class NetworkRpcServer
             Entries = result.Entries?.Select(entry => new StoredEntry { Value = entry.Value.Clone(), Count = entry.Count }).ToList() ?? new List<StoredEntry>(),
             BagData = result.BagData == null ? null : (byte[])result.BagData.Clone(),
             InventoryData = result.InventoryData == null ? null : (byte[])result.InventoryData.Clone(),
+            LootBagData = result.LootBagData == null ? null : (byte[])result.LootBagData.Clone(),
             RestockSettingsLoaded = result.RestockSettingsLoaded,
             AutoRestockEnabled = result.AutoRestockEnabled,
             RestockTargetMode = result.RestockTargetMode,

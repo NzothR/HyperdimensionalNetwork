@@ -11,7 +11,17 @@ internal static class ContainerDepositPatch
     public static void InitPostfix(XUiC_ContainerStandardControls __instance)
     {
         XUiController lootButton = __instance.GetChildById("btnHyperdimensionalLootAll");
-        if (lootButton != null) lootButton.OnPress += (sender, mouse) => DepositLootFromWindow(FindParent<XUiC_LootWindow>(__instance));
+        if (lootButton != null) lootButton.OnPress += (sender, mouse) =>
+        {
+            XUiC_LootWindow lootWindow = FindParent<XUiC_LootWindow>(__instance);
+            if (lootWindow != null)
+            {
+                DepositLootFromWindow(lootWindow);
+                return;
+            }
+            XUiC_BagContainer bagContainer = FindParent<XUiC_BagContainer>(__instance);
+            if (bagContainer != null) DepositLootBagFromWindow(bagContainer);
+        };
         XUiController backpackButton = __instance.GetChildById("btnHyperdimensionalBackpackAll");
         if (backpackButton != null) backpackButton.OnPress += (sender, mouse) => DepositBackpack(FindParent<XUiC_BackpackWindow>(__instance));
     }
@@ -45,11 +55,51 @@ internal static class ContainerDepositPatch
             }
             return queued;
         }
-        bool moved = DepositGrid(window?.xui, grid, null);
+        bool moved = DepositGrid(window?.xui, grid, grid.localTileEntity?.ItemGrid.SlotLocks);
         XUiC_ContainerStandardControls controls = window?.GetChildByType<XUiC_ContainerStandardControls>();
         if (controls?.MoveAllDone != null) controls.MoveAllDone(true, moved);
         NetworkLog.Debug("Quick deposit from container completed. moved=" + moved);
         return moved;
+    }
+
+    internal static bool DepositLootBagFromWindow(XUiC_BagContainer bagContainer)
+    {
+        EntityPlayer player = bagContainer?.xui?.playerUI?.entityPlayer;
+        Bag bag = bagContainer?.Bag;
+        XUiController groupController = bagContainer?.xui?.FindWindowGroupByName(XUiC_BagStorageWindowGroup.ID);
+        XUiC_BagStorageWindowGroup group = groupController?.GetChildByType<XUiC_BagStorageWindowGroup>();
+        EntityLootContainer lootBag = group?.Entity as EntityLootContainer;
+        if (!(bool)player || bag == null || lootBag?.bag == null || !ReferenceEquals(bag, lootBag.bag)) return false;
+
+        if (NetworkRemoteClient.IsRemoteClient)
+        {
+            bool queued = NetworkRemoteClient.DepositLootBagAll(player, lootBag.entityId, result =>
+            {
+                bool moved = result.Success && result.Amount > 0;
+                if (result.Success)
+                {
+                    if (NetworkInventorySync.ApplyLootBag(lootBag, result.LootBagData)) bagContainer.OnBagItemChangedInternal();
+                    else NetworkLog.Error("Loot bag deposit succeeded but its server snapshot could not be applied. entity=" + lootBag.entityId + "; requestId=" + result.RequestId);
+                    NetworkLog.Debug("Remote zombie loot bag deposit confirmed. entity=" + lootBag.entityId + "; amount=" + result.Amount + "; requestId=" + result.RequestId);
+                }
+                else NetworkLog.Debug("Remote zombie loot bag deposit rejected. entity=" + lootBag.entityId + "; error=" + result.Error + "; requestId=" + result.RequestId);
+                XUiC_ContainerStandardControls controls = bagContainer.GetChildByType<XUiC_ContainerStandardControls>();
+                if (controls?.MoveAllDone != null) controls.MoveAllDone(true, moved);
+            });
+            if (!queued)
+            {
+                XUiC_ContainerStandardControls controls = bagContainer.GetChildByType<XUiC_ContainerStandardControls>();
+                if (controls?.MoveAllDone != null) controls.MoveAllDone(true, false);
+                NetworkLog.Error("Remote zombie loot bag deposit could not be queued; the bag was left unchanged. entity=" + lootBag.entityId);
+            }
+            return queued;
+        }
+
+        bool localMoved = DepositGrid(bagContainer.xui, bagContainer, bag.LockedSlots);
+        XUiC_ContainerStandardControls localControls = bagContainer.GetChildByType<XUiC_ContainerStandardControls>();
+        if (localControls?.MoveAllDone != null) localControls.MoveAllDone(true, localMoved);
+        NetworkLog.Debug("Local zombie loot bag deposit completed. entity=" + lootBag.entityId + "; moved=" + localMoved);
+        return localMoved;
     }
 
     private static void DepositBackpack(XUiC_BackpackWindow window)
