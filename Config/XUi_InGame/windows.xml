@@ -885,15 +885,6 @@
           <label depth="10" name="craftingChainStartLabel" pos="650,-720" width="104" height="27" font_size="19" justify="center" text_key="HyperdimensionalNetworkCraftingChainStart" color="190,240,250,255" effect="Outline8" effect_color="0,0,0,255" effect_distance="1,1" />
           <button depth="9" name="btnCraftingChainCancel" pos="766,-716" width="104" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="54,32,43,255" hovercolor="120,52,68,255" selectedcolor="145,65,82,255" disabledcolor="50,45,50,180" sound="[paging_click]" tooltip_key="xuiClose" />
           <label depth="10" name="craftingChainCancelLabel" pos="766,-720" width="104" height="27" font_size="19" justify="center" text_key="xuiClose" color="255,220,215,255" effect="Outline8" effect_color="0,0,0,255" effect_distance="1,1" />
-          <rect depth="40" name="craftingChainConfirmCancel" pos="290,-275" width="320" height="180" visible="false">
-            <sprite depth="1" name="confirmCancelBackground" width="320" height="180" sprite="menu_empty" color="8,16,27,255" type="sliced" foregroundlayer="true" globalopacitymod="0" />
-            <sprite depth="2" name="confirmCancelFrame" width="320" height="180" sprite="menu_empty2px" color="55,145,180,255" type="sliced" fillcenter="false" />
-            <label depth="3" name="craftingChainConfirmCancelText" pos="15,-25" width="290" height="60" font_size="19" justify="center" text_key="HyperdimensionalNetworkCraftingChainConfirmCancel" color="205,225,235,255" effect="Outline8" effect_color="0,0,0,255" effect_distance="1,1" />
-            <button depth="3" name="btnCraftingChainConfirmCancelYes" pos="35,-115" width="110" height="40" style="press, hover" sprite="menu_empty3px" defaultcolor="100,45,40,255" hovercolor="145,60,50,255" sound="[paging_click]" />
-            <label depth="4" name="craftingChainConfirmCancelYesLabel" pos="35,-119" width="110" height="32" font_size="18" justify="center" text_key="xuiYes" />
-            <button depth="3" name="btnCraftingChainConfirmCancelNo" pos="175,-115" width="110" height="40" style="press, hover" sprite="menu_empty3px" defaultcolor="55,65,75,255" hovercolor="80,95,110,255" sound="[paging_click]" />
-            <label depth="4" name="craftingChainConfirmCancelNoLabel" pos="175,-119" width="110" height="32" font_size="18" justify="center" text_key="xuiNo" />
-          </rect>
         </rect>
       </rect>
     </window>

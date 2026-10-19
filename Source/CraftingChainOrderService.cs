@@ -65,6 +65,9 @@ internal static class CraftingChainOrderService
     {
         public XUi xui;
         public EntityPlayerLocal player;
+        public World World;
+        public bool WorldClosing;
+        public bool RemoteClient;
         public string RootRecipeKey;
         public string TrackedTargetKey;
         public string NetworkId;
@@ -100,6 +103,55 @@ internal static class CraftingChainOrderService
     private static readonly Dictionary<int, string> LastStatuses = new Dictionary<int, string>();
     private static readonly Dictionary<int, float> LastElapsedSeconds = new Dictionary<int, float>();
 
+    private static bool TryGetLiveOrder(EntityPlayer player, out Order order)
+    {
+        order = null;
+        return (bool)player && Orders.TryGetValue(player.entityId, out order)
+            && !order.WorldClosing && ReferenceEquals(order.World, GameManager.Instance?.World);
+    }
+
+    public static void OnWorldShuttingDown()
+    {
+        foreach (Order order in Orders.Values.ToList())
+        {
+            order.WorldClosing = true;
+            try
+            {
+                NetworkLog.Debug("Crafting-chain cancelling order because its world is closing. player="
+                    + order.player.entityId + "; root=" + order.RootRecipeKey);
+                if (!order.PendingReservation && !order.ReturnPending && !order.ReturnInFlight)
+                    CancelOrder(order, "world-shutdown");
+            }
+            catch (Exception exception)
+            {
+                NetworkLog.Error("Crafting-chain world-exit cancellation failed safely. player="
+                    + order.player.entityId + "; exception=" + exception);
+            }
+            finally
+            {
+                DetachTrackingHandler(order);
+                // Let an already-sent remote refund finish against the original network.
+                // The new-world hook removes anything still pending after disconnect.
+                if (!order.RemoteClient || !order.ReturnPending && !order.ReturnInFlight)
+                    Orders.Remove(order.player.entityId);
+            }
+        }
+        LastPumpFrameByPlayer.Clear();
+        LastStatuses.Clear();
+        LastElapsedSeconds.Clear();
+    }
+
+    public static void OnGameStarted()
+    {
+        if (Orders.Count > 0)
+            NetworkLog.Error("Crafting-chain discarded orders left from an earlier world. count=" + Orders.Count);
+        foreach (Order order in Orders.Values.ToList()) DetachTrackingHandler(order);
+        Orders.Clear();
+        LastPumpFrameByPlayer.Clear();
+        LastStatuses.Clear();
+        LastElapsedSeconds.Clear();
+    }
+
     public static bool CanStart(XUi xui, EntityPlayerLocal player, CraftingChainPlanInput input, CraftingChainPlan plan, out string error)
     {
         error = string.Empty;
@@ -117,8 +169,12 @@ internal static class CraftingChainOrderService
         }
         if (Orders.ContainsKey(player.entityId))
         {
-            error = "HyperdimensionalNetworkCraftingChainAlreadyRunning";
-            return false;
+            if (!IsActive(player)) OnGameStarted();
+            else
+            {
+                error = "HyperdimensionalNetworkCraftingChainAlreadyRunning";
+                return false;
+            }
         }
         if (NetworkRemoteClient.IsMutationPending)
         {
@@ -200,6 +256,8 @@ internal static class CraftingChainOrderService
         {
             xui = xui,
             player = player,
+            World = GameManager.Instance?.World,
+            RemoteClient = NetworkRemoteClient.IsRemoteClient,
             RootRecipeKey = plan.RootRecipeKey,
             TrackedTargetKey = GetTrackedRecipeKey(xui),
             NetworkId = NetworkRemoteClient.IsRemoteClient
@@ -247,15 +305,40 @@ internal static class CraftingChainOrderService
             BeginReservedOrder(order, requirements, 0, order.NetworkId);
             return;
         }
-        if (NetworkRemoteClient.IsRemoteClient)
+        if (order.RemoteClient)
         {
             order.PendingReservation = true;
             order.Status = Localization.Get("HyperdimensionalNetworkCraftingChainReserving");
             bool sent = NetworkRemoteClient.RequestConsumption(order.player, requirements,
                 NetworkConsumptionSource.NetworkPreferredPlayerInventory, Vector3i.zero,
-                (NetworkRemoteResult result) => BeginReservedOrder(order, requirements, result.RequestId, result.NetworkId),
+                (NetworkRemoteResult result) =>
+                {
+                    if (!Orders.TryGetValue(order.player.entityId, out Order current)
+                        || !ReferenceEquals(current, order)
+                        || order.WorldClosing || !ReferenceEquals(order.World, GameManager.Instance?.World))
+                    {
+                        List<ItemStack> authorized = result.Entries.Where(entry => entry?.Value != null && entry.Count > 0
+                            && entry.Count <= int.MaxValue)
+                            .Select(entry => new ItemStack(entry.Value.Clone(), (int)entry.Count)).ToList();
+                        if (authorized.Count > 0 && !NetworkRemoteClient.ReturnCraftingChainAuthorization(order.player,
+                            result.RequestId, authorized, 0, out _, refund => NetworkLog.Debug(
+                                "Crafting-chain stale remote reservation refund. player=" + order.player.entityId
+                                + "; success=" + refund.Success + "; error=" + refund.Error)))
+                            NetworkLog.Error("Crafting-chain could not submit stale remote reservation refund. player="
+                                + order.player.entityId + "; requestId=" + result.RequestId);
+                        return;
+                    }
+                    BeginReservedOrder(order, requirements, result.RequestId, result.NetworkId);
+                },
                 failure =>
                 {
+                    if (!Orders.TryGetValue(order.player.entityId, out Order current)
+                        || !ReferenceEquals(current, order) || order.WorldClosing)
+                    {
+                        NetworkLog.Debug("Crafting-chain ignored a stale remote reservation failure. player="
+                            + order.player.entityId + "; reason=" + failure);
+                        return;
+                    }
                     order.PendingReservation = false;
                     FailBeforeReservation(order, failure == "InsufficientMaterials"
                         ? "HyperdimensionalNetworkCraftingChainMissingMaterials" : "HyperdimensionalNetworkCraftingChainPlanFailed",
@@ -270,7 +353,7 @@ internal static class CraftingChainOrderService
     }
 
     public static bool IsActive(EntityPlayer player)
-        => (bool)player && Orders.ContainsKey(player.entityId);
+        => TryGetLiveOrder(player, out _);
 
     public static bool TryGetStatus(EntityPlayer player, out string status, out int currentStep, out int totalSteps, out bool cancellationPending)
     {
@@ -278,7 +361,7 @@ internal static class CraftingChainOrderService
         currentStep = 0;
         totalSteps = 0;
         cancellationPending = false;
-        if (!(bool)player || !Orders.TryGetValue(player.entityId, out Order order)) return false;
+        if (!TryGetLiveOrder(player, out Order order)) return false;
         status = order.Status;
         currentStep = Math.Min(order.StageIndex + (order.StageIndex < order.Stages.Count ? 1 : 0), order.Stages.Count);
         totalSteps = order.Stages.Count;
@@ -302,7 +385,7 @@ internal static class CraftingChainOrderService
     {
         input = null;
         plan = null;
-        if (!(bool)player || !Orders.TryGetValue(player.entityId, out Order order)) return false;
+        if (!TryGetLiveOrder(player, out Order order)) return false;
         input = order.PlanInput;
         plan = order.Plan;
         return input != null && plan != null;
@@ -312,7 +395,7 @@ internal static class CraftingChainOrderService
     {
         elapsed = 0f;
         stages = null;
-        if (!(bool)player || !Orders.TryGetValue(player.entityId, out Order order)) return false;
+        if (!TryGetLiveOrder(player, out Order order)) return false;
         elapsed = Math.Max(0f, UnityEngine.Time.realtimeSinceStartup - order.StartedAt);
         stages = new List<StageProgress>(order.Stages.Count);
         foreach (Stage stage in order.Stages)
@@ -347,7 +430,7 @@ internal static class CraftingChainOrderService
 
     public static bool RequestCancel(EntityPlayer player)
     {
-        if (!(bool)player || !Orders.TryGetValue(player.entityId, out Order order)) return false;
+        if (!TryGetLiveOrder(player, out Order order)) return false;
         if (order.CancelRequested || order.ReturnPending || order.ReturnInFlight) return false;
         order.CancelRequested = true;
         order.Status = Localization.Get("HyperdimensionalNetworkCraftingChainCancelling");
@@ -358,7 +441,7 @@ internal static class CraftingChainOrderService
 
     public static void CancelIfTrackingChanged(EntityPlayer player, string currentRootRecipeKey)
     {
-        if (!(bool)player || !Orders.TryGetValue(player.entityId, out Order order)) return;
+        if (!TryGetLiveOrder(player, out Order order)) return;
         if (order.ReturnPending || order.ReturnInFlight) return;
         if (string.IsNullOrEmpty(currentRootRecipeKey) || !string.Equals(order.TrackedTargetKey, currentRootRecipeKey, StringComparison.Ordinal))
         {
@@ -371,7 +454,7 @@ internal static class CraftingChainOrderService
     public static void Update(XUi xui)
     {
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
-        if (!(bool)player || !Orders.TryGetValue(player.entityId, out Order order)) return;
+        if (!TryGetLiveOrder(player, out Order order)) return;
         if (LastPumpFrameByPlayer.TryGetValue(player.entityId, out int lastFrame) && lastFrame == UnityEngine.Time.frameCount) return;
         LastPumpFrameByPlayer[player.entityId] = UnityEngine.Time.frameCount;
         if (order.CancelRequested)
@@ -555,7 +638,7 @@ internal static class CraftingChainOrderService
     private static bool BeginReservedOrder(Order order, IList<ItemStack> requirements, long reservationRequestId, string reservationNetworkId)
     {
         if (order == null || !Orders.ContainsKey(order.player.entityId)) return false;
-        if (!NetworkRemoteClient.IsRemoteClient && order.NetworkRootOutput > 0
+        if (!order.RemoteClient && order.NetworkRootOutput > 0
             && NetworkStorage.GetMatchingCount(order.player, order.RootOutputValue) < order.NetworkRootOutput)
         {
             FailBeforeReservation(order, "HyperdimensionalNetworkCraftingChainMissingMaterials",
@@ -569,7 +652,7 @@ internal static class CraftingChainOrderService
         List<ItemStack> networkRemoved = new List<ItemStack>();
         if (requirements != null && requirements.Count > 0)
         {
-            if (NetworkRemoteClient.IsRemoteClient)
+            if (order.RemoteClient)
             {
                 using (NetworkRemoteClient.CaptureCraftingChainNetworkConsumption(order.player, networkRemoved))
                 using (Patches.PlayerInventoryConsumePatch.PreferNetworkForChainReservation())
@@ -583,7 +666,7 @@ internal static class CraftingChainOrderService
             }
         }
         bool physicalAlreadyInNetwork = false;
-        if (!NetworkRemoteClient.IsRemoteClient
+        if (!order.RemoteClient
             && !TransitInitialPhysicalInputs(order, removed, networkRemoved, out physicalAlreadyInNetwork))
         {
             AddEscrowItems(order, physicalAlreadyInNetwork ? networkRemoved : removed);
@@ -795,7 +878,8 @@ internal static class CraftingChainOrderService
 
     private static void FailBeforeReservation(Order order, string statusKey, string reason)
     {
-        if (order == null) return;
+        if (order == null || !Orders.TryGetValue(order.player.entityId, out Order current)
+            || !ReferenceEquals(current, order)) return;
         order.Status = Localization.Get(statusKey);
         LastStatuses[order.player.entityId] = order.Status;
         DetachTrackingHandler(order);
@@ -1313,7 +1397,7 @@ internal static class CraftingChainOrderService
     {
         waitingInNetwork = false;
         if (count <= 0) return true;
-        if (NetworkRemoteClient.IsRemoteClient)
+        if (order.RemoteClient)
         {
             // Remote workstation output is still synchronized by the vanilla tile entity.
             // Keep existing orders usable until a server-authoritative transfer RPC is added.
@@ -1337,7 +1421,7 @@ internal static class CraftingChainOrderService
 
     private static void TryCollectNetworkOutput(Order order, Stage stage)
     {
-        if (NetworkRemoteClient.IsRemoteClient || stage.CollectedOutput >= stage.ExpectedOutput) return;
+        if (order.RemoteClient || stage.CollectedOutput >= stage.ExpectedOutput) return;
         float now = UnityEngine.Time.realtimeSinceStartup;
         if (now < stage.NextNetworkCheck) return;
         stage.NextNetworkCheck = now + 0.5f;
@@ -1757,13 +1841,14 @@ internal static class CraftingChainOrderService
 
     private static void TryReturnEscrow(Order order)
     {
-        if (order == null || order.ReturnInFlight) return;
+        if (order == null || order.ReturnInFlight || !Orders.TryGetValue(order.player.entityId, out Order current)
+            || !ReferenceEquals(current, order)) return;
         if (order.EscrowItems.Count == 0)
         {
             FinishOrder(order);
             return;
         }
-        if (!NetworkRemoteClient.IsRemoteClient)
+        if (!order.RemoteClient)
         {
             List<ItemStack> items = order.EscrowItems.Where(item => item != null && !item.IsEmpty())
                 .Select(item => item.Clone()).ToList();
@@ -1816,6 +1901,14 @@ internal static class CraftingChainOrderService
         bool sent = NetworkRemoteClient.ReturnCraftingChainAuthorization(order.player, order.ReservationRequestId,
             order.NetworkReturnChunkItems, order.NetworkReturnRequestId, out long requestId, result =>
         {
+            if (!Orders.TryGetValue(order.player.entityId, out Order current)
+                || !ReferenceEquals(current, order)
+                || !ReferenceEquals(order.World, GameManager.Instance?.World))
+            {
+                NetworkLog.Debug("Crafting-chain ignored stale remote refund callback. player=" + order.player.entityId
+                    + "; success=" + result.Success + "; error=" + result.Error);
+                return;
+            }
             order.ReturnInFlight = false;
             if (!result.Success)
             {
@@ -1909,7 +2002,8 @@ internal static class CraftingChainOrderService
 
     private static void FinishOrder(Order order)
     {
-        if (order == null) return;
+        if (order == null || !Orders.TryGetValue(order.player.entityId, out Order current)
+            || !ReferenceEquals(current, order)) return;
         order.Status = string.IsNullOrEmpty(order.TerminalStatus)
             ? Localization.Get("HyperdimensionalNetworkCraftingChainCompleted") : order.TerminalStatus;
         LastStatuses[order.player.entityId] = order.Status;

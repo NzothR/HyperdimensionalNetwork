@@ -29,7 +29,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     private XUiController _targetName;
     private XUiController _targetIcon;
     private XUiController _emptyHint;
-    private XUiController _confirmCancelPanel;
+    private bool _cancelConfirmationOpen;
     private XUiController _startLabel;
     private XUiController _cancelLabel;
     private XUiController _startButton;
@@ -115,7 +115,6 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         _targetName = GetChildById("craftingChainTargetName");
         _targetIcon = GetChildById("craftingChainTargetIcon");
         _emptyHint = GetChildById("craftingChainEmptyHint");
-        _confirmCancelPanel = GetChildById("craftingChainConfirmCancel");
         _startLabel = GetChildById("craftingChainStartLabel");
         _cancelLabel = GetChildById("craftingChainCancelLabel");
         _startButton = GetChildById("btnCraftingChainStart");
@@ -179,14 +178,11 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         if (_treeViewport != null) _treeViewport.OnScroll += OnTreeScroll;
         if (_startButton != null) _startButton.OnPress += OnStartPressed;
         if (_cancelButton != null) _cancelButton.OnPress += OnCancelPressed;
-        BindPress("btnCraftingChainConfirmCancelYes", OnConfirmCancelPressed);
-        BindPress("btnCraftingChainConfirmCancelNo", OnDismissCancelPressed);
         BindPress("btnCraftingChainClose", OnClosePressed);
         BindPress("btnCraftingChainQuantityMinus", (sender, button) => ChangeOutputCount(-1));
         BindPress("btnCraftingChainQuantityPlus", (sender, button) => ChangeOutputCount(1));
         SetVisible(_recipeDropdown, false);
         SetVisible(_recipePreview, false);
-        SetVisible(_confirmCancelPanel, false);
         SetVisible(_emptyHint, true);
         ClearNodeSlots();
         ClearMaterialSlots();
@@ -199,6 +195,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
     public override void OnOpen()
     {
         base.OnOpen();
+        _cancelConfirmationOpen = false;
         _nextPerformanceLog = Time.realtimeSinceStartup + 30f;
         _maxObservedFrameTime = 0f;
         _observedFrameTimeTotal = 0f;
@@ -219,6 +216,7 @@ public sealed class XUiC_CraftingChainWindow : XUiController
 
     public override void OnClose()
     {
+        _cancelConfirmationOpen = false;
         if (xui?.Recipes != null) xui.Recipes.OnTrackedRecipeChanged -= OnTrackedRecipeChanged;
         CancelPendingPlan();
         SaveViewState();
@@ -851,23 +849,36 @@ public sealed class XUiC_CraftingChainWindow : XUiController
         }
         if (CraftingChainOrderService.TryGetStatus(player, out _, out _, out _, out bool cancellationPending)
             && cancellationPending) return;
-        SetVisible(_confirmCancelPanel, true);
-        NetworkLog.Debug("Crafting-chain cancellation confirmation opened. player=" + player.entityId);
+        if (_cancelConfirmationOpen) return;
+        try
+        {
+            _cancelConfirmationOpen = true;
+            World confirmationWorld = GameManager.Instance?.World;
+            XUiC_MessageBoxWindowGroup.ShowConfirmCancel(xui,
+                Localization.Get("HyperdimensionalNetworkCraftingChainTitle"),
+                Localization.Get("HyperdimensionalNetworkCraftingChainConfirmCancel"),
+                _onConfirm: () => ConfirmCancellation(confirmationWorld),
+                _onCancel: () => _cancelConfirmationOpen = false,
+                _openMainMenuOnClose: false, _modal: true, _cancelOnOutsideClick: true);
+            NetworkLog.Debug("Crafting-chain native cancellation dialog opened. player=" + player.entityId);
+        }
+        catch (Exception exception)
+        {
+            _cancelConfirmationOpen = false;
+            NetworkLog.Error("Crafting-chain native cancellation dialog failed. player=" + player.entityId
+                + "; exception=" + exception);
+        }
     }
 
-    private void OnConfirmCancelPressed(XUiController sender, int mouseButton)
+    private void ConfirmCancellation(World confirmationWorld)
     {
-        SetVisible(_confirmCancelPanel, false);
+        _cancelConfirmationOpen = false;
+        if (!ReferenceEquals(confirmationWorld, GameManager.Instance?.World)) return;
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
-        if (!CraftingChainOrderService.RequestCancel(player))
-            xui?.playerUI?.windowManager?.Close("hyperdimensionalCraftingChain");
-        else
-            UpdateOrderPresentation();
-    }
-
-    private void OnDismissCancelPressed(XUiController sender, int mouseButton)
-    {
-        SetVisible(_confirmCancelPanel, false);
+        bool accepted = CraftingChainOrderService.RequestCancel(player);
+        NetworkLog.Debug("Crafting-chain cancellation confirmed. player=" + player?.entityId
+            + "; accepted=" + accepted);
+        UpdateOrderPresentation();
     }
 
     private void OnClosePressed(XUiController sender, int mouseButton)
