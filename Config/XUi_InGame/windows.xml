@@ -1,63 +1,145 @@
 <configs>
   <append xpath="/windows">
-    <window name="windowHyperdimensionalTraderRules" width="720" height="660" panel="Center" cursor_area="true" controller="HyperdimensionalNetwork.XUiC_TraderRulesWindow,HyperdimensionalNetwork">
-      <rect pos="0,0" name="content">
-        <sprite depth="0" name="traderRulesBackground" pos="0,0" width="720" height="660" sprite="menu_empty" type="sliced" fillcenter="true" color="18,23,31,248" />
-        <sprite depth="1" name="traderRulesFrame" pos="0,0" width="720" height="660" sprite="menu_empty2px" type="sliced" fillcenter="false" color="48,125,160,255" />
-        <rect name="traderRulesHeader" depth="2" height="44">
-          <sprite depth="2" name="traderRulesHeaderBackground" sprite="ui_game_panel_header" />
-          <sprite depth="3" name="traderRulesIcon" style="icon32px" pos="4,-5" sprite="hdn_trader_rules" atlas="SymbolAtlas" />
-          <label depth="3" name="traderRulesTitle" pos="44,-5" width="620" height="32" font_size="27" text_key="HyperdimensionalNetworkTraderRulesTitle" color="180,235,245,255" />
-          <button depth="4" name="btnTraderRulesClose" pos="690,-22" style="icon30px, press, hover" sprite="ui_game_symbol_x" tooltip_key="xuiClose" pivot="center" sound="[paging_click]" />
+    <window name="windowHyperdimensionalTraderRules" width="760" height="780" panel="Center" cursor_area="true" controller="HyperdimensionalNetwork.XUiC_TraderRulesWindow,HyperdimensionalNetwork">
+      <rect name="ruleContent">
+        <sprite depth="0" pos="0,0" width="760" height="780" sprite="menu_empty" type="sliced" fillcenter="true" color="17,23,31,250" />
+        <sprite depth="1" pos="0,0" width="760" height="780" sprite="menu_empty2px" type="sliced" fillcenter="false" color="58,120,146,255" />
+        <rect depth="2" height="43"><headerbg /><sprite depth="3" style="icon32px" pos="5,-5" sprite="hdn_trader_rules" atlas="SymbolAtlas" /><label depth="3" pos="46,-5" width="630" height="32" font_size="27" text_key="HyperdimensionalNetworkTraderRulesTitle" /><button depth="4" name="btnTraderRulesClose" pos="730,-22" style="icon30px, press, hover" sprite="ui_game_symbol_x" pivot="center" /></rect>
+        <label depth="3" name="traderRulesStatus" pos="22,-50" width="716" height="30" font_size="17" text_key="HyperdimensionalNetworkTraderRulesHint" />
+        <label depth="3" pos="22,-84" width="700" height="28" font_size="20" text_key="HyperdimensionalNetworkTraderRulesList" />
+        <rect name="ruleRow0" depth="3" pos="22,-118" width="716" height="48" visible="false">
+          <button depth="1" name="btnRuleRow0" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <sprite depth="2" name="ruleBuyAccent0" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
+          <sprite depth="2" name="ruleSellAccent0" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
+          <sprite depth="3" name="ruleIcon0" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
+          <label depth="3" name="ruleSummary0" pos="62,-9" width="628" height="30" font_size="19" />
         </rect>
-        <label depth="4" name="traderRulesStatus" pos="20,-52" width="680" height="30" font_size="17" justify="center" text_key="HyperdimensionalNetworkTraderRulesHint" />
-        <label depth="4" name="traderRulesFormTitle" pos="24,-92" width="660" height="30" font_size="22" text_key="HyperdimensionalNetworkTraderRulesCreate" />
-        <button depth="4" name="btnTraderRuleCycleKind" pos="24,-128" width="210" height="40" style="press, hover" sprite="menu_empty3px" defaultcolor="43,52,64,255" hovercolor="63,91,108,255" selectedcolor="42,119,139,255" disabledcolor="43,47,52,210" sound="[paging_click]" />
-        <label depth="5" name="traderRuleKindLabel" pos="28,-134" width="202" height="30" font_size="18" justify="center" text_key="HyperdimensionalNetworkTraderRuleKindAutoSell" />
-        <button depth="4" name="btnTraderRuleCycleQuality" pos="245,-128" width="210" height="40" style="press, hover" sprite="menu_empty3px" defaultcolor="43,52,64,255" hovercolor="63,91,108,255" selectedcolor="42,119,139,255" disabledcolor="43,47,52,210" sound="[paging_click]" />
-        <label depth="5" name="traderRuleQualityModeLabel" pos="249,-134" width="202" height="30" font_size="18" justify="center" text_key="HyperdimensionalNetworkTraderRuleQualityAny" />
-        <button depth="4" name="btnTraderRuleCycleSchedule" pos="466,-128" width="220" height="40" style="press, hover" sprite="menu_empty3px" defaultcolor="43,52,64,255" hovercolor="63,91,108,255" selectedcolor="42,119,139,255" disabledcolor="43,47,52,210" sound="[paging_click]" />
-        <label depth="5" name="traderRuleScheduleLabel" pos="470,-134" width="212" height="30" font_size="18" justify="center" text_key="HyperdimensionalNetworkTraderRuleScheduleOff" />
-        <label depth="4" name="traderRuleItemTypeLabel" pos="24,-183" width="205" height="28" font_size="16" text_key="HyperdimensionalNetworkTraderRuleItemType" />
-        <textfield depth="4" name="traderRuleItemType" pos="24,-192" width="205" height="32" text="0" />
-        <label depth="4" name="traderRuleMaximumCountLabel" pos="245,-183" width="205" height="28" font_size="16" text_key="HyperdimensionalNetworkTraderRuleMaximumCount" />
-        <textfield depth="4" name="traderRuleMaximumCount" pos="245,-192" width="205" height="32" text="1" />
-        <label depth="4" name="traderRuleMinimumNetworkCountLabel" pos="466,-183" width="220" height="28" font_size="16" text_key="HyperdimensionalNetworkTraderRuleMinimumNetworkCount" />
-        <textfield depth="4" name="traderRuleMinimumNetworkCount" pos="466,-192" width="220" height="32" text="0" />
-        <label depth="4" name="traderRuleQualityLabel" pos="24,-239" width="125" height="28" font_size="15" text_key="HyperdimensionalNetworkTraderRuleQualityValue" />
-        <textfield depth="4" name="traderRuleQuality" pos="24,-248" width="125" height="32" text="1" />
-        <label depth="4" name="traderRuleMaximumSpendLabel" pos="160,-239" width="130" height="28" font_size="15" text_key="HyperdimensionalNetworkTraderRuleMaximumSpend" />
-        <textfield depth="4" name="traderRuleMaximumSpend" pos="160,-248" width="130" height="32" text="0" />
-        <label depth="4" name="traderRuleMinimumCurrencyCountLabel" pos="300,-239" width="130" height="28" font_size="15" text_key="HyperdimensionalNetworkTraderRuleMinimumCurrencyCount" />
-        <textfield depth="4" name="traderRuleMinimumCurrencyCount" pos="300,-248" width="130" height="32" text="0" />
-        <label depth="4" name="traderRuleHourLabel" pos="440,-239" width="100" height="28" font_size="15" text_key="HyperdimensionalNetworkTraderRuleHour" />
-        <textfield depth="4" name="traderRuleHour" pos="440,-248" width="90" height="32" text="5" />
-        <label depth="4" name="traderRuleIntervalLabel" pos="550,-239" width="136" height="28" font_size="15" text_key="HyperdimensionalNetworkTraderRuleInterval" />
-        <textfield depth="4" name="traderRuleInterval" pos="550,-248" width="136" height="32" text="1" />
-        <button depth="4" name="btnTraderRuleNetworkComparison" pos="24,-298" width="205" height="38" style="press, hover" sprite="menu_empty3px" defaultcolor="43,52,64,255" hovercolor="63,91,108,255" selectedcolor="42,119,139,255" disabledcolor="43,47,52,210" sound="[paging_click]" />
-        <label depth="5" name="traderRuleNetworkComparisonLabel" pos="27,-304" width="199" height="28" font_size="15" justify="center" text_key="HyperdimensionalNetworkTraderRuleNetworkCondition" />
-        <button depth="4" name="btnTraderRuleCurrencyComparison" pos="245,-298" width="205" height="38" style="press, hover" sprite="menu_empty3px" defaultcolor="43,52,64,255" hovercolor="63,91,108,255" selectedcolor="42,119,139,255" disabledcolor="43,47,52,210" sound="[paging_click]" />
-        <label depth="5" name="traderRuleCurrencyComparisonLabel" pos="248,-304" width="199" height="28" font_size="15" justify="center" text_key="HyperdimensionalNetworkTraderRuleCurrencyCondition" />
-        <button depth="4" name="btnTraderRuleAdd" pos="24,-350" width="662" height="40" style="press, hover" sprite="menu_empty3px" defaultcolor="28,80,95,255" hovercolor="45,125,145,255" selectedcolor="52,142,160,255" disabledcolor="43,47,52,210" sound="[paging_click]" />
-        <label depth="5" name="traderRuleAddLabel" pos="30,-356" width="650" height="28" font_size="19" justify="center" text_key="HyperdimensionalNetworkTraderRuleAdd" />
-        <label depth="4" name="traderRulesListTitle" pos="24,-414" width="660" height="30" font_size="22" text_key="HyperdimensionalNetworkTraderRulesList" />
-        <button depth="4" name="btnTraderRulePrevious" pos="24,-452" width="52" height="38" style="press, hover" sprite="menu_empty3px" defaultcolor="43,52,64,255" hovercolor="63,91,108,255" selectedcolor="42,119,139,255" disabledcolor="43,47,52,210" sound="[paging_click]" />
-        <label depth="5" name="traderRulePreviousLabel" pos="27,-458" width="46" height="28" font_size="23" justify="center" text="‹" />
-        <label depth="4" name="traderRulesSelected" pos="84,-452" width="550" height="38" font_size="17" justify="center" text_key="HyperdimensionalNetworkTraderRulesNone" />
-        <button depth="4" name="btnTraderRuleNext" pos="642,-452" width="44" height="38" style="press, hover" sprite="menu_empty3px" defaultcolor="43,52,64,255" hovercolor="63,91,108,255" selectedcolor="42,119,139,255" disabledcolor="43,47,52,210" sound="[paging_click]" />
-        <label depth="5" name="traderRuleNextLabel" pos="645,-458" width="38" height="28" font_size="23" justify="center" text="›" />
-        <button depth="4" name="btnTraderRuleToggle" pos="24,-505" width="126" height="42" style="press, hover" sprite="menu_empty3px" defaultcolor="52,75,58,255" hovercolor="78,111,76,255" selectedcolor="90,132,86,255" disabledcolor="43,47,52,210" sound="[paging_click]" />
-        <label depth="5" name="traderRuleToggleLabel" pos="27,-511" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkTraderRuleToggle" />
-        <button depth="4" name="btnTraderRuleRun" pos="158,-505" width="126" height="42" style="press, hover" sprite="menu_empty3px" defaultcolor="28,80,95,255" hovercolor="45,125,145,255" selectedcolor="52,142,160,255" disabledcolor="43,47,52,210" sound="[paging_click]" />
-        <label depth="5" name="traderRuleRunLabel" pos="161,-511" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkTraderRuleRun" />
-        <button depth="4" name="btnTraderRuleUp" pos="292,-505" width="126" height="42" style="press, hover" sprite="menu_empty3px" defaultcolor="43,52,64,255" hovercolor="63,91,108,255" selectedcolor="42,119,139,255" disabledcolor="43,47,52,210" sound="[paging_click]" />
-        <label depth="5" name="traderRuleUpLabel" pos="295,-511" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkTraderRuleUp" />
-        <button depth="4" name="btnTraderRuleDown" pos="426,-505" width="126" height="42" style="press, hover" sprite="menu_empty3px" defaultcolor="43,52,64,255" hovercolor="63,91,108,255" selectedcolor="42,119,139,255" disabledcolor="43,47,52,210" sound="[paging_click]" />
-        <label depth="5" name="traderRuleDownLabel" pos="429,-511" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkTraderRuleDown" />
-        <button depth="4" name="btnTraderRuleDelete" pos="560,-505" width="126" height="42" style="press, hover" sprite="menu_empty3px" defaultcolor="83,40,48,255" hovercolor="126,52,62,255" selectedcolor="154,63,72,255" disabledcolor="53,43,45,210" sound="[paging_click]" />
-        <label depth="5" name="traderRuleDeleteLabel" pos="563,-511" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkTraderRuleDelete" />
+        <rect name="ruleRow1" depth="3" pos="22,-169" width="716" height="48" visible="false">
+          <button depth="1" name="btnRuleRow1" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <sprite depth="2" name="ruleBuyAccent1" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
+          <sprite depth="2" name="ruleSellAccent1" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
+          <sprite depth="3" name="ruleIcon1" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
+          <label depth="3" name="ruleSummary1" pos="62,-9" width="628" height="30" font_size="19" />
+        </rect>
+        <rect name="ruleRow2" depth="3" pos="22,-220" width="716" height="48" visible="false">
+          <button depth="1" name="btnRuleRow2" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <sprite depth="2" name="ruleBuyAccent2" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
+          <sprite depth="2" name="ruleSellAccent2" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
+          <sprite depth="3" name="ruleIcon2" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
+          <label depth="3" name="ruleSummary2" pos="62,-9" width="628" height="30" font_size="19" />
+        </rect>
+        <rect name="ruleRow3" depth="3" pos="22,-271" width="716" height="48" visible="false">
+          <button depth="1" name="btnRuleRow3" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <sprite depth="2" name="ruleBuyAccent3" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
+          <sprite depth="2" name="ruleSellAccent3" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
+          <sprite depth="3" name="ruleIcon3" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
+          <label depth="3" name="ruleSummary3" pos="62,-9" width="628" height="30" font_size="19" />
+        </rect>
+        <rect name="ruleRow4" depth="3" pos="22,-322" width="716" height="48" visible="false">
+          <button depth="1" name="btnRuleRow4" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <sprite depth="2" name="ruleBuyAccent4" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
+          <sprite depth="2" name="ruleSellAccent4" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
+          <sprite depth="3" name="ruleIcon4" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
+          <label depth="3" name="ruleSummary4" pos="62,-9" width="628" height="30" font_size="19" />
+        </rect>
+        <rect name="ruleRow5" depth="3" pos="22,-373" width="716" height="48" visible="false">
+          <button depth="1" name="btnRuleRow5" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <sprite depth="2" name="ruleBuyAccent5" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
+          <sprite depth="2" name="ruleSellAccent5" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
+          <sprite depth="3" name="ruleIcon5" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
+          <label depth="3" name="ruleSummary5" pos="62,-9" width="628" height="30" font_size="19" />
+        </rect>
+        <rect name="ruleRow6" depth="3" pos="22,-424" width="716" height="48" visible="false">
+          <button depth="1" name="btnRuleRow6" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <sprite depth="2" name="ruleBuyAccent6" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
+          <sprite depth="2" name="ruleSellAccent6" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
+          <sprite depth="3" name="ruleIcon6" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
+          <label depth="3" name="ruleSummary6" pos="62,-9" width="628" height="30" font_size="19" />
+        </rect>
+        <rect name="ruleRow7" depth="3" pos="22,-475" width="716" height="48" visible="false">
+          <button depth="1" name="btnRuleRow7" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <sprite depth="2" name="ruleBuyAccent7" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
+          <sprite depth="2" name="ruleSellAccent7" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
+          <sprite depth="3" name="ruleIcon7" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
+          <label depth="3" name="ruleSummary7" pos="62,-9" width="628" height="30" font_size="19" />
+        </rect>
+        <rect name="ruleRow8" depth="3" pos="22,-526" width="716" height="48" visible="false">
+          <button depth="1" name="btnRuleRow8" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <sprite depth="2" name="ruleBuyAccent8" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
+          <sprite depth="2" name="ruleSellAccent8" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
+          <sprite depth="3" name="ruleIcon8" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
+          <label depth="3" name="ruleSummary8" pos="62,-9" width="628" height="30" font_size="19" />
+        </rect>
+        <button depth="3" name="btnTraderRuleNew" pos="22,-577" width="716" height="46" style="press, hover" sprite="menu_empty3px" defaultcolor="38,80,91,255" hovercolor="53,120,136,255" />
+        <label depth="4" name="ruleNewLabel" pos="28,-584" width="704" height="30" font_size="25" justify="center" text="+ 添加规则" />
+        <button depth="3" name="btnRulePagePrevious" pos="22,-638" width="58" height="36" style="press, hover" sprite="menu_empty3px" /><label depth="4" pos="26,-642" width="50" height="28" font_size="23" justify="center" text="‹" />
+        <label depth="3" name="rulePageLabel" pos="90,-642" width="576" height="28" font_size="17" justify="center" />
+        <button depth="3" name="btnRulePageNext" pos="680,-638" width="58" height="36" style="press, hover" sprite="menu_empty3px" /><label depth="4" pos="684,-642" width="50" height="28" font_size="23" justify="center" text="›" />
+        <button depth="3" name="btnTraderRuleRunAll" pos="22,-696" width="716" height="50" style="press, hover" sprite="menu_empty3px" defaultcolor="33,89,106,255" hovercolor="48,132,151,255" /><label depth="4" pos="28,-705" width="704" height="30" font_size="21" justify="center" text_key="HyperdimensionalNetworkTraderRuleRun" />
+        <rect name="ruleEditor" depth="20" pos="0,0" width="760" height="780" visible="false">
+          <sprite depth="0" width="760" height="780" sprite="menu_empty" color="18,25,34,255" />
+          <label depth="1" name="ruleEditorTitle" pos="24,-15" width="590" height="34" font_size="25" text_key="HyperdimensionalNetworkTraderRulesCreate" />
+          <button depth="2" name="btnRuleEditorCancelTop" pos="730,-24" style="icon30px, press, hover" sprite="ui_game_symbol_x" pivot="center" />
+          <label depth="1" pos="24,-64" width="220" height="26" font_size="17" text="规则类型" />
+          <button depth="2" name="btnTraderRuleCycleKind" pos="24,-92" width="338" height="40" style="press, hover" sprite="menu_empty3px" /><label depth="3" name="traderRuleKindLabel" pos="30,-98" width="326" height="28" font_size="19" justify="center" />
+          <label depth="1" pos="389,-64" width="220" height="26" font_size="17" text="选择方式" />
+          <button depth="2" name="btnRuleScope" pos="389,-92" width="347" height="40" style="press, hover" sprite="menu_empty3px" /><label depth="3" name="ruleScopeLabel" pos="395,-98" width="335" height="28" font_size="19" justify="center" />
+          <label depth="1" name="ruleTargetTitle" pos="24,-150" width="700" height="24" font_size="17" text="目标物品 / 分类" />
+          <button depth="2" name="btnRuleTarget" pos="24,-181" width="712" height="42" style="press, hover" sprite="menu_empty3px" /><sprite depth="3" name="ruleTargetIcon" atlas="ItemIconAtlas" pos="32,-187" width="30" height="30" /><label depth="3" name="ruleTargetLabel" pos="70,-187" width="650" height="28" font_size="18" />
+          <label depth="1" pos="24,-238" width="712" height="24" font_size="17" text="排除条件（分类和单个物品可同时添加）" />
+          <button depth="2" name="btnRuleExcludeCategory" pos="24,-268" width="346" height="38" style="press, hover" sprite="menu_empty3px" /><label depth="3" pos="30,-274" width="334" height="26" font_size="17" justify="center" text="+ / - 分类黑名单" />
+          <button depth="2" name="btnRuleExcludeItem" pos="390,-268" width="346" height="38" style="press, hover" sprite="menu_empty3px" /><label depth="3" pos="396,-274" width="334" height="26" font_size="17" justify="center" text="+ / - 物品黑名单" />
+          <label depth="2" name="ruleExclusionsLabel" pos="24,-312" width="712" height="42" font_size="15" text="未排除任何分类或物品" />
+          <button depth="2" name="btnTraderRuleCycleQuality" pos="24,-367" width="346" height="40" style="press, hover" sprite="menu_empty3px" /><label depth="3" name="traderRuleQualityModeLabel" pos="30,-373" width="334" height="28" font_size="17" justify="center" />
+          <label depth="2" pos="391,-347" width="340" height="24" font_size="16" text_key="HyperdimensionalNetworkTraderRuleQualityValue" /><textfield depth="2" name="traderRuleQuality" pos="391,-373" width="345" height="34" text="1" />
+          <button depth="2" name="btnTraderRuleCycleSchedule" pos="24,-426" width="346" height="40" style="press, hover" sprite="menu_empty3px" /><label depth="3" name="traderRuleScheduleLabel" pos="30,-432" width="334" height="28" font_size="17" justify="center" />
+          <label depth="2" name="ruleHourTitle" pos="391,-411" width="156" height="23" font_size="15" text_key="HyperdimensionalNetworkTraderRuleHour" /><textfield depth="2" name="traderRuleHour" pos="391,-438" width="153" height="32" text="5" />
+          <label depth="2" name="ruleIntervalTitle" pos="560,-411" width="170" height="23" font_size="15" text_key="HyperdimensionalNetworkTraderRuleInterval" /><textfield depth="2" name="traderRuleInterval" pos="560,-438" width="176" height="32" text="1" />
+          <label depth="2" pos="24,-485" width="216" height="24" font_size="15" text_key="HyperdimensionalNetworkTraderRuleMaximumCount" /><textfield depth="2" name="traderRuleMaximumCount" pos="24,-511" width="216" height="32" text="1" />
+          <label depth="2" name="ruleNetworkCountTitle" pos="260,-485" width="216" height="24" font_size="15" text_key="HyperdimensionalNetworkTraderRuleMinimumNetworkCount" /><textfield depth="2" name="traderRuleMinimumNetworkCount" pos="260,-511" width="216" height="32" text="0" />
+          <label depth="2" name="ruleSpendTitle" pos="496,-485" width="240" height="24" font_size="15" text_key="HyperdimensionalNetworkTraderRuleMaximumSpend" /><textfield depth="2" name="traderRuleMaximumSpend" pos="496,-511" width="240" height="32" text="0" />
+          <button depth="2" name="btnTraderRuleNetworkComparison" pos="24,-565" width="346" height="38" style="press, hover" sprite="menu_empty3px" /><label depth="3" name="traderRuleNetworkComparisonLabel" pos="30,-570" width="334" height="27" font_size="16" justify="center" />
+          <label depth="2" name="ruleCurrencyTitle" pos="390,-545" width="346" height="22" font_size="15" text_key="HyperdimensionalNetworkTraderRuleMinimumCurrencyCount" /><textfield depth="2" name="traderRuleMinimumCurrencyCount" pos="390,-573" width="346" height="31" text="0" />
+          <button depth="2" name="btnTraderRuleCurrencyComparison" pos="24,-616" width="712" height="38" style="press, hover" sprite="menu_empty3px" /><label depth="3" name="traderRuleCurrencyComparisonLabel" pos="30,-621" width="700" height="27" font_size="16" justify="center" />
+          <label depth="2" name="ruleEditorStatus" pos="24,-657" width="712" height="25" font_size="16" color="255,200,145,255" />
+          <button depth="2" name="btnRuleEnabled" pos="24,-684" width="155" height="44" style="press, hover" sprite="menu_empty3px" /><label depth="3" name="ruleEnabledLabel" pos="30,-691" width="143" height="29" font_size="17" justify="center" />
+          <button depth="2" name="btnRuleDelete" pos="190,-684" width="155" height="44" style="press, hover" sprite="menu_empty3px" /><label depth="3" pos="196,-691" width="143" height="29" font_size="17" justify="center" text_key="HyperdimensionalNetworkTraderRuleDelete" />
+          <button depth="2" name="btnRuleSave" pos="358,-684" width="246" height="44" style="press, hover" sprite="menu_empty3px" /><label depth="3" pos="364,-691" width="234" height="29" font_size="18" justify="center" text="保存规则" />
+          <button depth="2" name="btnRuleCancel" pos="614,-684" width="122" height="44" style="press, hover" sprite="menu_empty3px" /><label depth="3" pos="620,-691" width="110" height="29" font_size="17" justify="center" text="返回" />
+        </rect>
+        <rect name="rulePicker" depth="40" pos="0,0" width="760" height="780" visible="false">
+          <sprite depth="0" width="760" height="780" sprite="menu_empty" color="16,22,29,255" />
+          <label depth="2" name="rulePickerTitle" pos="24,-14" width="630" height="32" font_size="25" text="选择物品" />
+          <button depth="3" name="btnRulePickerClose" pos="730,-24" style="icon30px, press, hover" sprite="ui_game_symbol_x" pivot="center" />
+          <textfield depth="2" name="rulePickerSearch" pos="24,-64" width="470" height="36" search_field="true" clear_button="true" />
+          <button depth="2" name="btnRulePickerStock" pos="514,-64" width="222" height="36" style="press, hover" sprite="menu_empty3px" /><label depth="3" name="rulePickerStockLabel" pos="520,-68" width="210" height="26" font_size="17" justify="center" text="全部有售价物品" />
+          <rect name="pickerRow0" depth="2" pos="24,-116" width="712" height="48" visible="false"><button depth="1" name="btnPickerRow0" pos="0,0" width="712" height="48" style="press, hover" sprite="menu_empty3px" /><sprite depth="2" pos="8,-5" width="38" height="38" sprite="menu_empty3px" /><sprite depth="3" name="pickerIcon0" atlas="ItemIconAtlas" pos="11,-8" width="32" height="32" /><label depth="3" name="pickerName0" pos="58,-9" width="636" height="28" font_size="19" /></rect>
+          <rect name="pickerRow1" depth="2" pos="24,-168" width="712" height="48" visible="false"><button depth="1" name="btnPickerRow1" pos="0,0" width="712" height="48" style="press, hover" sprite="menu_empty3px" /><sprite depth="2" pos="8,-5" width="38" height="38" sprite="menu_empty3px" /><sprite depth="3" name="pickerIcon1" atlas="ItemIconAtlas" pos="11,-8" width="32" height="32" /><label depth="3" name="pickerName1" pos="58,-9" width="636" height="28" font_size="19" /></rect>
+          <rect name="pickerRow2" depth="2" pos="24,-220" width="712" height="48" visible="false"><button depth="1" name="btnPickerRow2" pos="0,0" width="712" height="48" style="press, hover" sprite="menu_empty3px" /><sprite depth="2" pos="8,-5" width="38" height="38" sprite="menu_empty3px" /><sprite depth="3" name="pickerIcon2" atlas="ItemIconAtlas" pos="11,-8" width="32" height="32" /><label depth="3" name="pickerName2" pos="58,-9" width="636" height="28" font_size="19" /></rect>
+          <rect name="pickerRow3" depth="2" pos="24,-272" width="712" height="48" visible="false"><button depth="1" name="btnPickerRow3" pos="0,0" width="712" height="48" style="press, hover" sprite="menu_empty3px" /><sprite depth="2" pos="8,-5" width="38" height="38" sprite="menu_empty3px" /><sprite depth="3" name="pickerIcon3" atlas="ItemIconAtlas" pos="11,-8" width="32" height="32" /><label depth="3" name="pickerName3" pos="58,-9" width="636" height="28" font_size="19" /></rect>
+          <rect name="pickerRow4" depth="2" pos="24,-324" width="712" height="48" visible="false"><button depth="1" name="btnPickerRow4" pos="0,0" width="712" height="48" style="press, hover" sprite="menu_empty3px" /><sprite depth="2" pos="8,-5" width="38" height="38" sprite="menu_empty3px" /><sprite depth="3" name="pickerIcon4" atlas="ItemIconAtlas" pos="11,-8" width="32" height="32" /><label depth="3" name="pickerName4" pos="58,-9" width="636" height="28" font_size="19" /></rect>
+          <rect name="pickerRow5" depth="2" pos="24,-376" width="712" height="48" visible="false"><button depth="1" name="btnPickerRow5" pos="0,0" width="712" height="48" style="press, hover" sprite="menu_empty3px" /><sprite depth="2" pos="8,-5" width="38" height="38" sprite="menu_empty3px" /><sprite depth="3" name="pickerIcon5" atlas="ItemIconAtlas" pos="11,-8" width="32" height="32" /><label depth="3" name="pickerName5" pos="58,-9" width="636" height="28" font_size="19" /></rect>
+          <rect name="pickerRow6" depth="2" pos="24,-428" width="712" height="48" visible="false"><button depth="1" name="btnPickerRow6" pos="0,0" width="712" height="48" style="press, hover" sprite="menu_empty3px" /><sprite depth="2" pos="8,-5" width="38" height="38" sprite="menu_empty3px" /><sprite depth="3" name="pickerIcon6" atlas="ItemIconAtlas" pos="11,-8" width="32" height="32" /><label depth="3" name="pickerName6" pos="58,-9" width="636" height="28" font_size="19" /></rect>
+          <rect name="pickerRow7" depth="2" pos="24,-480" width="712" height="48" visible="false"><button depth="1" name="btnPickerRow7" pos="0,0" width="712" height="48" style="press, hover" sprite="menu_empty3px" /><sprite depth="2" pos="8,-5" width="38" height="38" sprite="menu_empty3px" /><sprite depth="3" name="pickerIcon7" atlas="ItemIconAtlas" pos="11,-8" width="32" height="32" /><label depth="3" name="pickerName7" pos="58,-9" width="636" height="28" font_size="19" /></rect>
+          <rect name="pickerRow8" depth="2" pos="24,-532" width="712" height="48" visible="false"><button depth="1" name="btnPickerRow8" pos="0,0" width="712" height="48" style="press, hover" sprite="menu_empty3px" /><sprite depth="2" pos="8,-5" width="38" height="38" sprite="menu_empty3px" /><sprite depth="3" name="pickerIcon8" atlas="ItemIconAtlas" pos="11,-8" width="32" height="32" /><label depth="3" name="pickerName8" pos="58,-9" width="636" height="28" font_size="19" /></rect>
+          <rect name="pickerRow9" depth="2" pos="24,-584" width="712" height="48" visible="false"><button depth="1" name="btnPickerRow9" pos="0,0" width="712" height="48" style="press, hover" sprite="menu_empty3px" /><sprite depth="2" pos="8,-5" width="38" height="38" sprite="menu_empty3px" /><sprite depth="3" name="pickerIcon9" atlas="ItemIconAtlas" pos="11,-8" width="32" height="32" /><label depth="3" name="pickerName9" pos="58,-9" width="636" height="28" font_size="19" /></rect>
+          <button depth="2" name="btnPickerPrevious" pos="24,-660" width="65" height="40" style="press, hover" sprite="menu_empty3px" /><label depth="3" pos="30,-666" width="53" height="28" font_size="23" justify="center" text="‹" />
+          <label depth="2" name="pickerPageLabel" pos="99,-667" width="560" height="28" font_size="18" justify="center" />
+          <button depth="2" name="btnPickerNext" pos="671,-660" width="65" height="40" style="press, hover" sprite="menu_empty3px" /><label depth="3" pos="677,-666" width="53" height="28" font_size="23" justify="center" text="›" />
+          <label depth="2" name="pickerHint" pos="24,-714" width="712" height="36" font_size="16" text="点击选择；黑名单可逐项切换，完成后关闭窗口。" />
+        </rect>
       </rect>
     </window>
+
     <window name="windowHyperdimensionalNetwork" width="629" height="805" panel="Left" anchor_side="bottomright" normal_color="[iconColor]" cursor_area="true" controller="HyperdimensionalNetwork.XUiC_HyperdimensionalNetworkWindow,HyperdimensionalNetwork">
       <rect pos="0,0" name="content">
         <panel name="header" height="43" depth="0" disableautobackground="true">

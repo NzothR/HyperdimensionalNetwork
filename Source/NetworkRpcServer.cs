@@ -994,7 +994,9 @@ internal static class NetworkRpcServer
             && left.MinimumNetworkCount == right.MinimumNetworkCount && left.NetworkCountComparison == right.NetworkCountComparison
             && left.MinimumCurrencyCount == right.MinimumCurrencyCount && left.CurrencyCountComparison == right.CurrencyCountComparison
             && left.MaximumSpend == right.MaximumSpend && left.Scheduled == right.Scheduled && left.ScheduledHour == right.ScheduledHour
-            && left.IntervalDays == right.IntervalDays && left.LastScheduledDay == right.LastScheduledDay;
+            && left.IntervalDays == right.IntervalDays && left.LastScheduledDay == right.LastScheduledDay
+            && left.Scope == right.Scope && left.Category == right.Category
+            && left.ExcludedCategories == right.ExcludedCategories && left.ExcludedItemTypes == right.ExcludedItemTypes;
     }
 
     private static NetworkRemoteResult Failure(NetworkRemoteRequest request, string error)

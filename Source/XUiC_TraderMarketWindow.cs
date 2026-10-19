@@ -37,6 +37,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
 
     private sealed class MarketOfferGroup
     {
+        public ItemValue Key;
         public TraderOffer Display;
         public readonly List<TraderOffer> Sources = new List<TraderOffer>();
     }
@@ -249,12 +250,12 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         int remaining = count;
         int purchased = 0;
         NetworkRemoteResult lastSuccess = null;
-        int sourceIndex = 0;
+        int attempts = 0;
         void ContinuePurchase()
         {
             int bundle = Math.Max(1, offer.BundleSize);
-            while (sourceIndex < sources.Count && sources[sourceIndex].Count < bundle) sourceIndex++;
-            if (remaining <= 0 || sourceIndex >= sources.Count)
+            TraderOffer source = sources.FirstOrDefault(candidate => candidate.Count >= bundle);
+            if (remaining <= 0 || source == null || attempts++ >= 2048)
             {
                 _requestPending = false;
                 if (lastSuccess != null)
@@ -265,22 +266,28 @@ public sealed class XUiC_TraderMarketWindow : XUiController
                 }
                 return;
             }
-            TraderOffer source = sources[sourceIndex++];
             int sourceCount = Math.Min(remaining, source.Count / bundle * bundle);
             if (!TraderMarketClient.Buy(player, _sessionId, source, sourceCount, _buyToBackpack, result =>
             {
                 if (!result.Success)
                 {
+                    NetworkLog.Debug("Grouped trader purchase rejected. item=" + offer.Value.type
+                        + "; trader=" + source.TraderEntityId + "; purchased=" + purchased + "; error=" + result.Error);
+                    sources.Remove(source);
+                    if (sources.Count > 0) { ContinuePurchase(); return; }
                     _requestPending = false;
                     if (lastSuccess != null) ApplyPurchaseResult(player, lastSuccess, purchased);
                     SetStatus(Localization.Get("HyperdimensionalNetworkTraderMarketBuyFailed") + ": " + result.Error);
-                    NetworkLog.Debug("Grouped trader purchase rejected. item=" + offer.Value.type
-                        + "; trader=" + source.TraderEntityId + "; purchased=" + purchased + "; error=" + result.Error);
                     return;
                 }
                 purchased += result.Amount;
                 remaining -= result.Amount;
                 lastSuccess = result;
+                sources = result.TraderOffers?.Where(candidate => candidate?.Value != null
+                    && candidate.BundlePrice == offer.BundlePrice && candidate.BundleSize == offer.BundleSize
+                    && SameMarketItem(candidate.Value, offer.Value))
+                    .OrderBy(candidate => candidate.TraderEntityId).ThenBy(candidate => candidate.InventoryIndex).ToList()
+                    ?? new List<TraderOffer>();
                 ContinuePurchase();
             }))
             {
@@ -352,11 +359,12 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             foreach (TraderOffer source in result.TraderOffers.Where(offer => offer?.Value != null && offer.Count > 0)
                 .OrderBy(offer => offer.TraderEntityId).ThenBy(offer => offer.InventoryIndex))
             {
+                ItemValue sourceKey = NetworkStorage.NormalizeKey(source.Value);
                 MarketOfferGroup group = _offerGroups.FirstOrDefault(entry => entry.Display.BundlePrice == source.BundlePrice
-                    && entry.Display.BundleSize == source.BundleSize && entry.Display.Value.Equals(source.Value));
+                    && entry.Display.BundleSize == source.BundleSize && entry.Key.Equals(sourceKey));
                 if (group == null)
                 {
-                    group = new MarketOfferGroup { Display = new TraderOffer
+                    group = new MarketOfferGroup { Key = sourceKey, Display = new TraderOffer
                     {
                         Value = source.Value.Clone(), Count = 0, BundleSize = source.BundleSize,
                         BundlePrice = source.BundlePrice, TraderEntityId = source.TraderEntityId,
@@ -402,7 +410,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
                 + "; categories=" + _categories.CategoryButtons.Count(button => !string.IsNullOrEmpty(button.SpriteName)));
         }
         _selected = _offers.FirstOrDefault(offer => selectedValue != null && offer.BundlePrice == selectedPrice
-            && offer.BundleSize == selectedBundle && offer.Value.Equals(selectedValue));
+            && offer.BundleSize == selectedBundle && SameMarketItem(offer.Value, selectedValue));
         if (_selected != null)
         {
             int bundle = Math.Max(1, _selected.BundleSize);
@@ -415,6 +423,10 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         if (_offers.Count == 0) SetStatus(Localization.Get("HyperdimensionalNetworkTraderMarketNoOffers"));
         else SetStatus(Localization.Get("HyperdimensionalNetworkTraderMarketOfferCount") + " " + _offers.Count);
     }
+
+    private static bool SameMarketItem(ItemValue left, ItemValue right)
+        => left != null && right != null
+            && NetworkStorage.NormalizeKey(left).Equals(NetworkStorage.NormalizeKey(right));
 
     private void ApplyFilter()
     {

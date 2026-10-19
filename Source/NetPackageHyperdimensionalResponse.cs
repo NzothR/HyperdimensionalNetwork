@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace HyperdimensionalNetwork;
@@ -86,7 +87,9 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
                 ItemType = reader.ReadInt32(), QualityMode = (TraderQualityMatchMode)reader.ReadByte(), Quality = reader.ReadInt32(),
                 MaximumCount = reader.ReadInt32(), MinimumNetworkCount = reader.ReadInt32(), NetworkCountComparison = (TraderRuleComparison)reader.ReadByte(),
                 MinimumCurrencyCount = reader.ReadInt32(), CurrencyCountComparison = (TraderRuleComparison)reader.ReadByte(), MaximumSpend = reader.ReadInt32(),
-                Scheduled = reader.ReadBoolean(), ScheduledHour = reader.ReadInt32(), IntervalDays = reader.ReadInt32(), LastScheduledDay = reader.ReadInt32()
+                Scheduled = reader.ReadBoolean(), ScheduledHour = reader.ReadInt32(), IntervalDays = reader.ReadInt32(), LastScheduledDay = reader.ReadInt32(),
+                Scope = (TraderRuleScope)reader.ReadByte(), Category = ReadBoundedString(reader, 128),
+                ExcludedCategories = ReadBoundedString(reader, 1024), ExcludedItemTypes = ReadBoundedString(reader, 1024)
             });
     }
 
@@ -158,6 +161,8 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
                 binary.Write((byte)rule.QualityMode); binary.Write(rule.Quality); binary.Write(rule.MaximumCount); binary.Write(rule.MinimumNetworkCount);
                 binary.Write((byte)rule.NetworkCountComparison); binary.Write(rule.MinimumCurrencyCount); binary.Write((byte)rule.CurrencyCountComparison);
                 binary.Write(rule.MaximumSpend); binary.Write(rule.Scheduled); binary.Write(rule.ScheduledHour); binary.Write(rule.IntervalDays); binary.Write(rule.LastScheduledDay);
+                binary.Write((byte)rule.Scope); binary.Write(rule.Category ?? string.Empty);
+                binary.Write(rule.ExcludedCategories ?? string.Empty); binary.Write(rule.ExcludedItemTypes ?? string.Empty);
             }
     }
 
@@ -183,7 +188,10 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         if (offers > 2048) throw new InvalidDataException("Trader offer count exceeds the response limit: " + offers);
         int rules = _result?.TraderRules?.Count ?? 0;
         if (rules > 2048) throw new InvalidDataException("Trader rule count exceeds the response limit: " + rules);
-        return 116 + entries * 512 + offers * 640 + rules * 128 + bytes + valueBytes + Encoding.UTF8.GetByteCount(_result?.Error ?? string.Empty)
+        int ruleTextBytes = _result?.TraderRules?.Sum(rule => Encoding.UTF8.GetByteCount(rule?.Category ?? string.Empty)
+            + Encoding.UTF8.GetByteCount(rule?.ExcludedCategories ?? string.Empty)
+            + Encoding.UTF8.GetByteCount(rule?.ExcludedItemTypes ?? string.Empty)) ?? 0;
+        return 116 + entries * 512 + offers * 640 + rules * 136 + ruleTextBytes + bytes + valueBytes + Encoding.UTF8.GetByteCount(_result?.Error ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_result?.NetworkId ?? string.Empty) + Encoding.UTF8.GetByteCount(_result?.TraderSessionId ?? string.Empty);
     }
 

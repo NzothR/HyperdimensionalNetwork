@@ -70,7 +70,7 @@ HyperdimensionalNetworkTraderRuleAnyItem,All items,所有物品
 HyperdimensionalNetworkTraderRulesSaveFailed,Rule could not be saved,规则保存失败
 HyperdimensionalNetworkTraderRulesSaved,Rule saved,规则已保存
 HyperdimensionalNetworkTraderRulesDeleted,Rule deleted,规则已删除
-HyperdimensionalNetworkTraderRulesRunRequested,Automatic purchase run completed,已执行自动购买规则
+HyperdimensionalNetworkTraderRulesRunRequested,Rule execution started,已开始按顺序执行规则
 HyperdimensionalNetworkTraderRuleToggle,Enable / disable,启用/停用
 HyperdimensionalNetworkTraderRuleRun,Run all now,立即执行全部
 HyperdimensionalNetworkTraderRuleUp,Move up,上移

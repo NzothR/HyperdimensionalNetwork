@@ -137,7 +137,11 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
             + Encoding.UTF8.GetByteCount(_request?.Category ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_request?.Search ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_request?.TraderSessionId ?? string.Empty)
-            + Encoding.UTF8.GetByteCount(_request?.TraderRuleId ?? string.Empty) + (_request?.TraderRule == null ? 0 : 96) + valueBytes + requirementsBytes + slotBytes;
+            + Encoding.UTF8.GetByteCount(_request?.TraderRuleId ?? string.Empty)
+            + (_request?.TraderRule == null ? 0 : 104 + Encoding.UTF8.GetByteCount(_request.TraderRule.Category ?? string.Empty)
+                + Encoding.UTF8.GetByteCount(_request.TraderRule.ExcludedCategories ?? string.Empty)
+                + Encoding.UTF8.GetByteCount(_request.TraderRule.ExcludedItemTypes ?? string.Empty))
+            + valueBytes + requirementsBytes + slotBytes;
     }
 
     private static TraderAutomationRule ReadTraderRule(BinaryReader reader)
@@ -147,7 +151,9 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
             ItemType = reader.ReadInt32(), QualityMode = (TraderQualityMatchMode)reader.ReadByte(), Quality = reader.ReadInt32(),
             MaximumCount = reader.ReadInt32(), MinimumNetworkCount = reader.ReadInt32(), NetworkCountComparison = (TraderRuleComparison)reader.ReadByte(),
             MinimumCurrencyCount = reader.ReadInt32(), CurrencyCountComparison = (TraderRuleComparison)reader.ReadByte(), MaximumSpend = reader.ReadInt32(),
-            Scheduled = reader.ReadBoolean(), ScheduledHour = reader.ReadInt32(), IntervalDays = reader.ReadInt32(), LastScheduledDay = reader.ReadInt32()
+            Scheduled = reader.ReadBoolean(), ScheduledHour = reader.ReadInt32(), IntervalDays = reader.ReadInt32(), LastScheduledDay = reader.ReadInt32(),
+            Scope = (TraderRuleScope)reader.ReadByte(), Category = ReadBoundedString(reader, 128),
+            ExcludedCategories = ReadBoundedString(reader, 1024), ExcludedItemTypes = ReadBoundedString(reader, 1024)
         };
 
     private static void WriteTraderRule(BinaryWriter writer, TraderAutomationRule rule)
@@ -156,6 +162,8 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         writer.Write((byte)rule.QualityMode); writer.Write(rule.Quality); writer.Write(rule.MaximumCount); writer.Write(rule.MinimumNetworkCount);
         writer.Write((byte)rule.NetworkCountComparison); writer.Write(rule.MinimumCurrencyCount); writer.Write((byte)rule.CurrencyCountComparison);
         writer.Write(rule.MaximumSpend); writer.Write(rule.Scheduled); writer.Write(rule.ScheduledHour); writer.Write(rule.IntervalDays); writer.Write(rule.LastScheduledDay);
+        writer.Write((byte)rule.Scope); writer.Write(rule.Category ?? string.Empty);
+        writer.Write(rule.ExcludedCategories ?? string.Empty); writer.Write(rule.ExcludedItemTypes ?? string.Empty);
     }
 
     private static void ReadSlotList(BinaryReader reader, List<int> slots)
