@@ -32,7 +32,7 @@ internal static class VanillaTraderCurrencyPatch
     [HarmonyPatch(typeof(ItemActionEntryPurchase), nameof(ItemActionEntryPurchase.OnActivated))]
     private static bool ReserveRemoteNetworkCurrency(ItemActionEntryPurchase __instance)
     {
-        if (_resumingPurchase || !NetworkRemoteClient.IsRemoteClient) return true;
+        if (_resumingPurchase || !NetworkRemoteClient.IsRemoteClient || __instance.isOwner) return true;
         XUiC_TraderItemEntry entry = __instance.ItemController as XUiC_TraderItemEntry;
         XUi xui = entry?.xui;
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;

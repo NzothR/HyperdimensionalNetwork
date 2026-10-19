@@ -52,7 +52,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         _selectedLabel = GetChildById("marketSelected");
         _countLabel = GetChildById("marketCount");
         _totalPriceLabel = GetChildById("marketTotalPrice");
-        BindPress("btnTraderMarketClose", (sender, button) => xui?.playerUI?.windowManager?.Close("hyperdimensionalTraderMarket"));
+        BindPress("btnTraderMarketClose", OnClosePressed);
         BindPress("btnTraderMarketOutput", OnOutputPressed);
         BindPress("btnMarketCountDown", (sender, button) => ChangeCount(-1));
         BindPress("btnMarketCountUp", (sender, button) => ChangeCount(1));
@@ -67,6 +67,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
     public override void OnOpen()
     {
         base.OnOpen();
+        if (windowGroup != null) windowGroup.openWindowOnEsc = "hyperdimensionalNetwork";
         _closing = false;
         _requestPending = true;
         _sessionId = string.Empty;
@@ -113,13 +114,6 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         _requestPending = false;
         RefreshRows();
         base.OnClose();
-        GUIWindowManager manager = xui?.playerUI?.windowManager;
-        if ((bool)player && GameManager.Instance?.World != null && manager != null
-            && !manager.IsWindowOpen("hyperdimensionalNetwork"))
-        {
-            manager.Open("hyperdimensionalNetwork", false);
-            NetworkLog.Debug("Trader market closed; network window restored. player=" + player.entityId);
-        }
     }
 
     private void SelectAt(int row)
@@ -279,6 +273,11 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             if (string.IsNullOrEmpty(search) || name.IndexOf(search, StringComparison.CurrentCultureIgnoreCase) >= 0)
                 _filtered.Add(offer);
         }
+        if (_selected != null && !_filtered.Contains(_selected))
+        {
+            _selected = null;
+            _selectedCount = 0;
+        }
         _pager?.SetLastPageByElementsAndPageLength(_filtered.Count, PageSize);
         RefreshRows();
     }
@@ -306,8 +305,8 @@ public sealed class XUiC_TraderMarketWindow : XUiController
     {
         SetLabel(_selectedLabel, _selected?.Value?.ItemClass?.GetLocalizedItemName() ?? string.Empty);
         SetLabel(_countLabel, _selected == null ? "-" : _selectedCount.ToString());
-        int total = _selected == null || _selected.BundleSize <= 0 ? 0
-            : _selected.BundlePrice * (_selectedCount / _selected.BundleSize);
+        long total = _selected == null || _selected.BundleSize <= 0 ? 0
+            : (long)_selected.BundlePrice * (_selectedCount / _selected.BundleSize);
         SetLabel(_totalPriceLabel, total > 0 ? total + " $" : string.Empty);
     }
 
@@ -327,6 +326,16 @@ public sealed class XUiC_TraderMarketWindow : XUiController
                 ? "HyperdimensionalNetworkTraderBuyToBackpack"
                 : "HyperdimensionalNetworkTraderBuyToNetwork"), false, false, 0f);
         NetworkLog.Debug("Trader market purchase destination changed. backpack=" + _buyToBackpack);
+    }
+
+    private void OnClosePressed(XUiController sender, int mouseButton)
+    {
+        GUIWindowManager manager = xui?.playerUI?.windowManager;
+        if (manager == null) return;
+        manager.Close("hyperdimensionalTraderMarket");
+        manager.Open("hyperdimensionalNetwork", false);
+        NetworkLog.Debug("Trader market closed by button; network window restored. player="
+            + (xui?.playerUI?.entityPlayer?.entityId ?? -1));
     }
 
     private void SetStatus(string value) => SetLabel(_status, value);

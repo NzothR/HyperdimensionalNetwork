@@ -71,6 +71,7 @@
           <button depth="4" name="btnHyperdimensionalCraftingChain" pos="25,-22" style="icon30px, press, hover" sprite="hdn_crafting_chain" atlas="SymbolAtlas" tooltip_key="HyperdimensionalNetworkCraftingChain" pivot="center" sound="[paging_click]" />
           <button depth="4" name="btnHyperdimensionalRestock" pos="65,-22" style="icon30px, press, hover" sprite="hdn_manual_restock" atlas="SymbolAtlas" tooltip_key="HyperdimensionalNetworkManualRestock" pivot="center" sound="[paging_click]" />
           <button depth="4" name="btnHyperdimensionalSettings" pos="105,-22" style="icon30px, press, hover" sprite="hdn_settings" atlas="SymbolAtlas" tooltip_key="HyperdimensionalNetworkSettings" pivot="center" sound="[paging_click]" />
+          <button depth="4" name="btnHyperdimensionalManualSale" pos="145,-22" style="icon30px, press, hover" sprite="ui_game_symbol_coin" tooltip_key="HyperdimensionalNetworkManualSaleOpen" pivot="center" sound="[paging_click]" />
           <button depth="4" name="btnHyperdimensionalTraderBuy" pos="185,-22" style="icon30px, press, hover" sprite="hdn_trader_buy" atlas="SymbolAtlas" tooltip_key="HyperdimensionalNetworkTraderMarket" pivot="center" sound="[paging_click]" />
           <button depth="4" name="btnHyperdimensionalTraderRules" pos="225,-22" style="icon30px, press, hover" sprite="hdn_trader_rules" atlas="SymbolAtlas" tooltip_key="HyperdimensionalNetworkTraderRules" pivot="center" sound="[paging_click]" />
           <button depth="4" name="btnHyperdimensionalTraderPayout" pos="265,-22" style="icon30px, press, hover" sprite="ui_game_symbol_backpack" tooltip_key="HyperdimensionalNetworkTraderPayoutToggle" pivot="center" sound="[paging_click]" />
@@ -127,10 +128,23 @@
           <label depth="32" name="labelRetainSearch" pos="30,-415" width="220" height="36" font_size="22" text_key="HyperdimensionalNetworkSettingRetainSearch" />
           <button depth="33" name="btnToggleRetainSearch" pos="270,-409" width="190" height="42" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,245" hovercolor="82,82,82,255" selectedcolor="112,82,48,255" disabledcolor="45,45,45,180" sound="[paging_click]" />
           <label depth="34" name="labelRetainSearchValue" pos="270,-414" width="190" height="32" font_size="21" color="255,255,255,255" justify="center" text_key="HyperdimensionalNetworkSettingOn" />
-          <label depth="32" name="labelManualSaleEnabled" pos="30,-485" width="220" height="36" font_size="22" text_key="HyperdimensionalNetworkSettingManualSale" />
-          <button depth="33" name="btnToggleManualSaleEnabled" pos="270,-479" width="190" height="42" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,245" hovercolor="82,82,82,255" selectedcolor="112,82,48,255" disabledcolor="45,45,45,180" sound="[paging_click]" />
-          <label depth="34" name="labelManualSaleEnabledValue" pos="270,-484" width="190" height="32" font_size="21" color="255,255,255,255" justify="center" text_key="HyperdimensionalNetworkSettingOff" />
           <label depth="32" name="restockSettingsStatus" pos="20,-555" width="470" height="40" font_size="18" justify="center" text_key="HyperdimensionalNetworkSettingsReady" />
+        </rect>
+        <rect depth="40" name="manualSalePanel" pos="117,-175" width="485" height="250" visible="false">
+          <sprite depth="40" name="manualSaleBackground" pos="0,0" width="485" height="250" sprite="menu_empty3px" color="12,20,28,250" type="sliced" fillcenter="true" />
+          <label depth="41" name="manualSaleTitle" pos="18,-12" width="410" height="36" font_size="27" text_key="HyperdimensionalNetworkManualSaleTitle" />
+          <button depth="42" name="btnManualSaleClose" pos="455,-22" style="icon30px, press, hover" sprite="ui_game_symbol_x" tooltip_key="xuiClose" pivot="center" sound="[paging_click]" />
+          <label depth="41" name="manualSaleItem" pos="20,-60" width="440" height="35" font_size="23" />
+          <label depth="41" name="manualSaleModeLabel" pos="20,-108" width="210" height="30" font_size="20" text_key="HyperdimensionalNetworkSettingManualSale" />
+          <button depth="42" name="btnManualSaleToggle" pos="250,-105" width="175" height="38" style="press, hover" sprite="menu_empty3px" defaultcolor="48,48,48,245" hovercolor="82,82,82,255" sound="[paging_click]" />
+          <label depth="43" name="manualSaleModeValue" pos="252,-110" width="170" height="30" font_size="20" justify="center" />
+          <button depth="42" name="btnManualSaleMinus" pos="27,-169" style="icon30px, press, hover" sprite="ui_game_symbol_arrow_left" pivot="center" sound="[paging_click]" />
+          <label depth="42" name="manualSaleCount" pos="58,-151" width="85" height="30" font_size="24" justify="center" />
+          <button depth="42" name="btnManualSalePlus" pos="158,-169" style="icon30px, press, hover" sprite="ui_game_symbol_arrow_right" pivot="center" sound="[paging_click]" />
+          <button depth="42" name="btnManualSaleMax" pos="200,-169" style="icon30px, press, hover" sprite="ui_game_symbol_arrow_max" pivot="center" sound="[paging_click]" />
+          <label depth="42" name="manualSalePrice" pos="260,-150" width="185" height="35" font_size="23" justify="right" />
+          <button depth="42" name="btnManualSaleConfirm" pos="150,-202" width="180" height="38" sprite="menu_empty3px" defaultcolor="52,91,68,255" hovercolor="77,132,86,255" sound="[paging_click]" />
+          <label depth="43" name="manualSaleConfirmLabel" pos="151,-207" width="178" height="30" font_size="22" justify="center" text_key="lblContextActionSell" />
         </rect>
       </rect>
     </window>

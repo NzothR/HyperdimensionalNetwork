@@ -7,6 +7,9 @@ HyperdimensionalNetworkQuickDeposit,Move all items into Hyperdimensional Network
 HyperdimensionalNetworkCategoryAll,All,全部
 HyperdimensionalNetworkManualRestock,Restock existing stacks,补充已有堆叠
 HyperdimensionalNetworkSettings,Network settings,网络设置
+HyperdimensionalNetworkManualSaleOpen,Manual sale for selected item,出售选中物品
+HyperdimensionalNetworkManualSaleTitle,Manual Sale,手动出售
+HyperdimensionalNetworkManualSaleSelectItem,Select an item in the network or backpack first,请先选中网络或背包中的物品
 HyperdimensionalNetworkSettingsTitle,Network Settings,网络设置
 HyperdimensionalNetworkSettingsHint,Personal settings apply only to you. Network feature switches are administrator-only.,个人设置只影响你自己。网络功能开关仅管理员可见和设置。
 HyperdimensionalNetworkTraderSellMode,Manual sale mode,手动出售模式
@@ -14,7 +17,7 @@ HyperdimensionalNetworkTraderSellItem,Sell this network stack,出售此网络物
 HyperdimensionalNetworkTraderSellAction,Sell,出售
 HyperdimensionalNetworkTraderSellModeOn,Sale mode enabled. Select an item in the network or backpack to sell it.,已开启出售模式。选中网络或背包物品后可出售。
 HyperdimensionalNetworkTraderSellModeOff,Virtual trader sale mode disabled.,已关闭虚空商人出售模式。
-HyperdimensionalNetworkTraderSaleComplete,Virtual trader sale complete. Proceeds deposited to network:,虚空商人出售完成，收益已存入网络：
+HyperdimensionalNetworkTraderSaleComplete,Virtual trader sale complete. Proceeds:,虚空商人出售完成，收益：
 HyperdimensionalNetworkTraderSaleFailed,Sale failed,出售失败
 HyperdimensionalNetworkTraderMarket,Aggregate discovered trader stock,聚合已发现的商人库存
 HyperdimensionalNetworkTraderMarketTitle,Trader Market,商人市场
