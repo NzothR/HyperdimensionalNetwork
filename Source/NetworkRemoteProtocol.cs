@@ -774,7 +774,8 @@ internal static class NetworkRemoteClient
             List<int> types = null;
             lock (Sync)
             {
-                foreach (int type in MatchingTypesQueued.Take(64))
+                List<int> queuedTypes = MatchingTypesQueued.Take(64).ToList();
+                foreach (int type in queuedTypes)
                 {
                     MatchingTypesQueued.Remove(type);
                     if (types == null) types = new List<int>();
@@ -783,6 +784,7 @@ internal static class NetworkRemoteClient
             }
             if (types != null)
             {
+                NetworkLog.Debug("Flushing queued matching-item query batch. count=" + types.Count);
                 EntityPlayerLocal player = GetLocalPlayer();
                 if ((bool)player)
                 {
