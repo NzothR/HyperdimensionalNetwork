@@ -10,6 +10,7 @@ HyperdimensionalNetworkSettings,Network settings,网络设置
 HyperdimensionalNetworkManualSaleOpen,Manual sale for selected item,出售选中物品
 HyperdimensionalNetworkManualSaleTitle,Manual Sale,手动出售
 HyperdimensionalNetworkManualSaleSelectItem,Select an item in the network or backpack first,请先选中网络或背包中的物品
+HyperdimensionalNetworkTraderCurrencyUnavailable,Not enough available Duke's Coins for this purchase,可用公爵币不足，无法完成购买
 HyperdimensionalNetworkSettingsTitle,Network Settings,网络设置
 HyperdimensionalNetworkSettingsHint,Personal settings apply only to you. Network feature switches are administrator-only.,个人设置只影响你自己。网络功能开关仅管理员可见和设置。
 HyperdimensionalNetworkTraderSellMode,Manual sale mode,手动出售模式

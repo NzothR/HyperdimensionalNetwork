@@ -84,7 +84,7 @@ internal static class VanillaTraderCurrencyPatch
             {
                 NetworkLog.Debug("Vanilla trader network currency reservation failed. player=" + player.entityId
                     + "; item=" + selected.type + "; price=" + price + "; error=" + error);
-                GameManager.ShowTooltip(player, Localization.Get("ttNoMoney"));
+                GameManager.ShowTooltip(player, Localization.Get("HyperdimensionalNetworkTraderCurrencyUnavailable"));
             });
         if (!sent) NetworkLog.Debug("Vanilla trader network currency reservation could not be queued. player=" + player.entityId);
         return false;
