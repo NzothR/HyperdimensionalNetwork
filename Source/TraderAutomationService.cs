@@ -359,7 +359,12 @@ internal static class TraderAutomationService
     {
         error = string.Empty;
         if (world == null || !(bool)player || rules == null || rules.Count == 0) { error = "TraderMarketUnavailable"; return false; }
-        if (TraderMarketplaceService.HasSession(player.entityId)) { error = "TraderMarketBusy"; return false; }
+        if (TraderMarketplaceService.HasSession(player.entityId))
+        {
+            error = "TraderMarketBusy";
+            NetworkLog.Debug("Automatic trader run blocked by an active market session. player=" + player.entityId + "; reason=" + reason);
+            return false;
+        }
         NetworkRemoteRequest openRequest = new NetworkRemoteRequest { EntityId = player.entityId, RequestId = DateTime.UtcNow.Ticks, Operation = NetworkRequestOperation.TraderOpenMarket, TraderAutomation = true };
         NetworkRemoteResult opened = TraderMarketplaceService.Open(world, player, openRequest);
         if (!opened.Success || string.IsNullOrEmpty(opened.TraderSessionId))
@@ -437,11 +442,19 @@ internal static class TraderAutomationService
                 }
                 if (currency == null || currency.IsEmpty()) break;
                 long currencyCount = NetworkStorage.GetCount(player, currency);
-                if (!Compare(currencyCount, rule.CurrencyCountComparison, rule.MinimumCurrencyCount)) continue;
+                if (!Compare(currencyCount, rule.CurrencyCountComparison, rule.MinimumCurrencyCount))
+                {
+                    NetworkLog.Debug("Automatic trader purchase skipped by currency threshold. rule=" + rule.Id + "; balance=" + currencyCount);
+                    continue;
+                }
                 if (rule.Scope == TraderRuleScope.SingleItem)
                 {
                     long matchingNetworkCount = NetworkStorage.GetEntries(player).Where(entry => Matches(rule, entry.Value)).Sum(entry => entry.Count);
-                    if (!Compare(matchingNetworkCount, rule.NetworkCountComparison, rule.MinimumNetworkCount)) continue;
+                    if (!Compare(matchingNetworkCount, rule.NetworkCountComparison, rule.MinimumNetworkCount))
+                    {
+                        NetworkLog.Debug("Automatic trader purchase skipped by network count threshold. rule=" + rule.Id + "; count=" + matchingNetworkCount);
+                        continue;
+                    }
                 }
                 long spendRemaining = rule.MaximumSpend > 0 ? Math.Min(rule.MaximumSpend, currencyCount) : currencyCount;
                 if (spendRemaining <= 0) continue;
@@ -456,7 +469,11 @@ internal static class TraderAutomationService
                         && !rejected.Contains(candidate.TraderEntityId + ":" + candidate.InventoryIndex))
                         .OrderBy(candidate => candidate.BundlePrice).ThenBy(candidate => candidate.TraderEntityId)
                         .ThenBy(candidate => candidate.InventoryIndex).FirstOrDefault();
-                    if (offer == null) break;
+                    if (offer == null)
+                    {
+                        if (attempt == 0) NetworkLog.Debug("Automatic trader purchase found no matching offer. rule=" + rule.Id + "; category=" + rule.Category + "; item=" + rule.ItemType + "; availableOffers=" + currentOffers.Count);
+                        break;
+                    }
                     int affordableBundles = (int)Math.Min(int.MaxValue, spendRemaining / offer.BundlePrice);
                     int availableBundles = offer.Count / offer.BundleSize;
                     int desiredBundles = Math.Min(Math.Min(affordableBundles, availableBundles), (maximumCount - purchased) / offer.BundleSize);
@@ -525,7 +542,8 @@ internal static class TraderAutomationService
     {
         if (value?.ItemClass == null) return false;
         if (rule.Scope == TraderRuleScope.SingleItem && rule.ItemType != value.type) return false;
-        if (rule.Scope == TraderRuleScope.Category && !string.IsNullOrEmpty(rule.Category) && !HasTraderCategory(value, rule.Category)) return false;
+        if (rule.Scope == TraderRuleScope.Category && !string.IsNullOrEmpty(rule.Category)
+            && !rule.Category.Split('|').Any(category => HasTraderCategory(value, category))) return false;
         if (!string.IsNullOrEmpty(rule.ExcludedItemTypes)
             && rule.ExcludedItemTypes.Split(',').Any(item => int.TryParse(item, out int type) && type == value.type)) return false;
         if (!string.IsNullOrEmpty(rule.ExcludedCategories)
@@ -546,11 +564,7 @@ internal static class TraderAutomationService
 
     internal static bool HasTraderCategory(ItemValue value, string category)
     {
-        if (value?.ItemClass == null || string.IsNullOrEmpty(category)) return false;
-        ItemClass itemClass = value.ItemClass;
-        string[] groups = itemClass.IsBlock() && value.type >= 0 && value.type < Block.list.Length
-            ? Block.list[value.type]?.GroupNames : itemClass.Groups;
-        return groups != null && groups.Any(group => string.Equals(group, category, StringComparison.OrdinalIgnoreCase));
+        return !string.IsNullOrEmpty(category) && XUiC_HyperdimensionalGrid.MatchesCategory(value, category);
     }
 
     private static bool Compare(long value, TraderRuleComparison comparison, long threshold)
@@ -586,6 +600,8 @@ internal static class TraderAutomationService
         { error = "TraderRuleRequiresItem"; return false; }
         if ((rule.Category?.Length ?? 0) > 128 || (rule.ExcludedCategories?.Length ?? 0) > 1024
             || (rule.ExcludedItemTypes?.Length ?? 0) > 1024)
+        { error = "InvalidTraderRuleFilter"; return false; }
+        if (!string.IsNullOrEmpty(rule.Category) && rule.Category.Split('|').Any(string.IsNullOrWhiteSpace))
         { error = "InvalidTraderRuleFilter"; return false; }
         if (!string.IsNullOrEmpty(rule.ExcludedCategories) && rule.ExcludedCategories.Split('|').Any(string.IsNullOrWhiteSpace))
         { error = "InvalidTraderRuleFilter"; return false; }

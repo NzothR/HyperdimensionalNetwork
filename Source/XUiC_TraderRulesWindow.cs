@@ -104,6 +104,8 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         _interval = GetChildById("traderRuleInterval") as XUiC_TextInput;
         _pickerSearch = GetChildById("rulePickerSearch") as XUiC_TextInput;
         if (_pickerSearch != null) _pickerSearch.OnChangeHandler += (sender, value, code) => { _pickerPage = 0; RefreshPicker(); };
+        foreach (XUiC_TextInput input in new[] { _quality, _maximumCount, _minimumNetworkCount, _maximumSpend, _minimumCurrencyCount, _hour, _interval })
+            if (input != null) input.OnChangeHandler += (sender, value, code) => RefreshNumericValidation(false);
         Bind("btnTraderRulesClose", (sender, button) => xui?.playerUI?.windowManager?.Close("hyperdimensionalTraderRules"));
         Bind("btnTraderRuleNew", (sender, button) => OpenEditor(null));
         Bind("btnRulePagePrevious", (sender, button) => { if (_rulePage > 0) { _rulePage--; RefreshList(); } });
@@ -124,6 +126,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         Bind("btnTraderRuleNetworkComparison", (sender, button) => { _networkComparison = (TraderRuleComparison)(((int)_networkComparison + 1) % 5); RefreshEditor(); });
         Bind("btnTraderRuleCurrencyComparison", (sender, button) => { _currencyComparison = (TraderRuleComparison)(((int)_currencyComparison + 1) % 5); RefreshEditor(); });
         Bind("btnRulePickerClose", (sender, button) => ClosePicker());
+        Bind("btnRulePickerDone", (sender, button) => ClosePicker());
         Bind("btnRulePickerStock", (sender, button) => { _stockOnly = !_stockOnly; _pickerPage = 0; if (_stockOnly) RefreshStockTypes(); else RefreshPicker(); });
         Bind("btnPickerPrevious", (sender, button) => { if (_pickerPage > 0) { _pickerPage--; RefreshPicker(); } });
         Bind("btnPickerNext", (sender, button) => { _pickerPage++; RefreshPicker(); });
@@ -223,8 +226,8 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private static string TargetName(TraderAutomationRule rule)
     {
         if (rule.Scope == TraderRuleScope.Category)
-            return string.IsNullOrEmpty(rule.Category) ? "全部商品" :
-                UIDisplayInfoManager.Current?.GetTraderCategoryDisplay(rule.Category)?.DisplayName ?? rule.Category;
+            return string.IsNullOrEmpty(rule.Category) ? "全部商品" : string.Join("、", rule.Category.Split('|').Select(name =>
+                UIDisplayInfoManager.Current?.GetTraderCategoryDisplay(name)?.DisplayName ?? name));
         return ItemClass.GetForId(rule.ItemType)?.GetLocalizedItemName() ?? "选择物品";
     }
 
@@ -262,9 +265,8 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         }
         else
         {
-            CraftingCategoryDisplayEntry category = UIDisplayInfoManager.Current?.GetTraderCategoryDisplay(rule.Category);
             sprite.UIAtlas = "SymbolAtlas";
-            sprite.SpriteName = category?.Icon ?? "ui_game_symbol_shopping_cart";
+            sprite.SpriteName = "hdn_trader_buy";
         }
         controller.IsDirty = true;
     }
@@ -329,6 +331,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         SetVisible(_main, false);
         SetText(_editorStatus, string.Empty);
         RefreshEditor();
+        RefreshNumericValidation(false);
     }
 
     private void CloseEditor()
@@ -348,6 +351,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         SetText(_scopeLabel, _editing.Scope == TraderRuleScope.SingleItem ? "单件商品" : "批量：分类 / 全部");
         SetText(_targetTitle, _editing.Scope == TraderRuleScope.SingleItem ? "点击选择商品" : "点击选择商人分类或全部");
         SetText(_targetLabel, TargetName(_editing));
+        if (_targetLabel?.ViewComponent is XUiV_LabelBase targetLabel) targetLabel.Color = Color.white;
         SetIcon(_targetIcon, _editing);
         string categoryExclusions = ExcludedCategoryNames(_editing.ExcludedCategories);
         string itemExclusions = ExcludedItemNames(_editing.ExcludedItemTypes);
@@ -385,6 +389,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         SetVisible(GetChildById("btnTraderRuleCurrencyComparison"), buy);
         SetVisible(_currencyComparisonLabel, buy);
         SetVisible(GetChildById("btnRuleDelete"), _rules.Any(rule => rule.Id == _editing.Id));
+        RefreshNumericValidation(false);
     }
 
     private void SavePressed(XUiController sender, int button)
@@ -402,8 +407,19 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         _editing.MinimumCurrencyCount = ReadInt(_minimumCurrencyCount, 0);
         _editing.ScheduledHour = ReadInt(_hour, 5);
         _editing.IntervalDays = ReadInt(_interval, 1);
+        if (!RefreshNumericValidation(true)) return;
         if (_editing.Scope == TraderRuleScope.SingleItem && _editing.ItemType <= 0)
-        { SetText(_editorStatus, "请先选择商品"); return; }
+        {
+            if (_targetLabel?.ViewComponent is XUiV_LabelBase itemTargetLabel) itemTargetLabel.Color = new Color32(255, 92, 92, 255);
+            SetText(_editorStatus, "请先选择红色标出的商品");
+            return;
+        }
+        if (_editing.Scope == TraderRuleScope.Category && (_editing.Category?.Length ?? 0) > 128)
+        {
+            if (_targetLabel?.ViewComponent is XUiV_LabelBase categoryTargetLabel) categoryTargetLabel.Color = new Color32(255, 92, 92, 255);
+            SetText(_editorStatus, "选择的分类过多，请减少红色标出的分类");
+            return;
+        }
         _requestPending = true;
         TraderAutomationRule saved = _editing.Clone();
         bool created = !_rules.Any(rule => rule.Id == saved.Id);
@@ -418,6 +434,37 @@ public sealed class XUiC_TraderRulesWindow : XUiController
                 if (created) { _rulePage = Math.Max(0, (_rules.Count - 1) / RuleRows); RefreshList(); }
             }
         })) _requestPending = false;
+    }
+
+    private bool RefreshNumericValidation(bool showError)
+    {
+        if (_editing == null) return true;
+        bool unlimited = _editing.Kind == TraderAutomationRuleKind.AutoBuy && _editing.Scope == TraderRuleScope.SingleItem;
+        string error = null;
+        CheckNumber(_quality, 0, 6, "品质等级", ref error);
+        CheckNumber(_maximumCount, unlimited ? 0 : 1, 1000000, "单次最大物品数", ref error);
+        CheckNumber(_minimumNetworkCount, 0, int.MaxValue, "网络数量阈值", ref error);
+        CheckNumber(_maximumSpend, 0, int.MaxValue, "单次最高花费", ref error);
+        CheckNumber(_minimumCurrencyCount, 0, int.MaxValue, "网络公爵币阈值", ref error);
+        CheckNumber(_hour, 0, 23, "游戏小时", ref error);
+        CheckNumber(_interval, 1, 3650, "间隔游戏日", ref error);
+        if (showError && error != null)
+        {
+            SetText(_editorStatus, error + "无效，请检查红色数值");
+            NetworkLog.Debug("Trader rule editor rejected invalid numeric input. field=" + error + "; kind=" + _editing.Kind + "; scope=" + _editing.Scope);
+        }
+        return error == null;
+    }
+
+    private static void CheckNumber(XUiC_TextInput input, int minimum, int maximum, string field, ref string error)
+    {
+        if (input == null) return;
+        bool valid = int.TryParse(input.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value)
+            && value >= minimum && value <= maximum;
+        Color color = valid ? Color.white : new Color32(255, 92, 92, 255);
+        input.ActiveTextColor = color;
+        if (input.label != null) input.label.Color = color;
+        if (!valid && error == null) error = field;
     }
 
     private void DeletePressed(XUiController sender, int button)
@@ -579,10 +626,11 @@ public sealed class XUiC_TraderRulesWindow : XUiController
             {
                 CraftingCategoryDisplayEntry category = _pickerMode == PickerMode.TargetCategory && index == 0 ? null
                     : categories[index - (_pickerMode == PickerMode.TargetCategory ? 1 : 0)];
-                bool excluded = category != null && ContainsCategory(_editing?.ExcludedCategories, category.Name);
-                SetText(_pickerNames[i], category == null ? "全部商品" :
-                    (_pickerMode == PickerMode.ExcludedCategory && excluded ? "✓  " : "") + category.DisplayName);
-                SetSprite(_pickerIcons[i], "SymbolAtlas", category?.Icon ?? "ui_game_symbol_shopping_cart");
+                bool selected = category != null && ContainsCategory(_pickerMode == PickerMode.TargetCategory
+                    ? _editing?.Category : _editing?.ExcludedCategories, category.Name);
+                SetText(_pickerNames[i], category == null ? (string.IsNullOrEmpty(_editing?.Category) ? "✓  全部商品" : "全部商品") :
+                    (selected ? "✓  " : "") + category.DisplayName);
+                SetSprite(_pickerIcons[i], "SymbolAtlas", "hdn_trader_buy");
             }
         }
         SetText(_pickerStockLabel, _stockOnly ? (_stockLoading ? "正在读取现有库存…" : "仅现有库存") : "全部有售价物品");
@@ -603,11 +651,22 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         }
         List<CraftingCategoryDisplayEntry> categories = _pickerCategories.Where(category =>
             string.IsNullOrEmpty(_pickerSearch?.Text) || (category.DisplayName ?? string.Empty).IndexOf(_pickerSearch.Text, StringComparison.CurrentCultureIgnoreCase) >= 0).ToList();
-        if (_pickerMode == PickerMode.TargetCategory && index == 0) { _editing.Category = string.Empty; ClosePicker(); return; }
+        if (_pickerMode == PickerMode.TargetCategory && index == 0)
+        {
+            _editing.Category = string.Empty;
+            RefreshPicker();
+            RefreshEditor();
+            return;
+        }
         int categoryIndex = index - (_pickerMode == PickerMode.TargetCategory ? 1 : 0);
         if (categoryIndex < 0 || categoryIndex >= categories.Count) return;
         string name = categories[categoryIndex].Name;
-        if (_pickerMode == PickerMode.TargetCategory) { _editing.Category = name; ClosePicker(); }
+        if (_pickerMode == PickerMode.TargetCategory)
+        {
+            _editing.Category = ToggleCategory(_editing.Category, name);
+            RefreshPicker();
+            RefreshEditor();
+        }
         else { _editing.ExcludedCategories = ToggleCategory(_editing.ExcludedCategories, name); RefreshPicker(); RefreshEditor(); }
     }
 

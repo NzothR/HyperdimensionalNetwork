@@ -32,7 +32,9 @@ internal static class TraderMarketClient
         if (NetworkRemoteClient.IsRemoteClient) return NetworkRemoteClient.CloseTraderMarket(player, sessionId, callback);
         NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.TraderCloseMarket);
         request.TraderSessionId = sessionId;
-        callback?.Invoke(TraderMarketplaceService.Close(player, request));
+        NetworkRemoteResult result = TraderMarketplaceService.Close(player, request);
+        callback?.Invoke(result);
+        NetworkLog.Debug("Local trader market close completed. player=" + player.entityId + "; session=" + sessionId + "; success=" + result.Success + "; error=" + result.Error);
         return true;
     }
 
