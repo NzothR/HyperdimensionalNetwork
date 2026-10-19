@@ -104,10 +104,7 @@ internal static class NetworkRpcServer
     private static bool IsTraderOperation(NetworkRequestOperation operation)
     {
         return operation == NetworkRequestOperation.TraderVoidSell || operation == NetworkRequestOperation.TraderOpenMarket
-            || operation == NetworkRequestOperation.TraderQueryMarket || operation == NetworkRequestOperation.TraderBuyItem
-            || operation == NetworkRequestOperation.TraderQueryRules || operation == NetworkRequestOperation.TraderSaveRule
-            || operation == NetworkRequestOperation.TraderDeleteRule || operation == NetworkRequestOperation.TraderMoveRule
-            || operation == NetworkRequestOperation.TraderRunRules;
+            || operation == NetworkRequestOperation.TraderQueryMarket || operation == NetworkRequestOperation.TraderBuyItem;
     }
 
     private static NetworkRemoteResult QueryPage(EntityPlayer player, NetworkRemoteRequest request)
@@ -230,6 +227,8 @@ internal static class NetworkRpcServer
             case NetworkRequestOperation.TraderMoveRule:
             case NetworkRequestOperation.TraderRunRules:
                 return TraderAutomationService.ExecuteRuleRequest(world, player, request);
+            case NetworkRequestOperation.AutomationProcessSlot:
+                return InventoryAutomationService.ExecuteSlot(player, sender?.latestPlayerData, request);
             case NetworkRequestOperation.MembershipInvite:
             case NetworkRequestOperation.MembershipAcceptInvite:
             case NetworkRequestOperation.MembershipDeclineInvite:
@@ -327,7 +326,7 @@ internal static class NetworkRpcServer
         };
     }
 
-    private static NetworkRemoteResult DepositPlayerSlot(EntityPlayer player, PlayerDataFile playerData, NetworkRemoteRequest request, bool toolbelt)
+    internal static NetworkRemoteResult DepositPlayerSlot(EntityPlayer player, PlayerDataFile playerData, NetworkRemoteRequest request, bool toolbelt)
     {
         if (playerData == null || request.Value == null || request.Count <= 0 || request.Slot < 0)
             return Failure(request, "InvalidPlayerInventoryRequest");
@@ -964,7 +963,7 @@ internal static class NetworkRpcServer
         return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Amount = (int)Math.Min(refunds.Sum(item => item.Count), int.MaxValue) };
     }
 
-    private static bool TryUpdateBag(MemoryStream blob, int slot, ItemValue expected, int count, out ItemStack source, out MemoryStream updated)
+    internal static bool TryUpdateBag(MemoryStream blob, int slot, ItemValue expected, int count, out ItemStack source, out MemoryStream updated, bool allowLocked = false)
     {
         source = null;
         updated = null;
@@ -972,7 +971,7 @@ internal static class NetworkRpcServer
         Bag bag;
         try { bag = ReadBag(blob); }
         catch (Exception ex) { NetworkLog.Error("Could not read the requesting player's backpack snapshot. " + ex); return false; }
-        if (bag == null || slot >= bag.SlotCount || bag.LockedSlots != null && slot < bag.LockedSlots.Length && bag.LockedSlots[slot]) return false;
+        if (bag == null || slot < 0 || slot >= bag.SlotCount || !allowLocked && bag.LockedSlots != null && slot < bag.LockedSlots.Length && bag.LockedSlots[slot]) return false;
         source = bag.ItemGrid[slot];
         bool matches = source != null && !source.IsEmpty()
             && NetworkStorage.NormalizeKey(source.itemValue).Equals(NetworkStorage.NormalizeKey(expected));
@@ -989,7 +988,7 @@ internal static class NetworkRpcServer
         return true;
     }
 
-    private static bool TryUpdateToolbelt(MemoryStream blob, int slot, ItemValue expected, int count, out ItemStack source, out MemoryStream updated)
+    internal static bool TryUpdateToolbelt(MemoryStream blob, int slot, ItemValue expected, int count, out ItemStack source, out MemoryStream updated)
     {
         source = null;
         updated = null;

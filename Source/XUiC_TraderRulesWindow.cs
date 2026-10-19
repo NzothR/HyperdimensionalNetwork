@@ -171,7 +171,13 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         Bind("btnRuleExcludeItem", (sender, button) => OpenPicker(PickerMode.ExcludedItem));
         Bind("btnRuleExcludeCategory", (sender, button) => OpenPicker(PickerMode.ExcludedCategory));
         Bind("btnTraderRuleCycleQuality", (sender, button) => { _qualityMode = (TraderQualityMatchMode)(((int)_qualityMode + 1) % 6); RefreshEditor(); });
-        Bind("btnTraderRuleCycleSchedule", (sender, button) => { _scheduled = !_scheduled; RefreshEditor(); });
+        Bind("btnTraderRuleCycleSchedule", (sender, button) =>
+        {
+            if (_editing == null) return;
+            if (_editing.Kind == TraderAutomationRuleKind.AutoTrash && _isAdmin) _editing.Personal = !_editing.Personal;
+            else _scheduled = !_scheduled;
+            RefreshEditor();
+        });
         Bind("btnTraderRuleNetworkComparison", (sender, button) => { _networkComparison = (TraderRuleComparison)(((int)_networkComparison + 1) % 6); RefreshEditor(); });
         Bind("btnTraderRuleCurrencyComparison", (sender, button) => { _currencyComparison = (TraderRuleComparison)(((int)_currencyComparison + 1) % 5); RefreshEditor(); });
         Bind("btnRulePickerClose", (sender, button) => ClosePicker());
@@ -221,7 +227,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
             }
         }
         StartQueuedPickerSearchIfReady();
-        if (!_isAdmin || _runPollPending || Time.realtimeSinceStartup < _nextRunPollAt) return;
+        if (!_runActive || _runPollPending || Time.realtimeSinceStartup < _nextRunPollAt) return;
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
         if (!(bool)player) return;
         _runPollPending = true;
@@ -276,11 +282,11 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         _requestPending = false;
         _isAdmin = result?.IsNetworkAdministrator == true;
         _rules.Clear();
-        if (_isAdmin && result?.TraderRules != null) _rules.AddRange(result.TraderRules.Select(rule => rule.Clone()));
+        if (result?.TraderRules != null) _rules.AddRange(result.TraderRules.Select(rule => rule.Clone()));
+        if (result?.Success == true) InventoryAutomationClient.SetRules(xui?.playerUI?.entityPlayer, _rules);
         if (_rulePage * RuleRows >= _rules.Count) _rulePage = Math.Max(0, (_rules.Count - 1) / RuleRows);
         RefreshList();
-        if (!_isAdmin) SetText(_status, Localization.Get("HyperdimensionalNetworkTraderRulesPermissionDenied"));
-        else if (result != null && !result.Success) SetText(_status, result.Error);
+        if (result != null && !result.Success) SetText(_status, result.Error);
         else SetText(_status, Localization.Get("HyperdimensionalNetworkTraderRulesHint"));
         if (result?.TraderRunProgressAvailable == true) ApplyRunProgress(result);
     }
@@ -330,11 +336,11 @@ public sealed class XUiC_TraderRulesWindow : XUiController
             { rowButton.Enabled = !_runActive && !_requestPending; _ruleButtons[i].IsDirty = true; }
             int index = _rulePage * RuleRows + i;
             if (_moveUpButtons[i]?.ViewComponent is XUiV_Button moveUp)
-            { moveUp.Enabled = !_runActive && !_requestPending && index > 0 && index < _rules.Count; _moveUpButtons[i].IsDirty = true; }
+            { moveUp.Enabled = !_runActive && !_requestPending && index > 0 && index < _rules.Count && CanMove(index, -1); _moveUpButtons[i].IsDirty = true; }
             if (_moveDownButtons[i]?.ViewComponent is XUiV_Button moveDown)
-            { moveDown.Enabled = !_runActive && !_requestPending && index >= 0 && index < _rules.Count - 1; _moveDownButtons[i].IsDirty = true; }
+            { moveDown.Enabled = !_runActive && !_requestPending && index >= 0 && index < _rules.Count - 1 && CanMove(index, 1); _moveDownButtons[i].IsDirty = true; }
             if (_deleteButtons[i]?.ViewComponent is XUiV_Button deleteButton)
-            { deleteButton.Enabled = !_runActive && !_requestPending && index >= 0 && index < _rules.Count; _deleteButtons[i].IsDirty = true; }
+            { deleteButton.Enabled = !_runActive && !_requestPending && index >= 0 && index < _rules.Count && CanEdit(_rules[index]); _deleteButtons[i].IsDirty = true; }
         }
         foreach (string id in new[] { "btnTraderRuleNew", "btnRulePagePrevious", "btnRulePageNext" })
             if (GetChildById(id)?.ViewComponent is XUiV_Button otherButton)
@@ -378,18 +384,18 @@ public sealed class XUiC_TraderRulesWindow : XUiController
                 }
             }
             if (_moveUpButtons[i]?.ViewComponent is XUiV_Button moveUp)
-            { moveUp.Enabled = !_runActive && !_requestPending && index > 0; _moveUpButtons[i].IsDirty = true; }
+            { moveUp.Enabled = !_runActive && !_requestPending && CanMove(index, -1); _moveUpButtons[i].IsDirty = true; }
             if (_moveDownButtons[i]?.ViewComponent is XUiV_Button moveDown)
-            { moveDown.Enabled = !_runActive && !_requestPending && index < _rules.Count - 1; _moveDownButtons[i].IsDirty = true; }
+            { moveDown.Enabled = !_runActive && !_requestPending && CanMove(index, 1); _moveDownButtons[i].IsDirty = true; }
             if (_deleteButtons[i]?.ViewComponent is XUiV_Button deleteButton)
-            { deleteButton.Enabled = !_runActive && !_requestPending && index < _rules.Count; _deleteButtons[i].IsDirty = true; }
+            { deleteButton.Enabled = !_runActive && !_requestPending && CanEdit(rule); _deleteButtons[i].IsDirty = true; }
             SetText(_ruleSummaries[i], ShortDescription(rule));
             SetIcon(_ruleIcons[i], rule);
             if (_ruleButtons[i]?.ViewComponent != null) _ruleButtons[i].ViewComponent.ToolTip = FullDescription(rule);
         }
         bool lastPage = (_rulePage + 1) * RuleRows >= _rules.Count;
-        SetVisible(_newButton, lastPage && _isAdmin);
-        SetVisible(_newLabel, lastPage && _isAdmin);
+        SetVisible(_newButton, lastPage);
+        SetVisible(_newLabel, lastPage);
         int used = Math.Min(RuleRows, Math.Max(0, _rules.Count - _rulePage * RuleRows));
         if (_newButton?.ViewComponent != null)
         {
@@ -405,22 +411,41 @@ public sealed class XUiC_TraderRulesWindow : XUiController
             + "  ·  使用每条规则右侧箭头调整顺序");
     }
 
+    private bool CanEdit(TraderAutomationRule rule) => rule != null && (rule.Personal || _isAdmin);
+
+    private bool CanMove(int index, int offset)
+    {
+        int target = index + offset;
+        return index >= 0 && target >= 0 && index < _rules.Count && target < _rules.Count
+            && CanEdit(_rules[index]) && CanEdit(_rules[target]) && _rules[index].Personal == _rules[target].Personal;
+    }
+
     private static string ShortDescription(TraderAutomationRule rule)
     {
         string target = TargetName(rule);
         string timing = rule.Kind == TraderAutomationRuleKind.AutoBuy && rule.Scheduled
             ? rule.ScheduledHour.ToString("00", CultureInfo.InvariantCulture) + ":00 / " + rule.IntervalDays + "日"
-            : rule.Kind == TraderAutomationRuleKind.AutoSell ? "入库时" : "手动";
-        string kind = rule.Kind == TraderAutomationRuleKind.AutoBuy ? "自动购入" : "自动售出";
-        return (rule.Enabled ? "" : "○ ") + target + "  ·  " + timing + "  ·  " + kind;
+            : rule.Kind == TraderAutomationRuleKind.AutoSell ? "入库时" : rule.Kind == TraderAutomationRuleKind.AutoBuy ? "手动" : "物品变动时";
+        return (rule.Enabled ? "" : "○ ") + target + "  ·  " + timing + "  ·  " + KindName(rule.Kind)
+            + "  ·  " + (rule.Personal ? "个人" : "网络");
     }
+
+    private static string KindName(TraderAutomationRuleKind kind) => kind switch
+    {
+        TraderAutomationRuleKind.AutoBuy => "自动购入",
+        TraderAutomationRuleKind.AutoSell => "自动售出",
+        TraderAutomationRuleKind.AutoDeposit => "自动存入",
+        TraderAutomationRuleKind.AutoTrash => "自动销毁",
+        _ => "未知规则"
+    };
 
     private static string FullDescription(TraderAutomationRule rule)
     {
         return ShortDescription(rule) + "\n" + (rule.Scope == TraderRuleScope.Category ? "批量" : "单件")
             + "  ·  " + QualityName(rule.QualityMode) + (rule.QualityMode == TraderQualityMatchMode.Any ? "" : " " + rule.Quality)
             + "  ·  最多 " + (rule.MaximumCount == 0 ? "不限" : rule.MaximumCount.ToString())
-            + (rule.Kind == TraderAutomationRuleKind.AutoBuy && rule.Scope == TraderRuleScope.Category ? ""
+            + (rule.Kind is TraderAutomationRuleKind.AutoDeposit or TraderAutomationRuleKind.AutoTrash
+                || rule.Kind == TraderAutomationRuleKind.AutoBuy && rule.Scope == TraderRuleScope.Category ? ""
                 : "\n网络数量 " + (rule.NetworkCountComparison == TraderRuleComparison.Ignore
                     ? "忽略已有库存" : ComparisonText(rule.NetworkCountComparison) + " " + rule.MinimumNetworkCount))
             + (rule.Kind == TraderAutomationRuleKind.AutoBuy ? "\n最多花费 " + (rule.MaximumSpend == 0 ? "不限" : rule.MaximumSpend.ToString())
@@ -491,8 +516,10 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private void CycleRuleKind(XUiController sender, int button)
     {
         if (_editing == null) return;
-        _editing.Kind = _editing.Kind == TraderAutomationRuleKind.AutoBuy
-            ? TraderAutomationRuleKind.AutoSell : TraderAutomationRuleKind.AutoBuy;
+        int next = ((int)_editing.Kind % 4) + 1;
+        if (!_isAdmin && next <= (int)TraderAutomationRuleKind.AutoBuy) next = (int)TraderAutomationRuleKind.AutoDeposit;
+        _editing.Kind = (TraderAutomationRuleKind)next;
+        _editing.Personal = _editing.Kind is TraderAutomationRuleKind.AutoDeposit or TraderAutomationRuleKind.AutoTrash;
         if (_editing.Kind == TraderAutomationRuleKind.AutoSell)
         {
             _editing.MaximumCount = 0;
@@ -510,7 +537,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
 
     private void DeleteRuleFromRow(int row)
     {
-        if (_runActive || _requestPending || !_isAdmin) return;
+        if (_runActive || _requestPending) return;
         int index = _rulePage * RuleRows + row;
         if (index < 0 || index >= _rules.Count) return;
         string id = _rules[index].Id;
@@ -522,7 +549,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private void DeleteRuleById(string id)
     {
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
-        if (!(bool)player || _runActive || _requestPending || !_isAdmin) return;
+        if (!(bool)player || _runActive || _requestPending) return;
         _requestPending = true;
         UpdateRunButton();
         if (!TraderRuleClient.Delete(player, id, result =>
@@ -541,7 +568,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
 
     private void MoveRule(int row, int offset)
     {
-        if (_runActive || _requestPending || !_isAdmin) return;
+        if (_runActive || _requestPending || !CanMove(_rulePage * RuleRows + row, offset)) return;
         int index = _rulePage * RuleRows + row;
         int target = index + offset;
         if (index < 0 || index >= _rules.Count || target < 0 || target >= _rules.Count) return;
@@ -562,10 +589,11 @@ public sealed class XUiC_TraderRulesWindow : XUiController
 
     private void OpenEditor(TraderAutomationRule rule)
     {
-        if (!_isAdmin || _requestPending || _runActive) return;
+        if (_requestPending || _runActive || rule != null && !CanEdit(rule)) return;
         _editing = rule?.Clone() ?? new TraderAutomationRule
         {
-            Kind = TraderAutomationRuleKind.AutoSell, Scope = TraderRuleScope.SingleItem,
+            Kind = _isAdmin ? TraderAutomationRuleKind.AutoSell : TraderAutomationRuleKind.AutoDeposit,
+            Personal = !_isAdmin, Scope = TraderRuleScope.SingleItem,
             MaximumCount = 0, QualityMode = TraderQualityMatchMode.Any
         };
         _qualityMode = _editing.QualityMode;
@@ -599,7 +627,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         if (_editing == null) return;
         bool buy = _editing.Kind == TraderAutomationRuleKind.AutoBuy;
         SetText(_editorTitle, _rules.Any(rule => rule.Id == _editing.Id) ? "编辑规则" : "新增规则");
-        SetText(_kindLabel, buy ? "自动购入" : "自动售出");
+        SetText(_kindLabel, KindName(_editing.Kind));
         SetText(_scopeLabel, _editing.Scope == TraderRuleScope.SingleItem ? "单件商品" : "批量：分类 / 全部");
         SetText(_targetTitle, _editing.Scope == TraderRuleScope.SingleItem ? "点击选择商品" : "点击选择商人分类或全部");
         SetText(_targetLabel, TargetName(_editing));
@@ -612,7 +640,9 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         if (_exclusionsLabel?.ViewComponent != null)
             _exclusionsLabel.ViewComponent.ToolTip = "分类：" + categoryExclusions + "\n物品：" + itemExclusions;
         SetText(_qualityLabel, QualityName(_qualityMode));
-        SetText(_scheduleLabel, buy ? (_scheduled ? "计划：开启" : "计划：关闭") : "入库时自动出售");
+        SetText(_scheduleLabel, buy ? (_scheduled ? "计划：开启" : "计划：关闭")
+            : _editing.Kind == TraderAutomationRuleKind.AutoTrash ? (_editing.Personal ? "归属：个人库存" : "归属：共享网络")
+            : _editing.Kind == TraderAutomationRuleKind.AutoDeposit ? "个人背包变动时自动存入" : "入库时自动出售");
         SetText(_networkComparisonLabel, "网络数量条件 " + ComparisonText(_networkComparison));
         if (_networkComparisonLabel?.ViewComponent != null)
             _networkComparisonLabel.ViewComponent.ToolTip = _networkComparison == TraderRuleComparison.Ignore
@@ -628,7 +658,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
             : "本规则每次执行时最多处理的物品总数，必须大于 0。";
         if (_maximumCountTitle?.ViewComponent != null) _maximumCountTitle.ViewComponent.ToolTip = countHelp;
         if (_maximumCount?.ViewComponent != null) _maximumCount.ViewComponent.ToolTip = countHelp;
-        SetVisible(GetChildById("btnTraderRuleCycleSchedule"), buy);
+        SetVisible(GetChildById("btnTraderRuleCycleSchedule"), buy || _isAdmin && _editing.Kind == TraderAutomationRuleKind.AutoTrash);
         SetVisible(GetChildById("traderRuleScheduleLabel"), true);
         SetVisible(_hour, buy && _scheduled);
         SetVisible(_interval, buy && _scheduled);
@@ -636,7 +666,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         SetVisible(GetChildById("ruleIntervalTitle"), buy && _scheduled);
         SetVisible(_maximumSpend, buy);
         SetVisible(_spendTitle, buy);
-        bool showNetworkThreshold = !buy || _editing.Scope == TraderRuleScope.SingleItem;
+        bool showNetworkThreshold = _editing.Kind == TraderAutomationRuleKind.AutoSell || buy && _editing.Scope == TraderRuleScope.SingleItem;
         SetVisible(_minimumNetworkCount, showNetworkThreshold && _networkComparison != TraderRuleComparison.Ignore);
         SetVisible(GetChildById("ruleNetworkCountTitle"), showNetworkThreshold && _networkComparison != TraderRuleComparison.Ignore);
         SetVisible(GetChildById("btnTraderRuleNetworkComparison"), showNetworkThreshold);
@@ -652,7 +682,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private void SavePressed(XUiController sender, int button)
     {
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
-        if (_editing == null || !(bool)player || !_isAdmin || _requestPending || _runActive) return;
+        if (_editing == null || !(bool)player || _requestPending || _runActive) return;
         _editing.QualityMode = _qualityMode;
         _editing.NetworkCountComparison = _networkComparison;
         _editing.CurrencyCountComparison = _currencyComparison;
@@ -727,7 +757,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private void DeletePressed(XUiController sender, int button)
     {
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
-        if (_editing == null || !(bool)player || !_isAdmin || _requestPending || _runActive
+        if (_editing == null || !(bool)player || !CanEdit(_editing) || _requestPending || _runActive
             || !_rules.Any(rule => rule.Id == _editing.Id)) return;
         _requestPending = true;
         if (!TraderRuleClient.Delete(player, _editing.Id, result =>
@@ -741,7 +771,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private void RunPressed(XUiController sender, int button)
     {
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
-        if (!(bool)player || !_isAdmin || _requestPending || _runActive) return;
+        if (!(bool)player || _requestPending || _runActive) return;
         _runTotalRules = _rules.Count(rule => rule.Enabled);
         _runCurrentRule = _runTotalRules > 0 ? 1 : 0;
         _runActive = _runTotalRules > 0;
@@ -768,6 +798,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
                 SetText(_status, Localization.Get("HyperdimensionalNetworkTraderRulesRunRequested"));
                 UpdateRunButton();
             }
+            if (result.Success) InventoryAutomationClient.RunNow(player);
         }))
         {
             _requestPending = false;

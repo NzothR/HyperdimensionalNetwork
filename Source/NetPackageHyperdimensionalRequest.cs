@@ -163,7 +163,8 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
             MinimumCurrencyCount = reader.ReadInt32(), CurrencyCountComparison = (TraderRuleComparison)reader.ReadByte(), MaximumSpend = reader.ReadInt32(),
             Scheduled = reader.ReadBoolean(), ScheduledHour = reader.ReadInt32(), IntervalDays = reader.ReadInt32(), LastScheduledDay = reader.ReadInt32(),
             Scope = (TraderRuleScope)reader.ReadByte(), Category = ReadBoundedString(reader, 128),
-            ExcludedCategories = ReadBoundedString(reader, 1024), ExcludedItemTypes = ReadBoundedString(reader, 1024)
+            ExcludedCategories = ReadBoundedString(reader, 1024), ExcludedItemTypes = ReadBoundedString(reader, 1024),
+            Personal = reader.ReadBoolean()
         };
 
     private static void WriteTraderRule(BinaryWriter writer, TraderAutomationRule rule)
@@ -174,6 +175,7 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         writer.Write(rule.MaximumSpend); writer.Write(rule.Scheduled); writer.Write(rule.ScheduledHour); writer.Write(rule.IntervalDays); writer.Write(rule.LastScheduledDay);
         writer.Write((byte)rule.Scope); writer.Write(rule.Category ?? string.Empty);
         writer.Write(rule.ExcludedCategories ?? string.Empty); writer.Write(rule.ExcludedItemTypes ?? string.Empty);
+        writer.Write(rule.Personal);
     }
 
     private static void ReadSlotList(BinaryReader reader, List<int> slots)

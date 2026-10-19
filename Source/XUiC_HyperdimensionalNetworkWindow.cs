@@ -438,7 +438,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         SetVisible(_manualSaleButton, _settings.TraderEnabled);
         SetVisible(_traderPayoutButton, _settings.TraderEnabled);
         SetVisible(GetChildById("btnHyperdimensionalTraderBuy"), _settings.TraderEnabled);
-        SetVisible(GetChildById("btnHyperdimensionalTraderRules"), _settings.TraderEnabled);
+        SetVisible(GetChildById("btnHyperdimensionalTraderRules"), _settings.TraderEnabled || _settings.AutoDepositEnabled || _settings.TrashEnabled);
         SetVisible(GetChildById("btnHyperdimensionalCraftingChain"), _settings.CraftingChainEnabled);
         string status = Localization.Get("HyperdimensionalNetworkSettingsReady");
         if (_settings.AutoRestockCooldownMs > 0)

@@ -47,7 +47,8 @@ internal enum NetworkRequestOperation : byte
     MembershipKick = 36,
     MembershipTransferAdministrator = 37,
     MembershipAcknowledgePrepare = 38,
-    DepositEntityBagAll = 39
+    DepositEntityBagAll = 39,
+    AutomationProcessSlot = 40
 }
 
 internal enum NetworkMembershipNotice : byte { None = 0, Invite = 1, Prepare = 2, Completed = 3, Changed = 4, InviteInvalidated = 5 }
@@ -666,6 +667,16 @@ internal static class NetworkRemoteClient
         request.Count = count;
         request.Slot = slot;
         return Send(localPlayer, request, toolbelt, !toolbelt, false, callback);
+    }
+
+    internal static bool ProcessAutomationSlot(EntityPlayerLocal player, bool toolbelt, int slot, ItemValue value, int count,
+        Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player || value == null || count <= 0 || slot < 0) return false;
+        NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.AutomationProcessSlot);
+        request.Value = value.Clone(); request.Count = count; request.Slot = slot;
+        request.SourceLocation = toolbelt ? XUiC_ItemStack.StackLocationTypes.ToolBelt : XUiC_ItemStack.StackLocationTypes.Backpack;
+        return Send(player, request, toolbelt, !toolbelt, false, callback);
     }
 
     public static bool DepositBackpackAll(EntityPlayer player, Action<NetworkRemoteResult> callback)

@@ -100,8 +100,8 @@ HyperdimensionalNetworkTraderRules,Automatic buy/sell rules,自动买卖规则
 HyperdimensionalNetworkTraderPayoutToggle,Toggle virtual sale payout target,切换出售收益目标
 HyperdimensionalNetworkTraderPayoutPersonal,Virtual sale proceeds will go to your backpack when space allows; overflow goes to the network.,虚空出售收益优先进入背包，空间不足时改存入网络。
 HyperdimensionalNetworkTraderPayoutNetwork,Virtual sale proceeds will go to the shared network.,虚空出售收益存入共享网络。
-HyperdimensionalNetworkTraderRulesTitle,Automatic Trader Rules,自动商人规则
-HyperdimensionalNetworkTraderRulesHint,Rules are shared by this network and managed by its administrator.,规则由本网络共享并由网络管理员管理。
+HyperdimensionalNetworkTraderRulesTitle,Automation Rules,自动化规则
+HyperdimensionalNetworkTraderRulesHint,Network rules require an administrator; personal rules follow the player.,网络规则由管理员管理；个人规则随玩家保留。
 HyperdimensionalNetworkTraderRulesLoading,Loading network trader rules…,正在加载网络商人规则…
 HyperdimensionalNetworkTraderRulesPermissionDenied,Only this network's administrator can manage trader rules.,仅本网络管理员可以管理商人规则。
 HyperdimensionalNetworkTraderRulesCreate,Create a rule,创建规则
@@ -134,6 +134,7 @@ HyperdimensionalNetworkTraderRulesSaveFailed,Rule could not be saved,规则保�
 HyperdimensionalNetworkTraderRulesSaved,Rule saved,规则已保存
 HyperdimensionalNetworkTraderRulesDeleted,Rule deleted,规则已删除
 HyperdimensionalNetworkTraderRulesRunRequested,Rule execution started,已开始按顺序执行规则
+HyperdimensionalNetworkAutomationSettings,Automation settings,自动化设置
 HyperdimensionalNetworkTraderRuleToggle,Enable / disable,启用/停用
 HyperdimensionalNetworkTraderRuleRun,Run all now,立即执行全部
 HyperdimensionalNetworkTraderRuleUp,Move up,上移

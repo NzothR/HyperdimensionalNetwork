@@ -113,6 +113,7 @@ internal static class AutoRestockClient
         }
 
         ProcessAutomaticRestock(state);
+        InventoryAutomationClient.Update(player);
     }
 
     public static IDisposable SuppressInventoryEvents(EntityPlayerLocal player)
@@ -143,6 +144,7 @@ internal static class AutoRestockClient
         state.AutomaticRequestPending = false;
         state.PendingAutomaticScan = false;
         state.AuthorizedAutomaticScan = false;
+        InventoryAutomationClient.OnNetworkChanged(player);
         RefreshBaseline(player);
         if (NetworkRemoteClient.IsRemoteClient) RequestSettingsIfNeeded(state, force: true);
         else ApplySettings(state, RestockSettingsService.Get(player));
@@ -295,7 +297,10 @@ internal static class AutoRestockClient
         ItemStack previous = snapshot[index];
         snapshot[index] = current;
         state.HasSnapshot = true;
-        if (state.SuppressDepth > 0 || !HasStackCountChanged(previous, current)) return;
+        if (state.SuppressDepth > 0) return;
+        if (HasStackChanged(previous, current))
+            InventoryAutomationClient.OnSlotChanged(state.Player, toolbelt, index, previous, current);
+        if (!HasStackCountChanged(previous, current)) return;
         NetworkLog.Debug("Player inventory slot changed. player=" + state.Player.entityId + "; toolbelt=" + toolbelt + "; slot=" + index
             + "; countBefore=" + GetStackCount(previous) + "; countAfter=" + GetStackCount(current)
             + "; autoEnabled=" + state.AutoRestockEnabled + "; remote=" + NetworkRemoteClient.IsRemoteClient);

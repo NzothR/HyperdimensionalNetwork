@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace HyperdimensionalNetwork;
 
-internal enum TraderAutomationRuleKind : byte { AutoSell = 1, AutoBuy = 2 }
+internal enum TraderAutomationRuleKind : byte { AutoSell = 1, AutoBuy = 2, AutoDeposit = 3, AutoTrash = 4 }
 internal enum TraderQualityMatchMode : byte { Any = 0, Exact = 1, Greater = 2, GreaterOrEqual = 3, Less = 4, LessOrEqual = 5 }
 internal enum TraderRuleComparison : byte { Greater = 0, GreaterOrEqual = 1, Equal = 2, LessOrEqual = 3, Less = 4, Ignore = 5 }
 internal enum TraderRuleScope : byte { SingleItem = 0, Category = 1 }
@@ -14,6 +14,7 @@ internal enum TraderRuleScope : byte { SingleItem = 0, Category = 1 }
 internal sealed class TraderAutomationRule
 {
     public string Id = Guid.NewGuid().ToString("N");
+    public bool Personal;
     public TraderAutomationRuleKind Kind;
     public bool Enabled = true;
     public int ItemType;
@@ -142,15 +143,15 @@ internal static class TraderAutomationService
 
     public static NetworkRemoteResult QueryRules(EntityPlayer player, NetworkRemoteRequest request)
     {
-        if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled))
-            return new NetworkRemoteResult { RequestId = request?.RequestId ?? 0, Success = false, Error = "TraderDisabled" };
+        if (!(bool)player) return new NetworkRemoteResult { RequestId = request?.RequestId ?? 0, Success = false, Error = "PlayerUnavailable" };
         bool isAdmin = (bool)player && PlayerNetworkDirectory.IsNetworkAdministrator(player);
         NetworkRemoteResult result = new NetworkRemoteResult
         {
             RequestId = request?.RequestId ?? 0,
             Success = true,
             IsNetworkAdministrator = isAdmin,
-            TraderRules = isAdmin ? GetRules(player) : new List<TraderAutomationRule>()
+            TraderRules = (isAdmin ? GetRules(player) : new List<TraderAutomationRule>())
+                .Concat(PersonalAutomationRuleService.GetRules(player)).ToList()
         };
         if (isAdmin) AttachRunProgress(result, PlayerNetworkDirectory.GetNetworkId(player));
         return result;
@@ -220,20 +221,25 @@ internal static class TraderAutomationService
 
     public static NetworkRemoteResult ExecuteRuleRequest(World world, EntityPlayer player, NetworkRemoteRequest request)
     {
-        if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled))
-            return new NetworkRemoteResult { RequestId = request?.RequestId ?? 0, Success = false, Error = "TraderDisabled" };
+        if (!(bool)player) return new NetworkRemoteResult { RequestId = request?.RequestId ?? 0, Success = false, Error = "PlayerUnavailable" };
         string error;
         bool success;
         switch (request.Operation)
         {
             case NetworkRequestOperation.TraderSaveRule:
-                success = TrySaveRule(player, request.TraderRule, out error);
+                success = request.TraderRule?.Personal == true
+                    ? PersonalAutomationRuleService.TrySave(player, request.TraderRule, out error)
+                    : TrySaveRule(player, request.TraderRule, out error);
                 break;
             case NetworkRequestOperation.TraderDeleteRule:
-                success = TryDeleteRule(player, request.TraderRuleId, out error);
+                success = PersonalAutomationRuleService.GetRules(player).Any(rule => rule.Id == request.TraderRuleId)
+                    ? PersonalAutomationRuleService.TryDelete(player, request.TraderRuleId, out error)
+                    : TryDeleteRule(player, request.TraderRuleId, out error);
                 break;
             case NetworkRequestOperation.TraderMoveRule:
-                success = MoveRule(player, request.TraderRuleId, request.TraderRuleMove, out error);
+                success = PersonalAutomationRuleService.GetRules(player).Any(rule => rule.Id == request.TraderRuleId)
+                    ? PersonalAutomationRuleService.TryMove(player, request.TraderRuleId, request.TraderRuleMove, out error)
+                    : MoveRule(player, request.TraderRuleId, request.TraderRuleMove, out error);
                 break;
             case NetworkRequestOperation.TraderRunRules:
                 success = RunNow(world, player, request.TraderRuleId, out error);
@@ -252,6 +258,13 @@ internal static class TraderAutomationService
     {
         error = string.Empty;
         if (!(bool)player || !PlayerNetworkDirectory.IsNetworkAdministrator(player)) { error = "PermissionDenied"; return false; }
+        if (rule == null || rule.Personal || rule.Kind == TraderAutomationRuleKind.AutoDeposit) { error = "InvalidAutomationRule"; return false; }
+        if (rule.Kind == TraderAutomationRuleKind.AutoTrash
+            && !NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TrashEnabled))
+        { error = "TrashDisabled"; return false; }
+        if (rule.Kind is TraderAutomationRuleKind.AutoBuy or TraderAutomationRuleKind.AutoSell
+            && !NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled))
+        { error = "TraderDisabled"; return false; }
         if (!Validate(rule, out error))
         {
             NetworkLog.Debug("Trader automation rule save rejected. player=" + player.entityId + "; kind=" + rule?.Kind
@@ -412,6 +425,41 @@ internal static class TraderAutomationService
         finally { lock (Sync) { ProcessingDeposits.Remove(networkId); ActiveRuleIds.Remove(networkId); } }
     }
 
+    internal static void OnNetworkTrashDeposit(EntityPlayer player, IEnumerable<StorageAddition> additions)
+    {
+        if (!(bool)player || additions == null || !NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TrashEnabled)) return;
+        List<TraderAutomationRule> rules = GetRules(player)
+            .Where(rule => rule.Enabled && rule.Kind == TraderAutomationRuleKind.AutoTrash && !rule.Personal).ToList();
+        if (rules.Count == 0) return;
+        foreach (StorageAddition addition in additions)
+        {
+            if (addition?.Value == null || addition.Count <= 0) continue;
+            TraderAutomationRule rule = rules.FirstOrDefault(candidate => Matches(candidate, addition.Value));
+            if (rule == null) continue;
+            long available = NetworkStorage.GetCount(player, addition.Value);
+            int count = (int)Math.Min(Math.Min(Math.Min(addition.Count, available), rule.MaximumCount == 0 ? long.MaxValue : rule.MaximumCount), int.MaxValue);
+            if (count <= 0) continue;
+            int removed = NetworkStorage.Remove(player, addition.Value, count);
+            NetworkLog.Debug("Network trash rule processed a deposit after sale. network=" + PlayerNetworkDirectory.GetNetworkId(player)
+                + "; rule=" + rule.Id + "; item=" + addition.Value.type + "; requested=" + count + "; removed=" + removed);
+        }
+    }
+
+    private static void ExecuteGlobalTrashRule(EntityPlayer player, TraderAutomationRule rule, string reason)
+    {
+        if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TrashEnabled)) return;
+        long remaining = rule.MaximumCount == 0 ? long.MaxValue : rule.MaximumCount;
+        foreach (StoredEntry entry in NetworkStorage.GetEntries(player).Where(entry => Matches(rule, entry.Value)))
+        {
+            if (remaining <= 0) break;
+            int count = (int)Math.Min(Math.Min(remaining, entry.Count), int.MaxValue);
+            int removed = NetworkStorage.Remove(player, entry.Value, count);
+            remaining -= removed;
+            NetworkLog.Debug("Global trash rule executed. network=" + PlayerNetworkDirectory.GetNetworkId(player)
+                + "; rule=" + rule.Id + "; item=" + entry.Value.type + "; removed=" + removed + "; reason=" + reason);
+        }
+    }
+
     public static void Update(World world)
     {
         if (world == null || world.Players?.list == null) return;
@@ -472,18 +520,25 @@ internal static class TraderAutomationService
     public static bool RunNow(World world, EntityPlayer player, string ruleId, out string error)
     {
         error = string.Empty;
-        if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled)) { error = "TraderDisabled"; return false; }
-        if (!(bool)player || !PlayerNetworkDirectory.IsNetworkAdministrator(player)) { error = "PermissionDenied"; return false; }
+        if (!(bool)player) { error = "PlayerUnavailable"; return false; }
+        bool isAdmin = PlayerNetworkDirectory.IsNetworkAdministrator(player);
         string networkId = PlayerNetworkDirectory.GetNetworkId(player);
         if (string.IsNullOrEmpty(networkId)) { error = "NetworkUnavailable"; return false; }
         List<TraderAutomationRule> rules;
         lock (Sync)
         {
-            if (!EnsureLoaded() || !Rules.TryGetValue(networkId, out List<TraderAutomationRule> current)) { error = "TraderRuleNotFound"; return false; }
-            rules = current.Where(rule => rule.Enabled
-                && (string.IsNullOrEmpty(ruleId) || rule.Id == ruleId)).Select(rule => rule.Clone()).ToList();
+            if (!EnsureLoaded()) { error = "TraderRulesUnavailable"; return false; }
+            rules = isAdmin && Rules.TryGetValue(networkId, out List<TraderAutomationRule> current)
+                ? current.Where(rule => rule.Enabled && (string.IsNullOrEmpty(ruleId) || rule.Id == ruleId)).Select(rule => rule.Clone()).ToList()
+                : new List<TraderAutomationRule>();
         }
-        if (rules.Count == 0) { error = "TraderRuleNotFound"; return false; }
+        bool personal = PersonalAutomationRuleService.GetRules(player).Any(rule => rule.Enabled
+            && (string.IsNullOrEmpty(ruleId) || rule.Id == ruleId));
+        if (rules.Count == 0) { if (personal) return true; error = "TraderRuleNotFound"; return false; }
+        if (rules.Any(rule => rule.Kind is TraderAutomationRuleKind.AutoSell or TraderAutomationRuleKind.AutoBuy)
+            && !NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled))
+            rules.RemoveAll(rule => rule.Kind is TraderAutomationRuleKind.AutoSell or TraderAutomationRuleKind.AutoBuy);
+        if (rules.Count == 0) { if (personal) return true; error = "FeatureDisabled"; return false; }
         lock (Sync)
         {
             if (IsNetworkExecutionActiveUnsafe(networkId))
@@ -491,7 +546,7 @@ internal static class TraderAutomationService
             ManualRunNetworks.Add(networkId);
         }
         SetRunProgress(networkId, true, 1, rules.Count, "正在等待第 1 条规则执行", rules[0].Id);
-        if (rules.All(rule => rule.Kind == TraderAutomationRuleKind.AutoSell))
+        if (rules.All(rule => rule.Kind != TraderAutomationRuleKind.AutoBuy))
         {
             PendingRuns.Add(new PendingBuyRun
             {
@@ -559,7 +614,8 @@ internal static class TraderAutomationService
             if (!ReferenceEquals(run.World, world)) { TraderMarketplaceService.ForceClose(run.SessionId); FinishManualRun(run, "规则执行中断：世界已切换"); PendingRuns.Remove(run); continue; }
             EntityPlayer player = world.GetEntity(run.PlayerEntityId) as EntityPlayer;
             if (!(bool)player) { TraderMarketplaceService.ForceClose(run.SessionId); FinishManualRun(run, "规则执行中断：玩家已离线"); PendingRuns.Remove(run); continue; }
-            if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled))
+            if (run.Rules.Any(rule => rule.Kind is TraderAutomationRuleKind.AutoSell or TraderAutomationRuleKind.AutoBuy)
+                && !NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled))
             {
                 TraderMarketplaceService.ForceClose(run.SessionId);
                 FinishManualRun(run, "规则执行中断：商人功能已关闭");
@@ -614,6 +670,8 @@ internal static class TraderAutomationService
             {
                 if (currentRule.Kind == TraderAutomationRuleKind.AutoSell)
                     ExecuteSellRule(player, currentRule, run.Reason);
+                else if (currentRule.Kind == TraderAutomationRuleKind.AutoTrash)
+                    ExecuteGlobalTrashRule(player, currentRule, run.Reason);
                 else if (string.IsNullOrEmpty(run.SessionId))
                     NetworkLog.Debug("Automatic trader buy rule skipped because market could not be opened. player=" + player.entityId + "; rule=" + currentRule.Id);
                 else
@@ -655,6 +713,11 @@ internal static class TraderAutomationService
                 if (rule.Kind == TraderAutomationRuleKind.AutoSell)
                 {
                     ExecuteSellRule(player, rule, run.Reason);
+                    continue;
+                }
+                if (rule.Kind == TraderAutomationRuleKind.AutoTrash)
+                {
+                    ExecuteGlobalTrashRule(player, rule, run.Reason);
                     continue;
                 }
                 if (currency == null || currency.IsEmpty())
@@ -739,7 +802,8 @@ internal static class TraderAutomationService
     }
 
     internal static bool AllowsUnlimitedMaximumCount(TraderAutomationRule rule)
-        => rule != null && (rule.Kind == TraderAutomationRuleKind.AutoBuy || rule.Kind == TraderAutomationRuleKind.AutoSell);
+        => rule != null && (rule.Kind == TraderAutomationRuleKind.AutoBuy || rule.Kind == TraderAutomationRuleKind.AutoSell
+            || rule.Kind == TraderAutomationRuleKind.AutoDeposit || rule.Kind == TraderAutomationRuleKind.AutoTrash);
 
     internal static bool Matches(TraderAutomationRule rule, ItemValue value)
     {
@@ -813,6 +877,14 @@ internal static class TraderAutomationService
         if (!string.IsNullOrEmpty(rule.ExcludedItemTypes) && rule.ExcludedItemTypes.Split(',').Any(item =>
             !int.TryParse(item, out int type) || type <= 0))
         { error = "InvalidTraderRuleFilter"; return false; }
+        return true;
+    }
+
+    internal static bool ValidateAutomationRule(TraderAutomationRule rule, out string error)
+    {
+        if (!Validate(rule, out error)) return false;
+        if (rule.Kind is not (TraderAutomationRuleKind.AutoDeposit or TraderAutomationRuleKind.AutoTrash))
+        { error = "InvalidAutomationRuleKind"; return false; }
         return true;
     }
 

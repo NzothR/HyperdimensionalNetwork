@@ -101,7 +101,8 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
                 MinimumCurrencyCount = reader.ReadInt32(), CurrencyCountComparison = (TraderRuleComparison)reader.ReadByte(), MaximumSpend = reader.ReadInt32(),
                 Scheduled = reader.ReadBoolean(), ScheduledHour = reader.ReadInt32(), IntervalDays = reader.ReadInt32(), LastScheduledDay = reader.ReadInt32(),
                 Scope = (TraderRuleScope)reader.ReadByte(), Category = ReadBoundedString(reader, 128),
-                ExcludedCategories = ReadBoundedString(reader, 1024), ExcludedItemTypes = ReadBoundedString(reader, 1024)
+                ExcludedCategories = ReadBoundedString(reader, 1024), ExcludedItemTypes = ReadBoundedString(reader, 1024),
+                Personal = reader.ReadBoolean()
             });
         _result.TraderRunProgressAvailable = reader.ReadBoolean();
         _result.TraderRunActive = reader.ReadBoolean();
@@ -203,6 +204,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
                 binary.Write(rule.MaximumSpend); binary.Write(rule.Scheduled); binary.Write(rule.ScheduledHour); binary.Write(rule.IntervalDays); binary.Write(rule.LastScheduledDay);
                 binary.Write((byte)rule.Scope); binary.Write(rule.Category ?? string.Empty);
                 binary.Write(rule.ExcludedCategories ?? string.Empty); binary.Write(rule.ExcludedItemTypes ?? string.Empty);
+                binary.Write(rule.Personal);
             }
         binary.Write(result.TraderRunProgressAvailable);
         binary.Write(result.TraderRunActive);
