@@ -27,10 +27,10 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private readonly XUiController[] _pickerIcons = new XUiController[PickerRows];
     private readonly XUiController[] _pickerNames = new XUiController[PickerRows];
 
-    private XUiController _status, _editorStatus, _newButton, _newLabel, _pageLabel, _editor, _picker;
+    private XUiController _status, _editorStatus, _newButton, _newLabel, _pageLabel, _main, _editor, _picker;
     private XUiController _editorTitle, _kindLabel, _scopeLabel, _targetTitle, _targetLabel, _targetIcon;
     private XUiController _exclusionsLabel, _qualityLabel, _scheduleLabel, _networkComparisonLabel, _currencyComparisonLabel;
-    private XUiController _enabledLabel, _spendTitle, _currencyTitle, _pickerTitle, _pickerStockLabel, _pickerPageLabel;
+    private XUiController _enabledLabel, _spendTitle, _currencyTitle, _maximumCountTitle, _pickerTitle, _pickerStockLabel, _pickerPageLabel;
     private XUiC_TextInput _quality, _maximumCount, _minimumNetworkCount, _maximumSpend;
     private XUiC_TextInput _minimumCurrencyCount, _hour, _interval, _pickerSearch;
     private TraderAutomationRule _editing;
@@ -74,6 +74,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         _newButton = GetChildById("btnTraderRuleNew");
         _newLabel = GetChildById("ruleNewLabel");
         _pageLabel = GetChildById("rulePageLabel");
+        _main = GetChildById("ruleMain");
         _editor = GetChildById("ruleEditor");
         _picker = GetChildById("rulePicker");
         _editorTitle = GetChildById("ruleEditorTitle");
@@ -90,6 +91,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         _enabledLabel = GetChildById("ruleEnabledLabel");
         _spendTitle = GetChildById("ruleSpendTitle");
         _currencyTitle = GetChildById("ruleCurrencyTitle");
+        _maximumCountTitle = GetChildById("ruleMaximumCountTitle");
         _pickerTitle = GetChildById("rulePickerTitle");
         _pickerStockLabel = GetChildById("rulePickerStockLabel");
         _pickerPageLabel = GetChildById("pickerPageLabel");
@@ -134,6 +136,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         _isAdmin = false;
         _requestPending = false;
         _rulePage = 0;
+        SetVisible(_main, true);
         SetVisible(_editor, false);
         SetVisible(_picker, false);
         SetText(_status, Localization.Get("HyperdimensionalNetworkTraderRulesLoading"));
@@ -208,7 +211,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     {
         return ShortDescription(rule) + "\n" + (rule.Scope == TraderRuleScope.Category ? "批量" : "单件")
             + "  ·  " + QualityName(rule.QualityMode) + (rule.QualityMode == TraderQualityMatchMode.Any ? "" : " " + rule.Quality)
-            + "  ·  最多 " + rule.MaximumCount
+            + "  ·  最多 " + (rule.MaximumCount == 0 ? "不限" : rule.MaximumCount.ToString())
             + (rule.Kind == TraderAutomationRuleKind.AutoBuy && rule.Scope == TraderRuleScope.Category ? ""
                 : "\n网络数量 " + ComparisonText(rule.NetworkCountComparison) + " " + rule.MinimumNetworkCount)
             + (rule.Kind == TraderAutomationRuleKind.AutoBuy ? "\n最多花费 " + (rule.MaximumSpend == 0 ? "不限" : rule.MaximumSpend.ToString())
@@ -323,6 +326,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         SetInput(_hour, _editing.ScheduledHour);
         SetInput(_interval, _editing.IntervalDays);
         SetVisible(_editor, true);
+        SetVisible(_main, false);
         SetText(_editorStatus, string.Empty);
         RefreshEditor();
     }
@@ -332,6 +336,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         ClosePicker();
         _editing = null;
         SetVisible(_editor, false);
+        SetVisible(_main, true);
     }
 
     private void RefreshEditor()
@@ -355,6 +360,13 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         SetText(_networkComparisonLabel, "网络数量条件 " + ComparisonText(_networkComparison));
         SetText(_currencyComparisonLabel, "网络公爵币条件 " + ComparisonText(_currencyComparison));
         SetText(_enabledLabel, _editing.Enabled ? "已启用" : "已停用");
+        bool unlimitedCount = buy && _editing.Scope == TraderRuleScope.SingleItem;
+        SetText(_maximumCountTitle, unlimitedCount ? "单次最大物品数（0=不限）" : "单次最大物品数");
+        string countHelp = unlimitedCount
+            ? "单件商品自动购入的本次最多购买数量。设为 0 时不限制数量，会持续购买直到商人售罄、公爵币不足，或其他规则条件阻止。"
+            : "本规则每次执行时最多处理的物品总数，必须大于 0。";
+        if (_maximumCountTitle?.ViewComponent != null) _maximumCountTitle.ViewComponent.ToolTip = countHelp;
+        if (_maximumCount?.ViewComponent != null) _maximumCount.ViewComponent.ToolTip = countHelp;
         SetVisible(GetChildById("btnTraderRuleCycleSchedule"), buy);
         SetVisible(GetChildById("traderRuleScheduleLabel"), true);
         SetVisible(_hour, buy && _scheduled);
@@ -454,6 +466,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
             SetText(_pickerTitle, mode == PickerMode.TargetCategory ? "选择商人分类" : "选择要排除的分类");
         }
         SetVisible(_picker, true);
+        SetVisible(_editor, false);
         SetVisible(GetChildById("btnRulePickerStock"), mode == PickerMode.TargetItem || mode == PickerMode.ExcludedItem);
         SetVisible(_pickerStockLabel, mode == PickerMode.TargetItem || mode == PickerMode.ExcludedItem);
         RefreshPicker();
@@ -463,6 +476,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     {
         _pickerMode = PickerMode.None;
         SetVisible(_picker, false);
+        SetVisible(_editor, _editing != null);
         RefreshEditor();
     }
 
