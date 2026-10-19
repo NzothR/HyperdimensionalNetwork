@@ -7,12 +7,17 @@ public sealed class XUiC_NetworkManagementWindow : XUiController
 {
     private const int Rows = 8;
     private readonly XUiController[] _memberNames = new XUiController[Rows];
+    private readonly XUiController[] _memberLines = new XUiController[Rows];
     private readonly XUiController[] _memberKick = new XUiController[Rows];
+    private readonly XUiController[] _memberKickLabels = new XUiController[Rows];
     private readonly XUiController[] _memberTransfer = new XUiController[Rows];
+    private readonly XUiController[] _memberTransferLabels = new XUiController[Rows];
     private readonly XUiController[] _candidateNames = new XUiController[Rows];
+    private readonly XUiController[] _candidateLines = new XUiController[Rows];
     private readonly XUiController[] _candidateInvite = new XUiController[Rows];
-    private XUiController _networkSummary, _memberPageLabel, _candidatePageLabel, _status, _leaveButton;
-    private int _memberPage, _candidatePage, _memberCount, _candidateCount;
+    private readonly XUiController[] _candidateInviteLabels = new XUiController[Rows];
+    private XUiController _networkSummary, _memberPageLabel, _candidatePageLabel, _memberScrollArea, _candidateScrollArea, _status, _leaveButton, _leaveButtonLabel;
+    private int _memberOffset, _candidateOffset, _memberCount, _candidateCount;
     private bool _isAdministrator, _requestPending;
     private string _networkId = string.Empty;
     private List<NetworkMemberInfo> _members = new List<NetworkMemberInfo>();
@@ -25,10 +30,18 @@ public sealed class XUiC_NetworkManagementWindow : XUiController
         {
             int row = i;
             _memberNames[i] = GetChildById("managementMemberName" + i);
+            _memberLines[i] = GetChildById("memberRowLine" + i);
             _memberKick[i] = GetChildById("btnManagementKick" + i);
+            _memberKickLabels[i] = GetChildById("managementKickLabel" + i);
             _memberTransfer[i] = GetChildById("btnManagementTransfer" + i);
+            _memberTransferLabels[i] = GetChildById("managementTransferLabel" + i);
             _candidateNames[i] = GetChildById("managementCandidateName" + i);
+            _candidateLines[i] = GetChildById("candidateRowLine" + i);
             _candidateInvite[i] = GetChildById("btnManagementInvite" + i);
+            _candidateInviteLabels[i] = GetChildById("managementInviteLabel" + i);
+            if (_memberKick[i] != null) _memberKick[i].OnScroll += OnMemberScroll;
+            if (_memberTransfer[i] != null) _memberTransfer[i].OnScroll += OnMemberScroll;
+            if (_candidateInvite[i] != null) _candidateInvite[i].OnScroll += OnCandidateScroll;
             Bind("btnManagementKick" + i, (sender, button) => KickMember(row));
             Bind("btnManagementTransfer" + i, (sender, button) => TransferAdministrator(row));
             Bind("btnManagementInvite" + i, (sender, button) => InviteCandidate(row));
@@ -36,23 +49,32 @@ public sealed class XUiC_NetworkManagementWindow : XUiController
         _networkSummary = GetChildById("managementNetworkSummary");
         _memberPageLabel = GetChildById("managementMemberPage");
         _candidatePageLabel = GetChildById("managementCandidatePage");
+        _memberScrollArea = GetChildById("managementMemberList");
+        _candidateScrollArea = GetChildById("managementCandidateList");
+        if (_memberScrollArea != null) _memberScrollArea.OnScroll += OnMemberScroll;
+        if (_candidateScrollArea != null) _candidateScrollArea.OnScroll += OnCandidateScroll;
         _status = GetChildById("managementStatus");
         _leaveButton = GetChildById("btnManagementLeave");
+        _leaveButtonLabel = GetChildById("managementLeaveLabel");
         Bind("btnManagementClose", (sender, button) => xui?.playerUI?.windowManager?.Close("hyperdimensionalNetworkManagement"));
-        Bind("btnManagementMemberPrevious", (sender, button) => ChangeMemberPage(-1));
-        Bind("btnManagementMemberNext", (sender, button) => ChangeMemberPage(1));
-        Bind("btnManagementCandidatePrevious", (sender, button) => ChangeCandidatePage(-1));
-        Bind("btnManagementCandidateNext", (sender, button) => ChangeCandidatePage(1));
         Bind("btnManagementLeave", (sender, button) => ConfirmLeave());
+        RenderRows();
         NetworkLog.Debug("Network membership window initialized. rows=" + Rows);
     }
 
     public override void OnOpen()
     {
         base.OnOpen();
-        _memberPage = 0;
-        _candidatePage = 0;
+        _memberOffset = 0;
+        _candidateOffset = 0;
         _requestPending = false;
+        _members.Clear();
+        _candidates.Clear();
+        _memberCount = 0;
+        _candidateCount = 0;
+        _isAdministrator = false;
+        _networkId = string.Empty;
+        RenderRows();
         Refresh();
         NetworkLog.Debug("Network membership window opened.");
     }
@@ -77,6 +99,8 @@ public sealed class XUiC_NetworkManagementWindow : XUiController
         if (!(bool)player) return;
         _requestPending = true;
         SetLabel(_status, Localization.Get("HyperdimensionalNetworkManagementLoading"));
+        int requestedMemberOffset = _memberOffset;
+        int requestedCandidateOffset = _candidateOffset;
         bool sent = NetworkMembershipClient.SendRequest(player, NetworkRequestOperation.MembershipQuery, string.Empty, string.Empty, result =>
         {
             _requestPending = false;
@@ -84,12 +108,16 @@ public sealed class XUiC_NetworkManagementWindow : XUiController
             {
                 SetLabel(_status, Localization.Get("HyperdimensionalNetworkManagementUnavailable") + ": " + NetworkMembershipClient.GetErrorMessage(result.Error));
                 RenderRows();
+                if (_memberOffset != requestedMemberOffset || _candidateOffset != requestedCandidateOffset) Refresh();
                 return;
             }
             _networkId = result.NetworkId ?? string.Empty;
             _isAdministrator = result.IsNetworkAdministrator;
             _memberCount = result.TotalEntries;
             _candidateCount = result.Amount;
+            _memberOffset = Math.Min(_memberOffset, Math.Max(0, _memberCount - Rows));
+            _candidateOffset = Math.Min(_candidateOffset, Math.Max(0, _candidateCount - Rows));
+            if (_memberOffset == requestedMemberOffset) _memberOffset = result.Page;
             _members = result.NetworkMembers ?? new List<NetworkMemberInfo>();
             _candidates = result.MembershipCandidates ?? new List<NetworkMemberInfo>();
             string memberSummary = string.Format(Localization.Get("HyperdimensionalNetworkManagementMemberCount"), result.MembershipOnlineCount, result.TotalEntries);
@@ -97,13 +125,13 @@ public sealed class XUiC_NetworkManagementWindow : XUiController
                 + "  •  " + Localization.Get(_isAdministrator ? "HyperdimensionalNetworkManagementAdministrator" : "HyperdimensionalNetworkManagementMember")
                 + "  •  " + memberSummary);
             SetLabel(_status, Localization.Get("HyperdimensionalNetworkManagementReady"));
-            SetLabel(_memberPageLabel, (PageNumber(_memberPage, _memberCount)) + " / " + PageCount(_memberCount));
-            SetLabel(_candidatePageLabel, (PageNumber(_candidatePage, _candidateCount)) + " / " + PageCount(_candidateCount));
             SetVisible(_leaveButton, !_isAdministrator);
+            SetVisible(_leaveButtonLabel, !_isAdministrator);
             RenderRows();
             NetworkLog.Debug("Membership roster loaded. network=" + _networkId + "; members=" + _memberCount + "; onlineCandidates=" + _candidateCount
-                + "; memberPage=" + _memberPage + "; candidatePage=" + _candidatePage);
-        });
+                + "; memberOffset=" + requestedMemberOffset + "; candidateOffset=" + requestedCandidateOffset);
+            if (_memberOffset != requestedMemberOffset || _candidateOffset != requestedCandidateOffset) Refresh();
+        }, requestedMemberOffset, requestedCandidateOffset);
         if (!sent)
         {
             _requestPending = false;
@@ -115,19 +143,31 @@ public sealed class XUiC_NetworkManagementWindow : XUiController
     {
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
         string selfId = PlayerNetworkDirectory.GetStablePlayerId(player);
+        bool canLeave = !_isAdministrator && !string.IsNullOrEmpty(_networkId);
+        SetVisible(_leaveButton, canLeave);
+        SetVisible(_leaveButtonLabel, canLeave);
         for (int i = 0; i < Rows; i++)
         {
             NetworkMemberInfo member = i < _members.Count ? _members[i] : null;
-            SetVisible(_memberNames[i], member != null);
-            SetVisible(_memberKick[i], member != null && _isAdministrator && !member.IsAdministrator
-                && !string.Equals(selfId, member.PlayerId, StringComparison.Ordinal));
-            SetVisible(_memberTransfer[i], member != null && _isAdministrator && !member.IsAdministrator);
+            bool hasMember = member != null;
+            bool canKick = hasMember && _isAdministrator && !member.IsAdministrator
+                && !string.Equals(selfId, member.PlayerId, StringComparison.Ordinal);
+            bool canTransfer = hasMember && _isAdministrator && !member.IsAdministrator;
+            SetVisible(_memberLines[i], hasMember);
+            SetVisible(_memberNames[i], hasMember);
+            SetVisible(_memberKick[i], canKick);
+            SetVisible(_memberKickLabels[i], canKick);
+            SetVisible(_memberTransfer[i], canTransfer);
+            SetVisible(_memberTransferLabels[i], canTransfer);
             if (member != null) SetLabel(_memberNames[i], member.DisplayName + (member.IsAdministrator ? "  ★" : string.Empty)
                 + (member.IsOnline ? string.Empty : "  (" + Localization.Get("HyperdimensionalNetworkManagementOffline") + ")"));
 
             NetworkMemberInfo candidate = i < _candidates.Count ? _candidates[i] : null;
-            SetVisible(_candidateNames[i], candidate != null);
-            SetVisible(_candidateInvite[i], candidate != null);
+            bool hasCandidate = candidate != null;
+            SetVisible(_candidateLines[i], hasCandidate);
+            SetVisible(_candidateNames[i], hasCandidate);
+            SetVisible(_candidateInvite[i], hasCandidate);
+            SetVisible(_candidateInviteLabels[i], hasCandidate);
             if (candidate != null)
             {
                 string suffix = candidate.Eligible ? string.Empty : "  ·  " + Localization.Get(EligibilityKey(candidate.EligibilityError));
@@ -139,8 +179,8 @@ public sealed class XUiC_NetworkManagementWindow : XUiController
                 }
             }
         }
-        SetLabel(_memberPageLabel, PageNumber(_memberPage, _memberCount) + " / " + PageCount(_memberCount));
-        SetLabel(_candidatePageLabel, PageNumber(_candidatePage, _candidateCount) + " / " + PageCount(_candidateCount));
+        SetLabel(_memberPageLabel, RangeLabel(_memberOffset, _memberCount));
+        SetLabel(_candidatePageLabel, RangeLabel(_candidateOffset, _candidateCount));
     }
 
     private void InviteCandidate(int row)
@@ -211,18 +251,39 @@ public sealed class XUiC_NetworkManagementWindow : XUiController
         RenderRows();
     }
 
-    private void ChangeMemberPage(int delta)
+    private void OnMemberScroll(XUiController sender, float delta)
     {
-        int pageCount = Math.Max(1, PageCount(_memberCount));
-        _memberPage = Math.Max(0, Math.Min(pageCount - 1, _memberPage + delta));
-        Refresh();
+        if (delta == 0f || _memberCount <= Rows) return;
+        ChangeMemberOffset(delta > 0f ? -1 : 1);
     }
 
-    private void ChangeCandidatePage(int delta)
+    private void OnCandidateScroll(XUiController sender, float delta)
     {
-        int pageCount = Math.Max(1, PageCount(_candidateCount));
-        _candidatePage = Math.Max(0, Math.Min(pageCount - 1, _candidatePage + delta));
-        Refresh();
+        if (delta == 0f || _candidateCount <= Rows) return;
+        ChangeCandidateOffset(delta > 0f ? -1 : 1);
+    }
+
+    private void ChangeMemberOffset(int delta)
+    {
+        int offset = Math.Max(0, Math.Min(Math.Max(0, _memberCount - Rows), _memberOffset + delta));
+        if (offset == _memberOffset) return;
+        _memberOffset = offset;
+        RequestPageRefresh();
+    }
+
+    private void ChangeCandidateOffset(int delta)
+    {
+        int offset = Math.Max(0, Math.Min(Math.Max(0, _candidateCount - Rows), _candidateOffset + delta));
+        if (offset == _candidateOffset) return;
+        _candidateOffset = offset;
+        RequestPageRefresh();
+    }
+
+    private void RequestPageRefresh()
+    {
+        NetworkLog.Debug("Membership list wheel scroll. memberOffset=" + _memberOffset + "; candidateOffset=" + _candidateOffset
+            + "; pending=" + _requestPending);
+        if (!_requestPending) Refresh();
     }
 
     private void Bind(string id, XUiEvent_OnPressEventHandler handler)
@@ -231,8 +292,14 @@ public sealed class XUiC_NetworkManagementWindow : XUiController
         if (control != null) control.OnPress += handler;
     }
 
-    private static int PageCount(int count) => Math.Max(1, (count + Rows - 1) / Rows);
-    private static int PageNumber(int page, int count) => Math.Min(Math.Max(1, page + 1), PageCount(count));
+    private static string RangeLabel(int offset, int count)
+    {
+        if (count <= 0) return "0 / 0";
+        if (count <= Rows) return count + " / " + count;
+        int first = Math.Min(offset, count - 1) + 1;
+        int last = Math.Min(offset + Rows, count);
+        return first + "–" + last + " / " + count;
+    }
     private static string EligibilityKey(string error) => error == "AdministratorHasMembers"
         ? "HyperdimensionalNetworkManagementSharedAdministrator"
         : error == "NetworkFull" ? "HyperdimensionalNetworkManagementNetworkFull"
@@ -241,7 +308,8 @@ public sealed class XUiC_NetworkManagementWindow : XUiController
 
     private static void SetVisible(XUiController controller, bool visible)
     {
-        if (controller?.ViewComponent != null) controller.ViewComponent.IsVisible = visible;
+        if (controller?.ViewComponent != null && controller.ViewComponent.IsVisible != visible)
+            controller.ViewComponent.IsVisible = visible;
     }
 
     private static void SetLabel(XUiController controller, string text)

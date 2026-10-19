@@ -17,7 +17,7 @@ HyperdimensionalNetworkManagementOpen,Manage network members,管理网络成员
 HyperdimensionalNetworkManagementTitle,Network Management,网络管理
 HyperdimensionalNetworkManagementLoading,Loading network membership...,正在读取网络成员……
 HyperdimensionalNetworkManagementUnavailable,Network membership is unavailable,暂时无法读取网络成员
-HyperdimensionalNetworkManagementReady,Invite online players or manage current members,可邀请在线玩家或管理现有成员
+HyperdimensionalNetworkManagementReady,Invite or manage members · scroll over a list to browse,可邀请玩家或管理成员 · 在列表上滚动鼠标浏览
 HyperdimensionalNetworkManagementNetwork,Network,网络
 HyperdimensionalNetworkManagementMemberCount,{0} online / {1} total,{0} 人在线 / 共 {1} 人
 HyperdimensionalNetworkManagementAdministrator,Administrator,管理员

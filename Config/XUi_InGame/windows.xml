@@ -271,179 +271,95 @@
           <label depth="3" name="managementMemberHeader" pos="18,-52" width="440" height="28" font_size="22" text_key="HyperdimensionalNetworkManagementMembers" color="210,235,245,255" />
           <label depth="3" name="managementCandidateHeader" pos="500,-52" width="430" height="28" font_size="22" text_key="HyperdimensionalNetworkManagementInvitePlayers" color="210,235,245,255" />
           <label depth="3" name="managementStatus" pos="18,-520" width="920" height="30" font_size="16" justify="center" color="170,210,225,255" text_key="HyperdimensionalNetworkManagementLoading" />
-          <sprite depth="2" name="memberRowLine0" pos="16,-136" width="445" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementMemberName0" pos="20,-94" width="315" height="38" font_size="17" color="220,235,242,255" />
-          <button depth="4" name="btnManagementKick0" pos="340,-93" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" />
-          <label depth="5" name="managementKickLabel0" pos="340,-92" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" />
-          <button depth="4" name="btnManagementTransfer0" pos="392,-93" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" />
-          <label depth="5" name="managementTransferLabel0" pos="392,-92" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" />
-          <sprite depth="2" name="candidateRowLine0" pos="500,-136" width="440" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementCandidateName0" pos="504,-94" width="300" height="38" font_size="16" color="220,235,242,255" />
-          <button depth="4" name="btnManagementInvite0" pos="812,-93" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" />
-          <label depth="5" name="managementInviteLabel0" pos="812,-92" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" />
-          <sprite depth="2" name="memberRowLine1" pos="16,-184" width="445" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementMemberName1" pos="20,-142" width="315" height="38" font_size="17" color="220,235,242,255" />
-          <button depth="4" name="btnManagementKick1" pos="340,-141" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" />
-          <label depth="5" name="managementKickLabel1" pos="340,-140" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" />
-          <button depth="4" name="btnManagementTransfer1" pos="392,-141" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" />
-          <label depth="5" name="managementTransferLabel1" pos="392,-140" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" />
-          <sprite depth="2" name="candidateRowLine1" pos="500,-184" width="440" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementCandidateName1" pos="504,-142" width="300" height="38" font_size="16" color="220,235,242,255" />
-          <button depth="4" name="btnManagementInvite1" pos="812,-141" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" />
-          <label depth="5" name="managementInviteLabel1" pos="812,-140" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" />
-          <sprite depth="2" name="memberRowLine2" pos="16,-232" width="445" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementMemberName2" pos="20,-190" width="315" height="38" font_size="17" color="220,235,242,255" />
-          <button depth="4" name="btnManagementKick2" pos="340,-189" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" />
-          <label depth="5" name="managementKickLabel2" pos="340,-188" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" />
-          <button depth="4" name="btnManagementTransfer2" pos="392,-189" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" />
-          <label depth="5" name="managementTransferLabel2" pos="392,-188" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" />
-          <sprite depth="2" name="candidateRowLine2" pos="500,-232" width="440" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementCandidateName2" pos="504,-190" width="300" height="38" font_size="16" color="220,235,242,255" />
-          <button depth="4" name="btnManagementInvite2" pos="812,-189" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" />
-          <label depth="5" name="managementInviteLabel2" pos="812,-188" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" />
-          <sprite depth="2" name="memberRowLine3" pos="16,-280" width="445" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementMemberName3" pos="20,-238" width="315" height="38" font_size="17" color="220,235,242,255" />
-          <button depth="4" name="btnManagementKick3" pos="340,-237" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" />
-          <label depth="5" name="managementKickLabel3" pos="340,-236" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" />
-          <button depth="4" name="btnManagementTransfer3" pos="392,-237" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" />
-          <label depth="5" name="managementTransferLabel3" pos="392,-236" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" />
-          <sprite depth="2" name="candidateRowLine3" pos="500,-280" width="440" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementCandidateName3" pos="504,-238" width="300" height="38" font_size="16" color="220,235,242,255" />
-          <button depth="4" name="btnManagementInvite3" pos="812,-237" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" />
-          <label depth="5" name="managementInviteLabel3" pos="812,-236" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" />
-          <sprite depth="2" name="memberRowLine4" pos="16,-328" width="445" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementMemberName4" pos="20,-286" width="315" height="38" font_size="17" color="220,235,242,255" />
-          <button depth="4" name="btnManagementKick4" pos="340,-285" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" />
-          <label depth="5" name="managementKickLabel4" pos="340,-284" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" />
-          <button depth="4" name="btnManagementTransfer4" pos="392,-285" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" />
-          <label depth="5" name="managementTransferLabel4" pos="392,-284" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" />
-          <sprite depth="2" name="candidateRowLine4" pos="500,-328" width="440" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementCandidateName4" pos="504,-286" width="300" height="38" font_size="16" color="220,235,242,255" />
-          <button depth="4" name="btnManagementInvite4" pos="812,-285" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" />
-          <label depth="5" name="managementInviteLabel4" pos="812,-284" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" />
-          <sprite depth="2" name="memberRowLine5" pos="16,-376" width="445" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementMemberName5" pos="20,-334" width="315" height="38" font_size="17" color="220,235,242,255" />
-          <button depth="4" name="btnManagementKick5" pos="340,-333" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" />
-          <label depth="5" name="managementKickLabel5" pos="340,-332" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" />
-          <button depth="4" name="btnManagementTransfer5" pos="392,-333" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" />
-          <label depth="5" name="managementTransferLabel5" pos="392,-332" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" />
-          <sprite depth="2" name="candidateRowLine5" pos="500,-376" width="440" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementCandidateName5" pos="504,-334" width="300" height="38" font_size="16" color="220,235,242,255" />
-          <button depth="4" name="btnManagementInvite5" pos="812,-333" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" />
-          <label depth="5" name="managementInviteLabel5" pos="812,-332" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" />
-          <sprite depth="2" name="memberRowLine6" pos="16,-424" width="445" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementMemberName6" pos="20,-382" width="315" height="38" font_size="17" color="220,235,242,255" />
-          <button depth="4" name="btnManagementKick6" pos="340,-381" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" />
-          <label depth="5" name="managementKickLabel6" pos="340,-380" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" />
-          <button depth="4" name="btnManagementTransfer6" pos="392,-381" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" />
-          <label depth="5" name="managementTransferLabel6" pos="392,-380" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" />
-          <sprite depth="2" name="candidateRowLine6" pos="500,-424" width="440" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementCandidateName6" pos="504,-382" width="300" height="38" font_size="16" color="220,235,242,255" />
-          <button depth="4" name="btnManagementInvite6" pos="812,-381" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" />
-          <label depth="5" name="managementInviteLabel6" pos="812,-380" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" />
-          <sprite depth="2" name="memberRowLine7" pos="16,-472" width="445" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementMemberName7" pos="20,-430" width="315" height="38" font_size="17" color="220,235,242,255" />
-          <button depth="4" name="btnManagementKick7" pos="340,-429" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" />
-          <label depth="5" name="managementKickLabel7" pos="340,-428" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" />
-          <button depth="4" name="btnManagementTransfer7" pos="392,-429" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" />
-          <label depth="5" name="managementTransferLabel7" pos="392,-428" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" />
-          <sprite depth="2" name="candidateRowLine7" pos="500,-472" width="440" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementCandidateName7" pos="504,-430" width="300" height="38" font_size="16" color="220,235,242,255" />
-          <button depth="4" name="btnManagementInvite7" pos="812,-429" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" />
-          <label depth="5" name="managementInviteLabel7" pos="812,-428" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" />
-          <sprite depth="2" name="memberRowLine0" pos="16,-136" width="445" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementMemberName0" pos="20,-94" width="315" height="38" font_size="17" color="220,235,242,255" />
-          <button depth="4" name="btnManagementKick0" pos="340,-93" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" />
-          <label depth="5" name="managementKickLabel0" pos="340,-92" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" />
-          <button depth="4" name="btnManagementTransfer0" pos="392,-93" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" />
-          <label depth="5" name="managementTransferLabel0" pos="392,-92" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" />
-          <sprite depth="2" name="candidateRowLine0" pos="500,-136" width="440" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementCandidateName0" pos="504,-94" width="300" height="38" font_size="16" color="220,235,242,255" />
-          <button depth="4" name="btnManagementInvite0" pos="812,-93" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" />
-          <label depth="5" name="managementInviteLabel0" pos="812,-92" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" />
-          <sprite depth="2" name="memberRowLine1" pos="16,-184" width="445" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementMemberName1" pos="20,-142" width="315" height="38" font_size="17" color="220,235,242,255" />
-          <button depth="4" name="btnManagementKick1" pos="340,-141" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" />
-          <label depth="5" name="managementKickLabel1" pos="340,-140" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" />
-          <button depth="4" name="btnManagementTransfer1" pos="392,-141" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" />
-          <label depth="5" name="managementTransferLabel1" pos="392,-140" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" />
-          <sprite depth="2" name="candidateRowLine1" pos="500,-184" width="440" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementCandidateName1" pos="504,-142" width="300" height="38" font_size="16" color="220,235,242,255" />
-          <button depth="4" name="btnManagementInvite1" pos="812,-141" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" />
-          <label depth="5" name="managementInviteLabel1" pos="812,-140" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" />
-          <sprite depth="2" name="memberRowLine2" pos="16,-232" width="445" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementMemberName2" pos="20,-190" width="315" height="38" font_size="17" color="220,235,242,255" />
-          <button depth="4" name="btnManagementKick2" pos="340,-189" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" />
-          <label depth="5" name="managementKickLabel2" pos="340,-188" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" />
-          <button depth="4" name="btnManagementTransfer2" pos="392,-189" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" />
-          <label depth="5" name="managementTransferLabel2" pos="392,-188" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" />
-          <sprite depth="2" name="candidateRowLine2" pos="500,-232" width="440" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementCandidateName2" pos="504,-190" width="300" height="38" font_size="16" color="220,235,242,255" />
-          <button depth="4" name="btnManagementInvite2" pos="812,-189" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" />
-          <label depth="5" name="managementInviteLabel2" pos="812,-188" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" />
-          <sprite depth="2" name="memberRowLine3" pos="16,-280" width="445" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementMemberName3" pos="20,-238" width="315" height="38" font_size="17" color="220,235,242,255" />
-          <button depth="4" name="btnManagementKick3" pos="340,-237" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" />
-          <label depth="5" name="managementKickLabel3" pos="340,-236" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" />
-          <button depth="4" name="btnManagementTransfer3" pos="392,-237" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" />
-          <label depth="5" name="managementTransferLabel3" pos="392,-236" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" />
-          <sprite depth="2" name="candidateRowLine3" pos="500,-280" width="440" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementCandidateName3" pos="504,-238" width="300" height="38" font_size="16" color="220,235,242,255" />
-          <button depth="4" name="btnManagementInvite3" pos="812,-237" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" />
-          <label depth="5" name="managementInviteLabel3" pos="812,-236" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" />
-          <sprite depth="2" name="memberRowLine4" pos="16,-328" width="445" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementMemberName4" pos="20,-286" width="315" height="38" font_size="17" color="220,235,242,255" />
-          <button depth="4" name="btnManagementKick4" pos="340,-285" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" />
-          <label depth="5" name="managementKickLabel4" pos="340,-284" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" />
-          <button depth="4" name="btnManagementTransfer4" pos="392,-285" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" />
-          <label depth="5" name="managementTransferLabel4" pos="392,-284" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" />
-          <sprite depth="2" name="candidateRowLine4" pos="500,-328" width="440" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementCandidateName4" pos="504,-286" width="300" height="38" font_size="16" color="220,235,242,255" />
-          <button depth="4" name="btnManagementInvite4" pos="812,-285" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" />
-          <label depth="5" name="managementInviteLabel4" pos="812,-284" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" />
-          <sprite depth="2" name="memberRowLine5" pos="16,-376" width="445" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementMemberName5" pos="20,-334" width="315" height="38" font_size="17" color="220,235,242,255" />
-          <button depth="4" name="btnManagementKick5" pos="340,-333" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" />
-          <label depth="5" name="managementKickLabel5" pos="340,-332" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" />
-          <button depth="4" name="btnManagementTransfer5" pos="392,-333" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" />
-          <label depth="5" name="managementTransferLabel5" pos="392,-332" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" />
-          <sprite depth="2" name="candidateRowLine5" pos="500,-376" width="440" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementCandidateName5" pos="504,-334" width="300" height="38" font_size="16" color="220,235,242,255" />
-          <button depth="4" name="btnManagementInvite5" pos="812,-333" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" />
-          <label depth="5" name="managementInviteLabel5" pos="812,-332" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" />
-          <sprite depth="2" name="memberRowLine6" pos="16,-424" width="445" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementMemberName6" pos="20,-382" width="315" height="38" font_size="17" color="220,235,242,255" />
-          <button depth="4" name="btnManagementKick6" pos="340,-381" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" />
-          <label depth="5" name="managementKickLabel6" pos="340,-380" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" />
-          <button depth="4" name="btnManagementTransfer6" pos="392,-381" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" />
-          <label depth="5" name="managementTransferLabel6" pos="392,-380" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" />
-          <sprite depth="2" name="candidateRowLine6" pos="500,-424" width="440" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementCandidateName6" pos="504,-382" width="300" height="38" font_size="16" color="220,235,242,255" />
-          <button depth="4" name="btnManagementInvite6" pos="812,-381" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" />
-          <label depth="5" name="managementInviteLabel6" pos="812,-380" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" />
-          <sprite depth="2" name="memberRowLine7" pos="16,-472" width="445" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementMemberName7" pos="20,-430" width="315" height="38" font_size="17" color="220,235,242,255" />
-          <button depth="4" name="btnManagementKick7" pos="340,-429" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" />
-          <label depth="5" name="managementKickLabel7" pos="340,-428" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" />
-          <button depth="4" name="btnManagementTransfer7" pos="392,-429" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" />
-          <label depth="5" name="managementTransferLabel7" pos="392,-428" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" />
-          <sprite depth="2" name="candidateRowLine7" pos="500,-472" width="440" height="1" sprite="menu_empty" color="35,75,96,180" />
-          <label depth="3" name="managementCandidateName7" pos="504,-430" width="300" height="38" font_size="16" color="220,235,242,255" />
-          <button depth="4" name="btnManagementInvite7" pos="812,-429" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" />
-          <label depth="5" name="managementInviteLabel7" pos="812,-428" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" />
-          <button depth="4" name="btnManagementMemberPrevious" pos="115,-490" width="54" height="32" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
-          <label depth="5" name="managementMemberPreviousLabel" pos="115,-493" width="54" height="27" font_size="20" justify="center" text="‹" />
-          <label depth="4" name="managementMemberPage" pos="175,-492" width="100" height="27" font_size="16" justify="center" text="1 / 1" />
-          <button depth="4" name="btnManagementMemberNext" pos="281,-490" width="54" height="32" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
-          <label depth="5" name="managementMemberNextLabel" pos="281,-493" width="54" height="27" font_size="20" justify="center" text="›" />
-          <button depth="4" name="btnManagementCandidatePrevious" pos="600,-490" width="54" height="32" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
-          <label depth="5" name="managementCandidatePreviousLabel" pos="600,-493" width="54" height="27" font_size="20" justify="center" text="‹" />
-          <label depth="4" name="managementCandidatePage" pos="660,-492" width="100" height="27" font_size="16" justify="center" text="1 / 1" />
-          <button depth="4" name="btnManagementCandidateNext" pos="766,-490" width="54" height="32" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
-          <label depth="5" name="managementCandidateNextLabel" pos="766,-493" width="54" height="27" font_size="20" justify="center" text="›" />
+          <rect name="managementMemberList" pos="16,-94" width="445" height="390" on_scroll="true">
+          <sprite depth="2" name="memberRowLine0" pos="0,-42" width="445" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
+          <label depth="3" name="managementMemberName0" pos="4,0" width="315" height="38" font_size="17" color="220,235,242,255" visible="false" />
+          <button depth="4" name="btnManagementKick0" pos="324,1" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementKickLabel0" pos="324,2" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" visible="false" />
+          <button depth="4" name="btnManagementTransfer0" pos="376,1" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementTransferLabel0" pos="376,2" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" visible="false" />
+          <sprite depth="2" name="memberRowLine1" pos="0,-90" width="445" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
+          <label depth="3" name="managementMemberName1" pos="4,-48" width="315" height="38" font_size="17" color="220,235,242,255" visible="false" />
+          <button depth="4" name="btnManagementKick1" pos="324,-47" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementKickLabel1" pos="324,-46" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" visible="false" />
+          <button depth="4" name="btnManagementTransfer1" pos="376,-47" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementTransferLabel1" pos="376,-46" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" visible="false" />
+          <sprite depth="2" name="memberRowLine2" pos="0,-138" width="445" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
+          <label depth="3" name="managementMemberName2" pos="4,-96" width="315" height="38" font_size="17" color="220,235,242,255" visible="false" />
+          <button depth="4" name="btnManagementKick2" pos="324,-95" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementKickLabel2" pos="324,-94" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" visible="false" />
+          <button depth="4" name="btnManagementTransfer2" pos="376,-95" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementTransferLabel2" pos="376,-94" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" visible="false" />
+          <sprite depth="2" name="memberRowLine3" pos="0,-186" width="445" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
+          <label depth="3" name="managementMemberName3" pos="4,-144" width="315" height="38" font_size="17" color="220,235,242,255" visible="false" />
+          <button depth="4" name="btnManagementKick3" pos="324,-143" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementKickLabel3" pos="324,-142" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" visible="false" />
+          <button depth="4" name="btnManagementTransfer3" pos="376,-143" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementTransferLabel3" pos="376,-142" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" visible="false" />
+          <sprite depth="2" name="memberRowLine4" pos="0,-234" width="445" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
+          <label depth="3" name="managementMemberName4" pos="4,-192" width="315" height="38" font_size="17" color="220,235,242,255" visible="false" />
+          <button depth="4" name="btnManagementKick4" pos="324,-191" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementKickLabel4" pos="324,-190" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" visible="false" />
+          <button depth="4" name="btnManagementTransfer4" pos="376,-191" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementTransferLabel4" pos="376,-190" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" visible="false" />
+          <sprite depth="2" name="memberRowLine5" pos="0,-282" width="445" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
+          <label depth="3" name="managementMemberName5" pos="4,-240" width="315" height="38" font_size="17" color="220,235,242,255" visible="false" />
+          <button depth="4" name="btnManagementKick5" pos="324,-239" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementKickLabel5" pos="324,-238" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" visible="false" />
+          <button depth="4" name="btnManagementTransfer5" pos="376,-239" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementTransferLabel5" pos="376,-238" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" visible="false" />
+          <sprite depth="2" name="memberRowLine6" pos="0,-330" width="445" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
+          <label depth="3" name="managementMemberName6" pos="4,-288" width="315" height="38" font_size="17" color="220,235,242,255" visible="false" />
+          <button depth="4" name="btnManagementKick6" pos="324,-287" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementKickLabel6" pos="324,-286" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" visible="false" />
+          <button depth="4" name="btnManagementTransfer6" pos="376,-287" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementTransferLabel6" pos="376,-286" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" visible="false" />
+          <sprite depth="2" name="memberRowLine7" pos="0,-378" width="445" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
+          <label depth="3" name="managementMemberName7" pos="4,-336" width="315" height="38" font_size="17" color="220,235,242,255" visible="false" />
+          <button depth="4" name="btnManagementKick7" pos="324,-335" width="48" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="105,48,38,245" hovercolor="155,60,44,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementKickLabel7" pos="324,-334" width="48" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementKickShort" visible="false" />
+          <button depth="4" name="btnManagementTransfer7" pos="376,-335" width="66" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="42,78,92,245" hovercolor="58,118,140,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementTransferLabel7" pos="376,-334" width="66" height="30" font_size="14" justify="center" text_key="HyperdimensionalNetworkManagementTransferShort" visible="false" />
+          </rect>
+          <rect name="managementCandidateList" pos="500,-94" width="440" height="390" on_scroll="true">
+          <sprite depth="2" name="candidateRowLine0" pos="0,-42" width="440" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
+          <label depth="3" name="managementCandidateName0" pos="4,0" width="300" height="38" font_size="16" color="220,235,242,255" visible="false" />
+          <button depth="4" name="btnManagementInvite0" pos="312,1" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementInviteLabel0" pos="312,2" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" visible="false" />
+          <sprite depth="2" name="candidateRowLine1" pos="0,-90" width="440" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
+          <label depth="3" name="managementCandidateName1" pos="4,-48" width="300" height="38" font_size="16" color="220,235,242,255" visible="false" />
+          <button depth="4" name="btnManagementInvite1" pos="312,-47" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementInviteLabel1" pos="312,-46" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" visible="false" />
+          <sprite depth="2" name="candidateRowLine2" pos="0,-138" width="440" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
+          <label depth="3" name="managementCandidateName2" pos="4,-96" width="300" height="38" font_size="16" color="220,235,242,255" visible="false" />
+          <button depth="4" name="btnManagementInvite2" pos="312,-95" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementInviteLabel2" pos="312,-94" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" visible="false" />
+          <sprite depth="2" name="candidateRowLine3" pos="0,-186" width="440" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
+          <label depth="3" name="managementCandidateName3" pos="4,-144" width="300" height="38" font_size="16" color="220,235,242,255" visible="false" />
+          <button depth="4" name="btnManagementInvite3" pos="312,-143" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementInviteLabel3" pos="312,-142" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" visible="false" />
+          <sprite depth="2" name="candidateRowLine4" pos="0,-234" width="440" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
+          <label depth="3" name="managementCandidateName4" pos="4,-192" width="300" height="38" font_size="16" color="220,235,242,255" visible="false" />
+          <button depth="4" name="btnManagementInvite4" pos="312,-191" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementInviteLabel4" pos="312,-190" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" visible="false" />
+          <sprite depth="2" name="candidateRowLine5" pos="0,-282" width="440" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
+          <label depth="3" name="managementCandidateName5" pos="4,-240" width="300" height="38" font_size="16" color="220,235,242,255" visible="false" />
+          <button depth="4" name="btnManagementInvite5" pos="312,-239" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementInviteLabel5" pos="312,-238" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" visible="false" />
+          <sprite depth="2" name="candidateRowLine6" pos="0,-330" width="440" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
+          <label depth="3" name="managementCandidateName6" pos="4,-288" width="300" height="38" font_size="16" color="220,235,242,255" visible="false" />
+          <button depth="4" name="btnManagementInvite6" pos="312,-287" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementInviteLabel6" pos="312,-286" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" visible="false" />
+          <sprite depth="2" name="candidateRowLine7" pos="0,-378" width="440" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
+          <label depth="3" name="managementCandidateName7" pos="4,-336" width="300" height="38" font_size="16" color="220,235,242,255" visible="false" />
+          <button depth="4" name="btnManagementInvite7" pos="312,-335" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <label depth="5" name="managementInviteLabel7" pos="312,-334" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" visible="false" />
+          </rect>
+          <label depth="4" name="managementMemberPage" pos="175,-490" width="100" height="27" font_size="16" justify="center" text="1 / 1" />
+          <label depth="4" name="managementCandidatePage" pos="660,-490" width="100" height="27" font_size="16" justify="center" text="1 / 1" />
         </rect>
-        <button depth="4" name="btnManagementLeave" pos="15,-650" width="210" height="42" style="press, hover" sprite="menu_empty3px" defaultcolor="115,58,42,250" hovercolor="160,74,48,255" sound="[paging_click]" />
-        <label depth="5" name="managementLeaveLabel" pos="15,-654" width="210" height="34" font_size="18" justify="center" text_key="HyperdimensionalNetworkManagementLeave" />
+        <button depth="4" name="btnManagementLeave" pos="15,-650" width="210" height="42" visible="false" style="press, hover" sprite="menu_empty3px" defaultcolor="115,58,42,250" hovercolor="160,74,48,255" sound="[paging_click]" />
+        <label depth="5" name="managementLeaveLabel" pos="15,-654" width="210" height="34" visible="false" font_size="18" justify="center" text_key="HyperdimensionalNetworkManagementLeave" />
       </rect>
     </window>
     <window name="windowHyperdimensionalCraftingChain" width="900" height="810" panel="Center" cursor_area="true" controller="HyperdimensionalNetwork.XUiC_CraftingChainWindow,HyperdimensionalNetwork">

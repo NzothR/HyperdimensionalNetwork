@@ -206,8 +206,8 @@ internal static class NetworkMembershipService
             .OrderByDescending(member => member.IsAdministrator).ThenBy(member => member.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
         List<NetworkMemberInfo> allCandidates = GetOnlineCandidates(world, network);
         int onlineMemberCount = allMembers.Count(member => member.IsOnline);
-        int memberPage = Math.Min(Math.Max(0, request.Page), Math.Max(0, (allMembers.Count - 1) / RowsPerPage));
-        int candidatePage = Math.Min(Math.Max(0, request.MembershipCandidatePage), Math.Max(0, (allCandidates.Count - 1) / RowsPerPage));
+        int memberOffset = Math.Min(Math.Max(0, request.Page), Math.Max(0, allMembers.Count - RowsPerPage));
+        int candidateOffset = Math.Min(Math.Max(0, request.MembershipCandidatePage), Math.Max(0, allCandidates.Count - RowsPerPage));
         return new NetworkRemoteResult
         {
             RequestId = request.RequestId,
@@ -215,11 +215,11 @@ internal static class NetworkMembershipService
             NetworkId = networkId,
             IsNetworkAdministrator = PlayerNetworkDirectory.IsNetworkAdministrator(player),
             TotalEntries = allMembers.Count,
-            Page = memberPage,
+            Page = memberOffset,
             PageSize = RowsPerPage,
             MembershipOnlineCount = onlineMemberCount,
-            NetworkMembers = allMembers.Skip(memberPage * RowsPerPage).Take(RowsPerPage).ToList(),
-            MembershipCandidates = allCandidates.Skip(candidatePage * RowsPerPage).Take(RowsPerPage).ToList(),
+            NetworkMembers = allMembers.Skip(memberOffset).Take(RowsPerPage).ToList(),
+            MembershipCandidates = allCandidates.Skip(candidateOffset).Take(RowsPerPage).ToList(),
             Amount = allCandidates.Count,
             MembershipSourceNetworkId = networkId
         };
