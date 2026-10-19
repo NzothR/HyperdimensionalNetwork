@@ -10,6 +10,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
     private const int PageSize = 11;
     private static bool _buyToBackpack;
     private static int _pendingReturnPlayerId = -1;
+    private static XUiC_TraderMarketWindow _activeWindow;
     private readonly List<TraderOffer> _offers = new List<TraderOffer>();
     private readonly List<TraderOffer> _filtered = new List<TraderOffer>();
     private readonly XUiController[] _rows = new XUiController[PageSize];
@@ -23,14 +24,12 @@ public sealed class XUiC_TraderMarketWindow : XUiController
     private XUiC_CategoryList _categories;
     private string _category = string.Empty;
     private XUiController _status;
-    private XUiController _selectedLabel;
-    private XUiController _countLabel;
-    private XUiController _totalPriceLabel;
     private TraderOffer _selected;
     private int _selectedCount;
     private string _sessionId = string.Empty;
     private bool _requestPending;
     private bool _closing;
+    private static bool _loggedReturnWait;
     private float _nextRefreshAt;
 
     public override void Init()
@@ -46,7 +45,9 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             _qualities[i] = GetChildById("marketRowQuality" + i);
             _prices[i] = GetChildById("marketRowPrice" + i);
             if (_rowButtons[i] != null) _rowButtons[i].OnPress += (sender, button) => SelectAt(index);
+            if (_rowButtons[i] != null) _rowButtons[i].OnScroll += OnMarketScroll;
         }
+        OnScroll += OnMarketScroll;
         _pager = GetChildByType<XUiC_Paging>();
         if (_pager != null) _pager.OnPageChanged += RefreshRows;
         _search = GetChildById("traderMarketSearch") as XUiC_TextInput;
@@ -59,15 +60,8 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             ApplyFilter();
         };
         _status = GetChildById("traderMarketStatus");
-        _selectedLabel = GetChildById("marketSelected");
-        _countLabel = GetChildById("marketCount");
-        _totalPriceLabel = GetChildById("marketTotalPrice");
         BindPress("btnTraderMarketClose", OnClosePressed);
         BindPress("btnTraderMarketOutput", OnOutputPressed);
-        BindPress("btnMarketCountDown", (sender, button) => ChangeCount(-1));
-        BindPress("btnMarketCountUp", (sender, button) => ChangeCount(1));
-        BindPress("btnMarketCountMax", (sender, button) => SetCountToMaximum());
-        BindPress("btnMarketPurchase", (sender, button) => BuySelected());
         NetworkLog.Debug("Trader market list initialized. rows=" + _rows.Count(row => row != null)
             + "; pager=" + (_pager != null) + "; search=" + (_search != null));
         if (_rows.Any(row => row == null) || _rowButtons.Any(button => button == null))
@@ -77,6 +71,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
     public override void OnOpen()
     {
         base.OnOpen();
+        _activeWindow = this;
         _closing = false;
         _requestPending = true;
         _sessionId = string.Empty;
@@ -115,6 +110,9 @@ public sealed class XUiC_TraderMarketWindow : XUiController
     public override void OnClose()
     {
         _closing = true;
+        NetworkLog.Debug("Trader market closing. player=" + (xui?.playerUI?.entityPlayer?.entityId ?? -1)
+            + "; session=" + _sessionId + "; requestPending=" + _requestPending
+            + "; offers=" + _offers.Count + "; selected=" + (_selected?.Value?.type ?? -1));
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
         if ((bool)player && !string.IsNullOrEmpty(_sessionId)) TraderMarketClient.Close(player, _sessionId);
         _sessionId = string.Empty;
@@ -122,6 +120,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         _filtered.Clear();
         _selected = null;
         _requestPending = false;
+        if (ReferenceEquals(_activeWindow, this)) _activeWindow = null;
         RefreshRows();
         CursorControllerAbs cursorController = xui?.playerUI?.CursorController;
         if (cursorController?.navigationTarget?.Controller?.IsChildOf(this) == true)
@@ -131,6 +130,9 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             NetworkLog.Debug("Trader market cursor navigation released on close. player=" + (player?.entityId ?? -1));
         }
         base.OnClose();
+        NetworkLog.Debug("Trader market base close completed. player=" + (player?.entityId ?? -1)
+            + "; modal=" + (xui?.playerUI?.windowManager?.GetModalWindow()?.Id ?? "none")
+            + "; inputLocked=" + (xui?.playerUI?.windowManager?.IsInputLocked ?? false));
         if ((bool)player && GameManager.Instance?.World != null)
             _pendingReturnPlayerId = player.entityId;
     }
@@ -140,7 +142,8 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         int index = (_pager?.CurrentPageNumber ?? 0) * PageSize + row;
         if (index < 0 || index >= _filtered.Count) return;
         _selected = _filtered[index];
-        _selectedCount = Math.Max(1, _selected.BundleSize);
+        int bundle = Math.Max(1, _selected.BundleSize);
+        _selectedCount = _selected.Count >= bundle ? bundle : 0;
         RefreshRows();
         ShowOfferDetails(_selected);
         NetworkLog.Debug("Aggregate trader offer selected. trader=" + _selected.TraderEntityId
@@ -157,8 +160,23 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             info.makeVisible(true);
             XUiController empty = xui.FindWindowGroupByName("backpack")?.GetChildById("emptyInfoPanel");
             if (empty?.ViewComponent != null) empty.ViewComponent.IsVisible = false;
-            info.SetInfo(new ItemStack(offer.Value.Clone(), offer.Count), null,
+            info.SetInfo(new ItemStack(offer.Value.Clone(), offer.Count), this,
                 XUiC_ItemActionList.ItemActionListTypes.None);
+            XUiC_Counter counter = info.BuySellCounter;
+            int bundle = Math.Max(1, offer.BundleSize);
+            if (counter != null)
+            {
+                counter.Step = bundle;
+                counter.MaxCount = offer.Count / bundle * bundle;
+                counter.Count = counter.MaxCount > 0
+                    ? Mathf.Clamp(_selectedCount, bundle, counter.MaxCount) : 0;
+                counter.ForceTextRefresh();
+            }
+            info.traderActionItemList?.AddActionListEntry(new NetworkItemActionEntryAggregateBuy(this));
+            info.traderActionItemList?.RefreshActionList();
+            info.RefreshBindings();
+            NetworkLog.Debug("Aggregate purchase controls attached to vanilla item details. item=" + offer.Value.type
+                + "; stock=" + offer.Count + "; bundle=" + bundle + "; counter=" + counter?.Count);
         }
         catch (Exception ex)
         {
@@ -167,26 +185,38 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         }
     }
 
-    private void ChangeCount(int steps)
+    private void OnMarketScroll(XUiController sender, float delta)
     {
-        if (_selected == null) return;
-        int bundle = Math.Max(1, _selected.BundleSize);
-        int maximum = _selected.Count / bundle * bundle;
-        _selectedCount = Mathf.Clamp(_selectedCount + steps * bundle, bundle, Math.Max(bundle, maximum));
-        RefreshPurchaseBar();
+        if (delta > 0f) _pager?.PageDown();
+        else _pager?.PageUp();
     }
 
-    private void SetCountToMaximum()
+    internal static bool TryGetAggregateOffer(XUiC_ItemInfoWindow info, out XUiC_TraderMarketWindow window,
+        out TraderOffer offer)
     {
-        if (_selected == null) return;
-        int bundle = Math.Max(1, _selected.BundleSize);
-        _selectedCount = _selected.Count / bundle * bundle;
-        RefreshPurchaseBar();
+        window = _activeWindow;
+        offer = window?._selected;
+        return window != null && !window._closing && offer?.Value != null
+            && ReferenceEquals(info?.xui, window.xui);
     }
 
-    private void BuySelected()
+    internal void BuySelectedFromDetails(XUiC_ItemInfoWindow info)
     {
-        if (_selected != null && _selectedCount > 0) Buy(_selected, _selectedCount);
+        int count = info?.BuySellCounter?.Count ?? 0;
+        _selectedCount = count;
+        NetworkLog.Debug("Aggregate buy action activated. player=" + (xui?.playerUI?.entityPlayer?.entityId ?? -1)
+            + "; item=" + (_selected?.Value?.type ?? -1) + "; count=" + count
+            + "; session=" + _sessionId + "; pending=" + _requestPending);
+        if (_selected != null && count > 0) Buy(_selected, count);
+    }
+
+    internal bool CanPurchaseFromDetails(XUiC_ItemInfoWindow info, TraderOffer offer)
+    {
+        int count = info?.BuySellCounter?.Count ?? 0;
+        int bundle = Math.Max(1, offer?.BundleSize ?? 1);
+        return ReferenceEquals(_selected, offer) && !_closing && !_requestPending
+            && !string.IsNullOrEmpty(_sessionId) && count >= bundle && count <= offer.Count
+            && count % bundle == 0;
     }
 
     internal void Buy(TraderOffer offer, int count)
@@ -214,12 +244,15 @@ public sealed class XUiC_TraderMarketWindow : XUiController
                 xui.GetChildByType<XUiC_Backpack>()?.RefreshBackpackSlots();
             }
             ApplyResult(result);
+            if (_selected != null) ShowOfferDetails(_selected);
             SetStatus(Localization.Get("HyperdimensionalNetworkTraderMarketPurchaseComplete") + " " + result.Amount);
             GameManager.ShowTooltip(player,
                 Localization.Get("HyperdimensionalNetworkTraderMarketPurchaseComplete") + " " + result.Amount,
                 false, false, 0f);
             NetworkLog.Debug("Aggregate trader purchase displayed. player=" + player.entityId
                 + "; trader=" + offer.TraderEntityId + "; item=" + offer.Value.type + "; count=" + result.Amount);
+            if (TryGetAggregateOffer(xui.GetChildByType<XUiC_ItemInfoWindow>(), out _, out _))
+                xui.GetChildByType<XUiC_ItemInfoWindow>()?.traderActionItemList?.RefreshActionList();
         })) _requestPending = false;
     }
 
@@ -291,8 +324,9 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         if (_selected != null)
         {
             int bundle = Math.Max(1, _selected.BundleSize);
-            _selectedCount = Mathf.Clamp(_selectedCount / bundle * bundle, bundle,
-                Math.Max(bundle, _selected.Count / bundle * bundle));
+            int maximum = _selected.Count / bundle * bundle;
+            _selectedCount = maximum > 0
+                ? Mathf.Clamp(_selectedCount / bundle * bundle, bundle, maximum) : 0;
         }
         else _selectedCount = 0;
         ApplyFilter();
@@ -337,16 +371,6 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             SetLabel(_prices[i], offer.BundlePrice.ToString());
             if (_rowButtons[i]?.ViewComponent is XUiV_Button button) button.Selected = ReferenceEquals(offer, _selected);
         }
-        RefreshPurchaseBar();
-    }
-
-    private void RefreshPurchaseBar()
-    {
-        SetLabel(_selectedLabel, _selected?.Value?.ItemClass?.GetLocalizedItemName() ?? string.Empty);
-        SetLabel(_countLabel, _selected == null ? "-" : _selectedCount.ToString());
-        long total = _selected == null || _selected.BundleSize <= 0 ? 0
-            : (long)_selected.BundlePrice * (_selectedCount / _selected.BundleSize);
-        SetLabel(_totalPriceLabel, total > 0 ? total + " $" : string.Empty);
     }
 
     private void OnOutputPressed(XUiController sender, int mouseButton)
@@ -371,9 +395,14 @@ public sealed class XUiC_TraderMarketWindow : XUiController
     {
         GUIWindowManager manager = xui?.playerUI?.windowManager;
         if (manager == null) return;
+        NetworkLog.Debug("Trader market close button pressed. player="
+            + (xui?.playerUI?.entityPlayer?.entityId ?? -1) + "; modal="
+            + (manager.GetModalWindow()?.Id ?? "none") + "; inputLocked=" + manager.IsInputLocked);
         manager.CloseAllOpenModalWindows();
         NetworkLog.Debug("Trader market close requested through modal cleanup. player="
-            + (xui?.playerUI?.entityPlayer?.entityId ?? -1));
+            + (xui?.playerUI?.entityPlayer?.entityId ?? -1) + "; marketOpen="
+            + manager.IsWindowOpen("hyperdimensionalTraderMarket") + "; modal="
+            + (manager.GetModalWindow()?.Id ?? "none") + "; inputLocked=" + manager.IsInputLocked);
     }
 
     internal static void ProcessPendingReturn(LocalPlayerUI playerUI)
@@ -387,13 +416,27 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             return;
         }
         if (player.entityId != _pendingReturnPlayerId || manager == null) return;
-        if (manager.IsWindowOpen("hyperdimensionalTraderMarket")) return;
-        if (manager.GetModalWindow()?.Id == "hyperdimensionalTraderMarket") return;
+        if (manager.IsWindowOpen("hyperdimensionalTraderMarket")
+            || manager.GetModalWindow()?.Id == "hyperdimensionalTraderMarket")
+        {
+            if (!_loggedReturnWait)
+            {
+                _loggedReturnWait = true;
+                NetworkLog.Debug("Trader market return deferred because market/modal is still active. player="
+                    + player.entityId + "; marketOpen=" + manager.IsWindowOpen("hyperdimensionalTraderMarket")
+                    + "; modal=" + (manager.GetModalWindow()?.Id ?? "none")
+                    + "; inputLocked=" + manager.IsInputLocked);
+            }
+            return;
+        }
+        _loggedReturnWait = false;
         _pendingReturnPlayerId = -1;
         if (!manager.IsWindowOpen("hyperdimensionalNetwork"))
         {
             manager.Open("hyperdimensionalNetwork", false);
-            NetworkLog.Debug("Trader market close returned to the network window. player=" + player.entityId);
+            NetworkLog.Debug("Trader market close returned to the network window. player=" + player.entityId
+                + "; networkOpen=" + manager.IsWindowOpen("hyperdimensionalNetwork")
+                + "; modal=" + (manager.GetModalWindow()?.Id ?? "none") + "; inputLocked=" + manager.IsInputLocked);
         }
     }
 
