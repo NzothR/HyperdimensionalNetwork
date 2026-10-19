@@ -65,7 +65,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private TraderRuleComparison _currencyComparison = TraderRuleComparison.GreaterOrEqual;
     private bool _scheduled, _stockOnly, _stockLoading, _requestPending, _isAdmin;
     private bool _runActive, _runPollPending, _pinyinIndexReady, _pinyinReadyObserved;
-    private bool _pickerComputedStockOnly, _pickerTaskStockOnly, _pickerQueuedStockOnly, _pickerSearchQueued, _deleteConfirmationOpen;
+    private bool _pickerComputedStockOnly, _pickerTaskStockOnly, _pickerQueuedStockOnly, _pickerSearchQueued;
     private int _rulePage, _pickerPage, _pinyinPrimeIndex;
     private float _nextRunPollAt;
     private int _runCurrentRule, _runTotalRules;
@@ -465,7 +465,6 @@ public sealed class XUiC_TraderRulesWindow : XUiController
 
     private void SetIcon(XUiController controller, TraderAutomationRule rule)
     {
-        if (!(controller?.ViewComponent is XUiV_Sprite sprite)) return;
         string atlas;
         string icon;
         if (rule.Scope == TraderRuleScope.SingleItem && rule.ItemType > 0)
@@ -485,11 +484,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
                 + "; creativeDefinition=" + (definition != null) + "; creativeIcon=" + (definition?.Icon ?? "<none>")
                 + "; traderIcon=" + (traderIcon ?? "<none>") + "; selected=" + icon);
         }
-        sprite.SpriteName = string.Empty;
-        sprite.UIAtlas = atlas;
-        sprite.SpriteName = icon;
-        BindRenderedSprite(controller, atlas, icon);
-        controller.IsDirty = true;
+        SetSprite(controller, atlas, icon);
         NetworkLog.Debug("Trader rule row icon assigned. rule=" + rule.Id + "; atlas=" + atlas + "; sprite=" + icon);
     }
 
@@ -519,36 +514,9 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         int index = _rulePage * RuleRows + row;
         if (index < 0 || index >= _rules.Count) return;
         string id = _rules[index].Id;
-        if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
-        {
-            NetworkLog.Debug("Trader rule row deletion requested without confirmation. rule=" + id + "; shift=true");
-            DeleteRuleById(id);
-            return;
-        }
-        if (_deleteConfirmationOpen) return;
-        EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
-        if (!(bool)player) return;
-        _deleteConfirmationOpen = true;
-        World confirmationWorld = GameManager.Instance?.World;
-        try
-        {
-            XUiC_MessageBoxWindowGroup.ShowConfirmCancel(xui,
-                "删除自动商人规则",
-                "确定删除规则“" + ShortDescription(_rules[index]) + "”吗？",
-                _onConfirm: () =>
-                {
-                    _deleteConfirmationOpen = false;
-                    if (ReferenceEquals(confirmationWorld, GameManager.Instance?.World)) DeleteRuleById(id);
-                },
-                _onCancel: () => _deleteConfirmationOpen = false,
-                _openMainMenuOnClose: false, _modal: true, _cancelOnOutsideClick: true);
-            NetworkLog.Debug("Trader rule row deletion confirmation opened. rule=" + id);
-        }
-        catch (Exception exception)
-        {
-            _deleteConfirmationOpen = false;
-            NetworkLog.Error("Trader rule row deletion confirmation failed. rule=" + id + "; exception=" + exception);
-        }
+        bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        NetworkLog.Debug("Trader rule row deletion requested directly. rule=" + id + "; shift=" + shift);
+        DeleteRuleById(id);
     }
 
     private void DeleteRuleById(string id)
@@ -1191,6 +1159,17 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private static void SetVisible(XUiController controller, bool visible) { if (controller?.ViewComponent != null) controller.ViewComponent.IsVisible = visible; }
     private void SetSprite(XUiController controller, string atlas, string name)
     {
+        if (controller?.ViewComponent is XUiV_Button button)
+        {
+            button.UIAtlas = atlas;
+            button.DefaultSpriteName = name;
+            button.HoverSpriteName = name;
+            button.SelectedSpriteName = name;
+            button.DisabledSpriteName = name;
+            BindRenderedSprite(controller, atlas, name);
+            controller.IsDirty = true;
+            return;
+        }
         if (!(controller?.ViewComponent is XUiV_Sprite sprite))
         {
             NetworkLog.Debug("Trader rule sprite assignment skipped: XUi sprite view is missing. controller="
@@ -1208,14 +1187,15 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private void LogSpriteControllerInitialization(string id, XUiController controller)
     {
         XUiV_Sprite view = controller?.ViewComponent as XUiV_Sprite;
+        XUiV_Button button = controller?.ViewComponent as XUiV_Button;
         UISprite rendered = controller?.ViewComponent?.UiTransform?.GetComponent<UISprite>();
         NetworkLog.Debug("Trader rule sprite controller initialized. id=" + id
             + "; controllerFound=" + (controller != null)
             + "; view=" + (controller?.ViewComponent?.GetType().Name ?? "<none>")
             + "; transformFound=" + (controller?.ViewComponent?.UiTransform != null)
             + "; renderedSpriteFound=" + (rendered != null)
-            + "; initialAtlas=" + (view?.UIAtlas ?? "<none>")
-            + "; initialSprite=" + (view?.SpriteName ?? "<none>"));
+            + "; initialAtlas=" + (view?.UIAtlas ?? button?.UIAtlas ?? "<none>")
+            + "; initialSprite=" + (view?.SpriteName ?? button?.DefaultSpriteName ?? "<none>"));
     }
 
     private void BindRenderedSprite(XUiController controller, string atlasName, string spriteName)
@@ -1257,7 +1237,8 @@ public sealed class XUiC_TraderRulesWindow : XUiController
             + "; found=" + (rendered != null) + "; atlasLoaded=" + (atlas != null)
             + "; renderedAtlasType=" + (atlas?.GetType().FullName ?? "<none>")
             + "; renderedSprite=" + (rendered?.spriteName ?? "<none>")
-            + "; viewAtlas=" + ((controller?.ViewComponent as XUiV_Sprite)?.UIAtlas ?? "<none>"));
+            + "; viewAtlas=" + ((controller?.ViewComponent as XUiV_Sprite)?.UIAtlas
+                ?? (controller?.ViewComponent as XUiV_Button)?.UIAtlas ?? "<none>"));
     }
 
     private void RetryPendingSpriteBindings()
