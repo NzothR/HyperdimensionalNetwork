@@ -123,6 +123,13 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         _selected = null;
         _requestPending = false;
         RefreshRows();
+        CursorControllerAbs cursorController = xui?.playerUI?.CursorController;
+        if (cursorController?.navigationTarget?.Controller?.IsChildOf(this) == true)
+        {
+            cursorController.SetNavigationTarget(null);
+            cursorController.SetNavigationLockView(null);
+            NetworkLog.Debug("Trader market cursor navigation released on close. player=" + (player?.entityId ?? -1));
+        }
         base.OnClose();
         if ((bool)player && GameManager.Instance?.World != null)
             _pendingReturnPlayerId = player.entityId;
@@ -253,6 +260,24 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         _offers.Clear();
         if (result.TraderOffers != null)
             _offers.AddRange(result.TraderOffers.Where(offer => offer?.Value != null && offer.Count > 0));
+        if (_categories != null)
+        {
+            List<TraderData.Entry> categoryOffers = _offers
+                .Select(offer => new TraderData.Entry(new ItemStack(offer.Value.Clone(), offer.Count)))
+                .ToList();
+            _categories.SetupCategoriesBasedOnItems(categoryOffers, -1);
+            bool keepCategory = !string.IsNullOrEmpty(_category)
+                && _categories.CategoryButtons.Any(button => button.CategoryName == _category && !string.IsNullOrEmpty(button.SpriteName));
+            if (keepCategory)
+                _categories.TrySetCategory(_category);
+            else
+            {
+                _category = string.Empty;
+                _categories.TrySetCategory(string.Empty);
+            }
+            NetworkLog.Debug("Trader market categories refreshed from current offers. offers=" + _offers.Count
+                + "; categories=" + _categories.CategoryButtons.Count(button => !string.IsNullOrEmpty(button.SpriteName)));
+        }
         _offers.Sort((left, right) =>
         {
             int byName = string.Compare(left.Value.ItemClass?.GetLocalizedItemName(),
@@ -346,9 +371,8 @@ public sealed class XUiC_TraderMarketWindow : XUiController
     {
         GUIWindowManager manager = xui?.playerUI?.windowManager;
         if (manager == null) return;
-        manager.Close("hyperdimensionalTraderMarket");
-        manager.Open("hyperdimensionalNetwork", false);
-        NetworkLog.Debug("Trader market closed by button; network window restored. player="
+        manager.CloseAllOpenModalWindows();
+        NetworkLog.Debug("Trader market close requested through modal cleanup. player="
             + (xui?.playerUI?.entityPlayer?.entityId ?? -1));
     }
 
@@ -364,6 +388,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         }
         if (player.entityId != _pendingReturnPlayerId || manager == null) return;
         if (manager.IsWindowOpen("hyperdimensionalTraderMarket")) return;
+        if (manager.GetModalWindow()?.Id == "hyperdimensionalTraderMarket") return;
         _pendingReturnPlayerId = -1;
         if (!manager.IsWindowOpen("hyperdimensionalNetwork"))
         {
