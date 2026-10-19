@@ -25,7 +25,7 @@ internal sealed class TraderAutomationRule
     public int Quality;
     public int MaximumCount = 1;
     public int MinimumNetworkCount;
-    public TraderRuleComparison NetworkCountComparison = TraderRuleComparison.GreaterOrEqual;
+    public TraderRuleComparison NetworkCountComparison = TraderRuleComparison.Ignore;
     public int MinimumCurrencyCount;
     public TraderRuleComparison CurrencyCountComparison = TraderRuleComparison.GreaterOrEqual;
     public int MaximumSpend;
@@ -65,7 +65,7 @@ internal static class TraderAutomationService
         public string RuleId = string.Empty;
     }
     private const int FileMagic = 0x31525448; // HTR1
-    private const int FileVersion = 3;
+    private const int FileVersion = 4;
     private const int MaximumNetworks = 100000;
     private const int MaximumRulesPerNetwork = 2048;
     private static readonly object Sync = new object();
@@ -761,6 +761,7 @@ internal static class TraderAutomationService
             if (version < 1 || version > FileVersion) throw new InvalidDataException("Unsupported trader rule file version: " + version);
             int networkCount = reader.ReadInt32();
             if (networkCount < 0 || networkCount > MaximumNetworks) throw new InvalidDataException("Invalid trader rule network count.");
+            bool migratedIgnoredCountDefaults = false;
             for (int i = 0; i < networkCount; i++)
             {
                 string networkId = new Guid(reader.ReadBytes(16)).ToString("N");
@@ -796,13 +797,18 @@ internal static class TraderAutomationService
                         rule.ExcludedItemTypes = reader.ReadString();
                     }
                     else rule.Scope = rule.ItemType > 0 ? TraderRuleScope.SingleItem : TraderRuleScope.Category;
+                    if (version < 4 && rule.NetworkCountComparison == TraderRuleComparison.GreaterOrEqual && rule.MinimumNetworkCount == 0)
+                    {
+                        rule.NetworkCountComparison = TraderRuleComparison.Ignore;
+                        migratedIgnoredCountDefaults = true;
+                    }
                     if (!Validate(rule, out string error)) throw new InvalidDataException("Invalid saved trader rule: " + error);
                     rules.Add(rule);
                 }
                 Rules.Add(networkId, rules);
             }
             if (stream.Position != stream.Length) throw new InvalidDataException("Unexpected trailing trader rule data.");
-            NetworkLog.Debug("Trader rules loaded. networks=" + Rules.Count + "; path=" + path);
+            NetworkLog.Debug("Trader rules loaded. networks=" + Rules.Count + "; ignoredCountDefaultsMigrated=" + migratedIgnoredCountDefaults + "; path=" + path);
             return true;
         }
         catch (Exception ex)

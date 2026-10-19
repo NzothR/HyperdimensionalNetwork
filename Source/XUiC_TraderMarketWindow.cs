@@ -76,6 +76,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
     public override void Init()
     {
         base.Init();
+        PinyinSearch.Initialize();
         for (int i = 0; i < PageSize; i++)
         {
             int index = i;

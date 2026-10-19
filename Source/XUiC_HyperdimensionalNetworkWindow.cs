@@ -38,6 +38,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     public override void Init()
     {
         base.Init();
+        PinyinSearch.Initialize();
         _grid = GetChildByType<XUiC_HyperdimensionalGrid>() ?? Parent?.GetChildByType<XUiC_HyperdimensionalGrid>();
         _pager = GetChildByType<XUiC_Paging>();
         if (_pager != null) _pager.OnPageChanged += OnPageChanged;

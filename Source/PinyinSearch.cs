@@ -1,12 +1,36 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Text;
 
 namespace HyperdimensionalNetwork;
 
 internal static class PinyinSearch
 {
-    private static readonly Dictionary<char, string> Syllables = new Dictionary<char, string>
+    private sealed class SearchForms
+    {
+        public string Full;
+        public string Initials;
+    }
+
+    private static readonly ConcurrentDictionary<string, SearchForms> FormCache = new ConcurrentDictionary<string, SearchForms>(StringComparer.Ordinal);
+    private static readonly object InitializationLock = new object();
+    private static Dictionary<char, string> _syllables;
+    private static Task _initialization;
+
+    public static bool IsReady => Volatile.Read(ref _syllables) != null;
+
+    public static void Initialize()
+    {
+        if (IsReady) return;
+        lock (InitializationLock)
+            if (_initialization == null)
+                _initialization = Task.Run(() => Volatile.Write(ref _syllables, CreateSyllables()));
+    }
+
+    private static Dictionary<char, string> CreateSyllables() => new Dictionary<char, string>
     {
         { '㐀', "qiu" },
         { '㐁', "tian" },
@@ -26714,6 +26738,13 @@ internal static class PinyinSearch
         { '礼', "li" },
     };
 
+    public static void Prime(string source)
+    {
+        if (string.IsNullOrEmpty(source)) return;
+        Dictionary<char, string> syllables = Volatile.Read(ref _syllables);
+        if (syllables != null) FormCache.GetOrAdd(source, value => CreateForms(value, syllables));
+    }
+
     public static bool Matches(string source, string query)
     {
         if (string.IsNullOrEmpty(query)) return true;
@@ -26722,22 +26753,32 @@ internal static class PinyinSearch
         string normalizedQuery = trimmedQuery.Replace(" ", string.Empty).ToLowerInvariant();
         if (normalizedQuery.Length == 0) return true;
         if (source.IndexOf(trimmedQuery, StringComparison.CurrentCultureIgnoreCase) >= 0) return true;
+        Initialize();
+        Dictionary<char, string> syllables = Volatile.Read(ref _syllables);
+        if (syllables == null) return false;
+        SearchForms forms = FormCache.GetOrAdd(source, value => CreateForms(value, syllables));
+        return forms.Full.IndexOf(normalizedQuery, StringComparison.Ordinal) >= 0
+            || forms.Initials.IndexOf(normalizedQuery, StringComparison.Ordinal) >= 0;
+    }
+
+    private static SearchForms CreateForms(string source, Dictionary<char, string> syllables)
+    {
         StringBuilder full = new StringBuilder(source.Length * 5);
         StringBuilder initials = new StringBuilder(source.Length);
         foreach (char c in source)
         {
-            if (Syllables.TryGetValue(c, out string syllable) && syllable.Length > 0)
+            if (syllables.TryGetValue(c, out string syllable) && syllable.Length > 0)
             {
                 full.Append(syllable);
                 initials.Append(syllable[0]);
             }
             else if (char.IsLetterOrDigit(c) && c < 128)
             {
-                full.Append(char.ToLowerInvariant(c));
-                initials.Append(char.ToLowerInvariant(c));
+                char lower = char.ToLowerInvariant(c);
+                full.Append(lower);
+                initials.Append(lower);
             }
         }
-        return full.ToString().IndexOf(normalizedQuery, StringComparison.Ordinal) >= 0
-            || initials.ToString().IndexOf(normalizedQuery, StringComparison.Ordinal) >= 0;
+        return new SearchForms { Full = full.ToString(), Initials = initials.ToString() };
     }
 }
