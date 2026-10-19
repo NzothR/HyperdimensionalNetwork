@@ -22,4 +22,8 @@ foreach ($directoryName in @('Config', 'UIAtlases')) {
         Copy-Item -LiteralPath $_.FullName -Destination $target -Force
     }
 }
+$localConfigPath = Join-Path $destination 'HyperdimensionalNetwork.json'
+$localConfig = Get-Content -LiteralPath $localConfigPath -Raw | ConvertFrom-Json
+$localConfig.DebugLog = $true
+$localConfig | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $localConfigPath -Encoding UTF8
 Write-Host "Deployed runtime files to $destination"
