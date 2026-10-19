@@ -13,6 +13,29 @@ internal static class NetworkHotkeyService
     private static KeyCode _openNetworkKey = KeyCode.O;
     private static KeyCode _depositContainerKey = KeyCode.D;
 
+    internal static string GetDepositKeyDisplay()
+    {
+        if (!_loaded) LoadConfig();
+        if (_depositContainerKey == KeyCode.None) return Localization.Get("HyperdimensionalNetworkHotkeyUnbound");
+
+        string keyName = _depositContainerKey.ToString();
+        if (keyName.StartsWith("Alpha", StringComparison.Ordinal)) keyName = keyName.Substring("Alpha".Length);
+        else if (keyName.StartsWith("Keypad", StringComparison.Ordinal)) keyName = "Num " + keyName.Substring("Keypad".Length);
+        else
+        {
+            keyName = keyName switch
+            {
+                "Return" => "Enter",
+                "LeftControl" => "Left Ctrl",
+                "RightControl" => "Right Ctrl",
+                "LeftCommand" => "Left Cmd",
+                "RightCommand" => "Right Cmd",
+                _ => keyName
+            };
+        }
+        return "<" + keyName + ">";
+    }
+
     public static void Update(LocalPlayerUI playerUI)
     {
         if (!_loaded) LoadConfig();

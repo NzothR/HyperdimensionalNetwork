@@ -4,6 +4,8 @@ HyperdimensionalNetworkTitle,Hyperdimensional Network,超维网络
 xuihyperdimensionalNetwork,Hyperdimensional Network,超维网络
 HyperdimensionalNetworkOpen,Open Hyperdimensional Network,打开超维网络
 HyperdimensionalNetworkQuickDeposit,Move all items into Hyperdimensional Network,将全部物品存入超维网络
+HyperdimensionalNetworkQuickDepositHotkey,Move all items into Hyperdimensional Network ({0}),将全部物品存入超维网络（{0}）
+HyperdimensionalNetworkHotkeyUnbound,Unbound,未绑定
 HyperdimensionalNetworkCategoryAll,All,全部
 HyperdimensionalNetworkManualRestock,Restock existing stacks,补充已有堆叠
 HyperdimensionalNetworkSettings,Network settings,网络设置

@@ -11,7 +11,14 @@ internal static class ContainerDepositPatch
     public static void InitPostfix(XUiC_ContainerStandardControls __instance)
     {
         XUiController lootButton = __instance.GetChildById("btnHyperdimensionalLootAll");
-        if (lootButton != null) lootButton.OnPress += (sender, mouse) => DepositFromControls(__instance);
+        if (lootButton != null)
+        {
+            if (lootButton.ViewComponent != null)
+                lootButton.ViewComponent.ToolTip = string.Format(
+                    Localization.Get("HyperdimensionalNetworkQuickDepositHotkey"),
+                    NetworkHotkeyService.GetDepositKeyDisplay());
+            lootButton.OnPress += (sender, mouse) => DepositFromControls(__instance);
+        }
         XUiController backpackButton = __instance.GetChildById("btnHyperdimensionalBackpackAll");
         if (backpackButton != null) backpackButton.OnPress += (sender, mouse) => DepositBackpack(FindParent<XUiC_BackpackWindow>(__instance));
     }
