@@ -9,73 +9,82 @@
         <label depth="3" name="traderRulesStatus" pos="22,-50" width="716" height="30" font_size="17" text_key="HyperdimensionalNetworkTraderRulesHint" />
         <label depth="3" pos="22,-84" width="700" height="28" font_size="20" text_key="HyperdimensionalNetworkTraderRulesList" />
         <rect name="ruleRow0" depth="3" pos="22,-118" width="716" height="48" visible="false">
-          <button depth="1" name="btnRuleRow0" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <button depth="1" name="btnRuleRow0" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" disabledcolor="29,37,47,255" />
           <sprite depth="2" name="ruleBuyAccent0" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
           <sprite depth="2" name="ruleSellAccent0" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="3" name="ruleActiveAccent0" pos="0,0" width="6" height="48" sprite="menu_empty" color="255,207,62,255" visible="false" />
           <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
           <sprite depth="3" name="ruleIcon0" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
           <label depth="3" name="ruleSummary0" pos="62,-9" width="628" height="30" font_size="19" />
         </rect>
         <rect name="ruleRow1" depth="3" pos="22,-169" width="716" height="48" visible="false">
-          <button depth="1" name="btnRuleRow1" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <button depth="1" name="btnRuleRow1" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" disabledcolor="29,37,47,255" />
           <sprite depth="2" name="ruleBuyAccent1" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
           <sprite depth="2" name="ruleSellAccent1" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="3" name="ruleActiveAccent1" pos="0,0" width="6" height="48" sprite="menu_empty" color="255,207,62,255" visible="false" />
           <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
           <sprite depth="3" name="ruleIcon1" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
           <label depth="3" name="ruleSummary1" pos="62,-9" width="628" height="30" font_size="19" />
         </rect>
         <rect name="ruleRow2" depth="3" pos="22,-220" width="716" height="48" visible="false">
-          <button depth="1" name="btnRuleRow2" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <button depth="1" name="btnRuleRow2" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" disabledcolor="29,37,47,255" />
           <sprite depth="2" name="ruleBuyAccent2" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
           <sprite depth="2" name="ruleSellAccent2" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="3" name="ruleActiveAccent2" pos="0,0" width="6" height="48" sprite="menu_empty" color="255,207,62,255" visible="false" />
           <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
           <sprite depth="3" name="ruleIcon2" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
           <label depth="3" name="ruleSummary2" pos="62,-9" width="628" height="30" font_size="19" />
         </rect>
         <rect name="ruleRow3" depth="3" pos="22,-271" width="716" height="48" visible="false">
-          <button depth="1" name="btnRuleRow3" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <button depth="1" name="btnRuleRow3" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" disabledcolor="29,37,47,255" />
           <sprite depth="2" name="ruleBuyAccent3" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
           <sprite depth="2" name="ruleSellAccent3" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="3" name="ruleActiveAccent3" pos="0,0" width="6" height="48" sprite="menu_empty" color="255,207,62,255" visible="false" />
           <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
           <sprite depth="3" name="ruleIcon3" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
           <label depth="3" name="ruleSummary3" pos="62,-9" width="628" height="30" font_size="19" />
         </rect>
         <rect name="ruleRow4" depth="3" pos="22,-322" width="716" height="48" visible="false">
-          <button depth="1" name="btnRuleRow4" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <button depth="1" name="btnRuleRow4" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" disabledcolor="29,37,47,255" />
           <sprite depth="2" name="ruleBuyAccent4" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
           <sprite depth="2" name="ruleSellAccent4" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="3" name="ruleActiveAccent4" pos="0,0" width="6" height="48" sprite="menu_empty" color="255,207,62,255" visible="false" />
           <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
           <sprite depth="3" name="ruleIcon4" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
           <label depth="3" name="ruleSummary4" pos="62,-9" width="628" height="30" font_size="19" />
         </rect>
         <rect name="ruleRow5" depth="3" pos="22,-373" width="716" height="48" visible="false">
-          <button depth="1" name="btnRuleRow5" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <button depth="1" name="btnRuleRow5" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" disabledcolor="29,37,47,255" />
           <sprite depth="2" name="ruleBuyAccent5" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
           <sprite depth="2" name="ruleSellAccent5" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="3" name="ruleActiveAccent5" pos="0,0" width="6" height="48" sprite="menu_empty" color="255,207,62,255" visible="false" />
           <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
           <sprite depth="3" name="ruleIcon5" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
           <label depth="3" name="ruleSummary5" pos="62,-9" width="628" height="30" font_size="19" />
         </rect>
         <rect name="ruleRow6" depth="3" pos="22,-424" width="716" height="48" visible="false">
-          <button depth="1" name="btnRuleRow6" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <button depth="1" name="btnRuleRow6" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" disabledcolor="29,37,47,255" />
           <sprite depth="2" name="ruleBuyAccent6" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
           <sprite depth="2" name="ruleSellAccent6" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="3" name="ruleActiveAccent6" pos="0,0" width="6" height="48" sprite="menu_empty" color="255,207,62,255" visible="false" />
           <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
           <sprite depth="3" name="ruleIcon6" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
           <label depth="3" name="ruleSummary6" pos="62,-9" width="628" height="30" font_size="19" />
         </rect>
         <rect name="ruleRow7" depth="3" pos="22,-475" width="716" height="48" visible="false">
-          <button depth="1" name="btnRuleRow7" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <button depth="1" name="btnRuleRow7" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" disabledcolor="29,37,47,255" />
           <sprite depth="2" name="ruleBuyAccent7" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
           <sprite depth="2" name="ruleSellAccent7" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="3" name="ruleActiveAccent7" pos="0,0" width="6" height="48" sprite="menu_empty" color="255,207,62,255" visible="false" />
           <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
           <sprite depth="3" name="ruleIcon7" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
           <label depth="3" name="ruleSummary7" pos="62,-9" width="628" height="30" font_size="19" />
         </rect>
         <rect name="ruleRow8" depth="3" pos="22,-526" width="716" height="48" visible="false">
-          <button depth="1" name="btnRuleRow8" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" />
+          <button depth="1" name="btnRuleRow8" pos="0,0" width="716" height="48" style="press, hover" on_drag="true" on_held="true" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="57,72,86,255" disabledcolor="29,37,47,255" />
           <sprite depth="2" name="ruleBuyAccent8" pos="0,0" width="6" height="48" sprite="menu_empty" color="42,176,188,255" />
           <sprite depth="2" name="ruleSellAccent8" pos="0,0" width="6" height="48" sprite="menu_empty" color="226,154,76,255" />
+          <sprite depth="3" name="ruleActiveAccent8" pos="0,0" width="6" height="48" sprite="menu_empty" color="255,207,62,255" visible="false" />
           <sprite depth="2" pos="11,-5" width="38" height="38" sprite="menu_empty3px" color="64,76,87,255" />
           <sprite depth="3" name="ruleIcon8" atlas="ItemIconAtlas" pos="14,-8" width="32" height="32" foregroundlayer="true" />
           <label depth="3" name="ruleSummary8" pos="62,-9" width="628" height="30" font_size="19" />
@@ -85,7 +94,7 @@
         <button depth="3" name="btnRulePagePrevious" pos="22,-638" width="58" height="36" style="press, hover" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="64,84,102,255" selectedcolor="48,105,124,255" disabledcolor="35,41,49,255" /><label depth="4" pos="26,-642" width="50" height="28" font_size="23" justify="center" text="‹" />
         <label depth="3" name="rulePageLabel" pos="90,-642" width="576" height="28" font_size="17" justify="center" />
         <button depth="3" name="btnRulePageNext" pos="680,-638" width="58" height="36" style="press, hover" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="64,84,102,255" selectedcolor="48,105,124,255" disabledcolor="35,41,49,255" /><label depth="4" pos="684,-642" width="50" height="28" font_size="23" justify="center" text="›" />
-        <button depth="3" name="btnTraderRuleRunAll" pos="22,-696" width="716" height="50" style="press, hover" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="33,89,106,255" hovercolor="48,132,151,255" /><label depth="4" name="traderRuleRunAllLabel" pos="28,-705" width="704" height="30" font_size="21" justify="center" text_key="HyperdimensionalNetworkTraderRuleRun" />
+        <button depth="3" name="btnTraderRuleRunAll" pos="22,-696" width="716" height="50" style="press, hover" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="33,89,106,255" hovercolor="48,132,151,255" disabledcolor="29,46,54,255" /><label depth="4" name="traderRuleRunAllLabel" pos="28,-705" width="704" height="30" font_size="21" color="240,246,249,255" justify="center" text_key="HyperdimensionalNetworkTraderRuleRun" />
         </rect>
         <rect name="ruleEditor" depth="20" pos="0,0" width="760" height="780" visible="false">
           <sprite depth="0" width="760" height="780" sprite="menu_empty" type="sliced" fillcenter="true" color="18,25,34,255" />
@@ -138,7 +147,7 @@
           <label depth="2" name="pickerPageLabel" pos="99,-667" width="560" height="28" font_size="18" justify="center" />
           <button depth="2" name="btnPickerNext" pos="671,-660" width="65" height="40" style="press, hover" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="37,47,58,255" hovercolor="64,84,102,255" selectedcolor="48,105,124,255" disabledcolor="35,41,49,255" /><label depth="3" pos="677,-666" width="53" height="28" font_size="23" justify="center" text="›" />
           <label depth="2" name="pickerHint" pos="24,-713" width="535" height="36" font_size="15" text="点击选择；分类与黑名单可多选，然后点击完成。" />
-          <button depth="2" name="btnRulePickerDone" pos="572,-706" width="164" height="42" style="press, hover" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="33,89,106,255" hovercolor="48,132,151,255" /><label depth="3" pos="580,-713" width="148" height="29" font_size="19" justify="center" text="完成" />
+          <button depth="2" name="btnRulePickerDone" pos="572,-706" width="164" height="42" style="press, hover" sprite="menu_empty3px" hoverscale="1.0" defaultcolor="33,89,106,255" hovercolor="48,132,151,255" disabledcolor="29,46,54,255" /><label depth="3" pos="580,-713" width="148" height="29" font_size="19" justify="center" text="完成" />
         </rect>
       </rect>
     </window>

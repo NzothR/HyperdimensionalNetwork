@@ -494,6 +494,7 @@ internal static class NetworkStorage
         if (string.IsNullOrEmpty(search)) return true;
         return (itemClass.Name ?? string.Empty).IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
             || (itemClass.GetLocalizedItemName() ?? string.Empty).IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
+            || PinyinSearch.Matches(itemClass.GetLocalizedItemName(), search)
             || value.type.ToString().IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 

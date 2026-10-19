@@ -62,6 +62,7 @@ internal static class TraderAutomationService
         public int CurrentRule;
         public int TotalRules;
         public string Message = string.Empty;
+        public string RuleId = string.Empty;
     }
     private const int FileMagic = 0x31525448; // HTR1
     private const int FileVersion = 3;
@@ -72,6 +73,7 @@ internal static class TraderAutomationService
     private static readonly HashSet<string> ProcessingDeposits = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> ManualRunNetworks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     private static readonly Dictionary<string, TraderRunProgress> ManualRunProgress = new Dictionary<string, TraderRunProgress>(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, string> ActiveRuleIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     private static readonly List<PendingBuyRun> PendingRuns = new List<PendingBuyRun>();
     private static string _path;
     private static bool _loaded;
@@ -108,21 +110,45 @@ internal static class TraderAutomationService
         if (result == null || string.IsNullOrEmpty(networkId)) return;
         lock (Sync)
         {
-            if (!ManualRunProgress.TryGetValue(networkId, out TraderRunProgress progress)) return;
             result.TraderRunProgressAvailable = true;
-            result.TraderRunActive = progress.Active;
-            result.TraderRunCurrentRule = progress.CurrentRule;
-            result.TraderRunTotalRules = progress.TotalRules;
-            result.TraderRunMessage = progress.Message ?? string.Empty;
+            if (ManualRunProgress.TryGetValue(networkId, out TraderRunProgress progress))
+            {
+                result.TraderRunCurrentRule = progress.CurrentRule;
+                result.TraderRunTotalRules = progress.TotalRules;
+                result.TraderRunMessage = progress.Message ?? string.Empty;
+                result.TraderRunRuleId = progress.RuleId ?? string.Empty;
+            }
+            result.TraderRunActive = IsNetworkExecutionActiveUnsafe(networkId);
+            PendingBuyRun pending = PendingRuns.FirstOrDefault(run => string.Equals(run.NetworkId, networkId, StringComparison.OrdinalIgnoreCase));
+            if (pending != null)
+            {
+                result.TraderRunCurrentRule = pending.NextRuleIndex + 1;
+                result.TraderRunTotalRules = pending.Rules?.Count ?? 1;
+                result.TraderRunMessage = "自动规则正在执行，当前第 " + (pending.NextRuleIndex + 1) + " 条";
+                result.TraderRunRuleId = pending.Rules?.ElementAtOrDefault(pending.NextRuleIndex)?.Id ?? string.Empty;
+            }
+            else if (result.TraderRunActive && string.IsNullOrEmpty(result.TraderRunMessage))
+            {
+                result.TraderRunCurrentRule = 1;
+                result.TraderRunTotalRules = 1;
+                result.TraderRunMessage = "自动出售规则正在执行";
+            }
+            if (result.TraderRunActive && ActiveRuleIds.TryGetValue(networkId, out string activeRuleId))
+                result.TraderRunRuleId = activeRuleId;
         }
     }
 
-    private static void SetRunProgress(string networkId, bool active, int currentRule, int totalRules, string message)
+    private static bool IsNetworkExecutionActiveUnsafe(string networkId)
+        => ManualRunNetworks.Contains(networkId) || ProcessingDeposits.Contains(networkId)
+            || PendingRuns.Any(run => string.Equals(run.NetworkId, networkId, StringComparison.OrdinalIgnoreCase))
+            || ManualRunProgress.TryGetValue(networkId, out TraderRunProgress progress) && progress.Active;
+
+    private static void SetRunProgress(string networkId, bool active, int currentRule, int totalRules, string message, string ruleId = "")
     {
         if (string.IsNullOrEmpty(networkId)) return;
         lock (Sync) ManualRunProgress[networkId] = new TraderRunProgress
         {
-            Active = active, CurrentRule = currentRule, TotalRules = totalRules, Message = message ?? string.Empty
+            Active = active, CurrentRule = currentRule, TotalRules = totalRules, Message = message ?? string.Empty, RuleId = ruleId ?? string.Empty
         };
     }
 
@@ -180,6 +206,7 @@ internal static class TraderAutomationService
         lock (Sync)
         {
             if (!EnsureLoaded()) { error = "TraderRulesUnavailable"; return false; }
+            if (IsNetworkExecutionActiveUnsafe(networkId)) { error = "TraderRuleRunInProgress"; return false; }
             List<TraderAutomationRule> previous = Rules.TryGetValue(networkId, out List<TraderAutomationRule> current)
                 ? current.Select(item => item.Clone()).ToList() : new List<TraderAutomationRule>();
             List<TraderAutomationRule> updated = previous.Select(item => item.Clone()).ToList();
@@ -228,6 +255,7 @@ internal static class TraderAutomationService
         lock (Sync)
         {
             if (!EnsureLoaded()) { error = "TraderRulesUnavailable"; return false; }
+            if (IsNetworkExecutionActiveUnsafe(networkId)) { error = "TraderRuleRunInProgress"; return false; }
             if (!Rules.TryGetValue(networkId, out List<TraderAutomationRule> current)) { error = "TraderRuleNotFound"; return false; }
             List<TraderAutomationRule> previous = current.Select(item => item.Clone()).ToList();
             current.RemoveAll(item => string.Equals(item.Id, ruleId, StringComparison.Ordinal));
@@ -252,6 +280,7 @@ internal static class TraderAutomationService
         lock (Sync)
         {
             if (!EnsureLoaded() || !Rules.TryGetValue(networkId, out List<TraderAutomationRule> rules)) { error = "TraderRulesUnavailable"; return false; }
+            if (IsNetworkExecutionActiveUnsafe(networkId)) { error = "TraderRuleRunInProgress"; return false; }
             int index = rules.FindIndex(rule => rule.Id == ruleId);
             int target = index + offset;
             if (index < 0 || target < 0 || target >= rules.Count) { error = "TraderRuleMoveUnavailable"; return false; }
@@ -274,6 +303,7 @@ internal static class TraderAutomationService
         lock (Sync)
         {
             if (!EnsureLoaded() || ManualRunNetworks.Contains(networkId) || !ProcessingDeposits.Add(networkId)) return;
+            ActiveRuleIds.Remove(networkId);
         }
         try
         {
@@ -298,6 +328,7 @@ internal static class TraderAutomationService
                 long available = NetworkStorage.GetCount(player, addition.Value);
                 int count = (int)Math.Min(Math.Min(Math.Min((long)addition.Count, available), remaining), int.MaxValue);
                 if (count <= 0) continue;
+                lock (Sync) ActiveRuleIds[networkId] = rule.Id;
                 NetworkRemoteResult result = TraderTransactionService.ExecuteVoidSell(player, null, new NetworkRemoteRequest
                 {
                     EntityId = player.entityId,
@@ -318,7 +349,7 @@ internal static class TraderAutomationService
             }
         }
         catch (Exception ex) { NetworkLog.Error("Automatic sale processing failed safely after a network deposit. player=" + player.entityId + "; network=" + networkId + "; exception=" + ex); }
-        finally { lock (Sync) ProcessingDeposits.Remove(networkId); }
+        finally { lock (Sync) { ProcessingDeposits.Remove(networkId); ActiveRuleIds.Remove(networkId); } }
     }
 
     public static void Update(World world)
@@ -393,11 +424,11 @@ internal static class TraderAutomationService
         if (rules.Count == 0) { error = "TraderRuleNotFound"; return false; }
         lock (Sync)
         {
-            if (ManualRunProgress.TryGetValue(networkId, out TraderRunProgress progress) && progress.Active)
+            if (IsNetworkExecutionActiveUnsafe(networkId))
             { error = "TraderRuleRunInProgress"; return false; }
             ManualRunNetworks.Add(networkId);
         }
-        SetRunProgress(networkId, true, 1, rules.Count, "正在等待第 1 条规则执行");
+        SetRunProgress(networkId, true, 1, rules.Count, "正在等待第 1 条规则执行", rules[0].Id);
         if (rules.All(rule => rule.Kind == TraderAutomationRuleKind.AutoSell))
         {
             PendingRuns.Add(new PendingBuyRun
@@ -442,7 +473,7 @@ internal static class TraderAutomationService
                     OffersReady = true
                 });
                 SetRunProgress(PlayerNetworkDirectory.GetNetworkId(player), true, 1, rules.Count,
-                    "商人市场暂不可用，购入规则将跳过并继续处理");
+                    "商人市场暂不可用，购入规则将跳过并继续处理", rules[0].Id);
                 return true;
             }
             error = opened.Error;
@@ -507,7 +538,7 @@ internal static class TraderAutomationService
             int currentIndex = run.NextRuleIndex + 1;
             if (run.Reason == "manual")
                 SetRunProgress(PlayerNetworkDirectory.GetNetworkId(player), true, currentIndex, run.Rules.Count,
-                    "正在处理第 " + currentIndex + "/" + run.Rules.Count + " 条规则（条件不足将自动跳过）");
+                    "正在处理第 " + currentIndex + "/" + run.Rules.Count + " 条规则（条件不足将自动跳过）", currentRule.Id);
             try
             {
                 if (currentRule.Kind == TraderAutomationRuleKind.AutoSell)
@@ -526,7 +557,7 @@ internal static class TraderAutomationService
             run.NextQueryAt = Time.realtimeSinceStartup + 0.25f;
             if (run.Reason == "manual" && run.NextRuleIndex < run.Rules.Count)
                 SetRunProgress(PlayerNetworkDirectory.GetNetworkId(player), true, run.NextRuleIndex + 1, run.Rules.Count,
-                    "正在等待规则 " + (run.NextRuleIndex + 1) + "/" + run.Rules.Count + " 执行");
+                    "正在等待规则 " + (run.NextRuleIndex + 1) + "/" + run.Rules.Count + " 执行", run.Rules[run.NextRuleIndex].Id);
         }
     }
 
@@ -537,7 +568,7 @@ internal static class TraderAutomationService
         if (string.IsNullOrEmpty(networkId) && run.World?.GetEntity(run.PlayerEntityId) is EntityPlayer player && (bool)player)
             networkId = PlayerNetworkDirectory.GetNetworkId(player);
         if (string.IsNullOrEmpty(networkId)) return;
-        lock (Sync) ManualRunNetworks.Remove(networkId);
+        lock (Sync) { ManualRunNetworks.Remove(networkId); ActiveRuleIds.Remove(networkId); }
         SetRunProgress(networkId, false, run.Rules?.Count ?? 0, run.Rules?.Count ?? 0, message);
     }
 
@@ -604,7 +635,7 @@ internal static class TraderAutomationService
     {
         string networkId = PlayerNetworkDirectory.GetNetworkId(player);
         if (string.IsNullOrEmpty(networkId)) return;
-        lock (Sync) if (!ProcessingDeposits.Add(networkId)) return;
+        lock (Sync) { if (!ProcessingDeposits.Add(networkId)) return; ActiveRuleIds[networkId] = rule.Id; }
         try
         {
         List<StoredEntry> entries = NetworkStorage.GetEntries(player).Where(entry => Matches(rule, entry.Value)).ToList();
@@ -633,7 +664,7 @@ internal static class TraderAutomationService
                 + "; error=" + sold.Error + "; reason=" + reason);
         }
         }
-        finally { lock (Sync) ProcessingDeposits.Remove(networkId); }
+        finally { lock (Sync) { ProcessingDeposits.Remove(networkId); ActiveRuleIds.Remove(networkId); } }
     }
 
     internal static bool AllowsUnlimitedMaximumCount(TraderAutomationRule rule)
@@ -665,7 +696,8 @@ internal static class TraderAutomationService
 
     internal static bool HasTraderCategory(ItemValue value, string category)
     {
-        return !string.IsNullOrEmpty(category) && XUiC_HyperdimensionalGrid.MatchesCategory(value, category);
+        return !string.IsNullOrEmpty(category)
+            && (TraderCreativeCategories.Matches(value, category) || XUiC_HyperdimensionalGrid.MatchesCategory(value, category));
     }
 
     private static bool Compare(long value, TraderRuleComparison comparison, long threshold)

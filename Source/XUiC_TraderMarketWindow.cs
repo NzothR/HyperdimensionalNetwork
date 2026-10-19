@@ -509,7 +509,8 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             if (!string.IsNullOrEmpty(_category)
                 && !XUiC_HyperdimensionalGrid.MatchesCategory(offer.Value, _category)) continue;
             string name = offer.Value.ItemClass?.GetLocalizedItemName() ?? string.Empty;
-            if (string.IsNullOrEmpty(search) || name.IndexOf(search, StringComparison.CurrentCultureIgnoreCase) >= 0)
+            if (string.IsNullOrEmpty(search) || name.IndexOf(search, StringComparison.CurrentCultureIgnoreCase) >= 0
+                || PinyinSearch.Matches(name, search))
                 _filtered.Add(offer);
         }
         if (_selected != null && !_filtered.Contains(_selected))

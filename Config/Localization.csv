@@ -18,7 +18,7 @@ HyperdimensionalNetworkTraderSellItem,Sell this network stack,出售此网络物
 HyperdimensionalNetworkTraderSellAction,Sell,出售
 HyperdimensionalNetworkTraderSellModeOn,Sale mode enabled. Select an item in the network or backpack to sell it.,已开启出售模式。选中网络或背包物品后可出售。
 HyperdimensionalNetworkTraderSellModeOff,Virtual trader sale mode disabled.,已关闭虚空商人出售模式。
-HyperdimensionalNetworkTraderSaleComplete,Virtual trader sale complete. Proceeds:,虚空商人出售完成，收益：
+HyperdimensionalNetworkTraderSaleComplete,Sale complete. Proceeds:,出售完成，收益：
 HyperdimensionalNetworkTraderSaleFailed,Sale failed,出售失败
 HyperdimensionalNetworkTraderMarket,Aggregate discovered trader stock,聚合已发现的商人库存
 HyperdimensionalNetworkTraderMarketTitle,Trader Market,商人市场

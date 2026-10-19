@@ -14,7 +14,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
 
     private readonly List<TraderAutomationRule> _rules = new List<TraderAutomationRule>();
     private readonly List<int> _pickerTypes = new List<int>();
-    private readonly List<CraftingCategoryDisplayEntry> _pickerCategories = new List<CraftingCategoryDisplayEntry>();
+    private readonly List<TraderCreativeCategory> _pickerCategories = new List<TraderCreativeCategory>();
     private readonly List<int> _visibleTypes = new List<int>();
     private readonly HashSet<int> _stockTypes = new HashSet<int>();
     private readonly XUiController[] _ruleRows = new XUiController[RuleRows];
@@ -23,6 +23,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private readonly XUiController[] _ruleSummaries = new XUiController[RuleRows];
     private readonly XUiController[] _buyAccents = new XUiController[RuleRows];
     private readonly XUiController[] _sellAccents = new XUiController[RuleRows];
+    private readonly XUiController[] _activeAccents = new XUiController[RuleRows];
     private readonly XUiController[] _pickerRows = new XUiController[PickerRows];
     private readonly XUiController[] _pickerIcons = new XUiController[PickerRows];
     private readonly XUiController[] _pickerNames = new XUiController[PickerRows];
@@ -40,11 +41,12 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private TraderRuleComparison _networkComparison = TraderRuleComparison.GreaterOrEqual;
     private TraderRuleComparison _currencyComparison = TraderRuleComparison.GreaterOrEqual;
     private bool _scheduled, _stockOnly, _stockLoading, _requestPending, _isAdmin, _dragArmed, _suppressClick;
-    private bool _runActive, _runPollPending;
+    private bool _runActive, _runPollPending, _dragMoved;
     private int _rulePage, _pickerPage, _dragRow = -1;
     private float _dragDistance;
     private float _nextRunPollAt;
     private int _runCurrentRule, _runTotalRules;
+    private string _runRuleId = string.Empty;
     private static int _pendingReturnPlayerId = -1;
     private static bool _loggedReturnWait;
 
@@ -60,6 +62,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
             _ruleSummaries[i] = GetChildById("ruleSummary" + i);
             _buyAccents[i] = GetChildById("ruleBuyAccent" + i);
             _sellAccents[i] = GetChildById("ruleSellAccent" + i);
+            _activeAccents[i] = GetChildById("ruleActiveAccent" + i);
             if (_ruleButtons[i] != null)
             {
                 _ruleButtons[i].OnPress += (sender, button) => OnRulePressed(row);
@@ -116,14 +119,14 @@ public sealed class XUiC_TraderRulesWindow : XUiController
             if (input != null) input.OnChangeHandler += (sender, value, code) => RefreshNumericValidation(false);
         Bind("btnTraderRulesClose", (sender, button) => xui?.playerUI?.windowManager?.Close("hyperdimensionalTraderRules"));
         Bind("btnTraderRuleNew", (sender, button) => OpenEditor(null));
-        Bind("btnRulePagePrevious", (sender, button) => { if (_rulePage > 0) { _rulePage--; RefreshList(); } });
-        Bind("btnRulePageNext", (sender, button) => { if ((_rulePage + 1) * RuleRows < _rules.Count) { _rulePage++; RefreshList(); } });
+        Bind("btnRulePagePrevious", (sender, button) => { if (!_runActive && !_requestPending && _rulePage > 0) { _rulePage--; RefreshList(); } });
+        Bind("btnRulePageNext", (sender, button) => { if (!_runActive && !_requestPending && (_rulePage + 1) * RuleRows < _rules.Count) { _rulePage++; RefreshList(); } });
         Bind("btnTraderRuleRunAll", RunPressed);
         Bind("btnRuleEditorCancelTop", (sender, button) => CloseEditor());
-        Bind("btnRuleCancel", (sender, button) => CloseEditor());
+        Bind("btnRuleCancel", (sender, button) => { if (!_runActive) CloseEditor(); });
         Bind("btnRuleSave", SavePressed);
         Bind("btnRuleDelete", DeletePressed);
-        Bind("btnRuleEnabled", (sender, button) => { if (_editing != null) { _editing.Enabled = !_editing.Enabled; RefreshEditor(); } });
+        Bind("btnRuleEnabled", (sender, button) => { if (!_runActive && _editing != null) { _editing.Enabled = !_editing.Enabled; RefreshEditor(); } });
         Bind("btnTraderRuleCycleKind", CycleRuleKind);
         Bind("btnRuleScope", (sender, button) => { if (_editing != null) { _editing.Scope = _editing.Scope == TraderRuleScope.SingleItem ? TraderRuleScope.Category : TraderRuleScope.SingleItem; RefreshEditor(); } });
         Bind("btnRuleTarget", (sender, button) => OpenPicker(_editing?.Scope == TraderRuleScope.SingleItem ? PickerMode.TargetItem : PickerMode.TargetCategory));
@@ -161,7 +164,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     public override void Update(float _dt)
     {
         base.Update(_dt);
-        if (!_runActive || _runPollPending || Time.realtimeSinceStartup < _nextRunPollAt) return;
+        if (!_isAdmin || _runPollPending || Time.realtimeSinceStartup < _nextRunPollAt) return;
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
         if (!(bool)player) return;
         _runPollPending = true;
@@ -230,7 +233,9 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         _runPollPending = false;
         if (result == null || !result.Success)
         {
-            _runActive = false;
+            _runActive = true;
+            _runCurrentRule = Math.Max(1, _runCurrentRule);
+            _runTotalRules = Math.Max(1, _runTotalRules);
             SetText(_status, result?.Error ?? "读取执行进度失败");
             UpdateRunButton();
             return;
@@ -243,7 +248,15 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         _runActive = result.TraderRunActive;
         _runCurrentRule = result.TraderRunCurrentRule;
         _runTotalRules = result.TraderRunTotalRules;
+        _runRuleId = result.TraderRunRuleId ?? string.Empty;
         SetText(_status, result.TraderRunMessage);
+        RefreshList();
+        if (_runActive)
+        {
+            SetVisible(_editor, false);
+            SetVisible(_picker, false);
+            SetVisible(_main, true);
+        }
         UpdateRunButton();
     }
 
@@ -254,6 +267,12 @@ public sealed class XUiC_TraderRulesWindow : XUiController
             button.Enabled = !_runActive && !_requestPending;
             _runButton.IsDirty = true;
         }
+        for (int i = 0; i < RuleRows; i++)
+            if (_ruleButtons[i]?.ViewComponent is XUiV_Button rowButton)
+            { rowButton.Enabled = !_runActive && !_requestPending; _ruleButtons[i].IsDirty = true; }
+        foreach (string id in new[] { "btnTraderRuleNew", "btnRulePagePrevious", "btnRulePageNext" })
+            if (GetChildById(id)?.ViewComponent is XUiV_Button otherButton)
+            { otherButton.Enabled = !_runActive && !_requestPending; GetChildById(id).IsDirty = true; }
         SetText(_runLabel, _runActive
             ? "正在等待规则 " + Math.Max(1, _runCurrentRule) + "/" + Math.Max(1, _runTotalRules) + " 执行结束…"
             : "立即执行全部");
@@ -266,9 +285,25 @@ public sealed class XUiC_TraderRulesWindow : XUiController
             int index = _rulePage * RuleRows + i;
             TraderAutomationRule rule = index < _rules.Count ? _rules[index] : null;
             SetVisible(_ruleRows[i], rule != null);
-            if (rule == null) continue;
+            if (rule == null) { SetVisible(_activeAccents[i], false); continue; }
             SetVisible(_buyAccents[i], rule.Kind == TraderAutomationRuleKind.AutoBuy);
             SetVisible(_sellAccents[i], rule.Kind == TraderAutomationRuleKind.AutoSell);
+            int globalRuleIndex = _rulePage * RuleRows + i + 1;
+            bool isActiveRule = _runActive && (_runRuleId.Length > 0
+                ? string.Equals(rule.Id, _runRuleId, StringComparison.Ordinal)
+                : globalRuleIndex == _runCurrentRule);
+            SetVisible(_activeAccents[i], isActiveRule);
+            if (_ruleButtons[i]?.ViewComponent is XUiV_Button rowButton)
+            {
+                Color rowColor = isActiveRule ? new Color32(104, 80, 35, 255) : new Color32(37, 47, 58, 255);
+                Color hoverColor = isActiveRule ? new Color32(130, 100, 43, 255) : new Color32(57, 72, 86, 255);
+                if (rowButton.DefaultSpriteColor != rowColor || rowButton.HoverSpriteColor != hoverColor)
+                {
+                    rowButton.DefaultSpriteColor = rowColor;
+                    rowButton.HoverSpriteColor = hoverColor;
+                    _ruleButtons[i].IsDirty = true;
+                }
+            }
             SetText(_ruleSummaries[i], ShortDescription(rule));
             SetIcon(_ruleIcons[i], rule);
             if (_ruleButtons[i]?.ViewComponent != null) _ruleButtons[i].ViewComponent.ToolTip = FullDescription(rule);
@@ -318,8 +353,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private static string TargetName(TraderAutomationRule rule)
     {
         if (rule.Scope == TraderRuleScope.Category)
-            return string.IsNullOrEmpty(rule.Category) ? "全部商品" : string.Join("、", rule.Category.Split('|').Select(name =>
-                UIDisplayInfoManager.Current?.GetTraderCategoryDisplay(name)?.DisplayName ?? name));
+            return string.IsNullOrEmpty(rule.Category) ? "全部商品" : string.Join("、", rule.Category.Split('|').Select(CategoryName));
         return ItemClass.GetForId(rule.ItemType)?.GetLocalizedItemName() ?? "选择物品";
     }
 
@@ -333,9 +367,12 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private static string ExcludedCategoryNames(string categories)
     {
         if (string.IsNullOrEmpty(categories)) return "无";
-        return string.Join("、", categories.Split('|').Select(name =>
-            UIDisplayInfoManager.Current?.GetTraderCategoryDisplay(name)?.DisplayName ?? name));
+        return string.Join("、", categories.Split('|').Select(CategoryName));
     }
+
+    private static string CategoryName(string name)
+        => TraderCreativeCategories.Find(name)?.DisplayName
+            ?? UIDisplayInfoManager.Current?.GetTraderCategoryDisplay(name)?.DisplayName ?? name;
 
     private static string QualityName(TraderQualityMatchMode mode) => mode switch
     {
@@ -362,7 +399,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
             atlas = "SymbolAtlas";
             string category = rule.Category?.Split('|').FirstOrDefault(name => !string.IsNullOrEmpty(name));
             icon = string.IsNullOrEmpty(category) ? "ui_game_symbol_shopping_cart"
-                : UIDisplayInfoManager.Current?.GetTraderCategoryDisplay(category)?.Icon;
+                : TraderCreativeCategories.Find(category)?.Icon ?? UIDisplayInfoManager.Current?.GetTraderCategoryDisplay(category)?.Icon;
             if (string.IsNullOrEmpty(icon)) icon = "ui_game_symbol_other";
         }
         sprite.SpriteName = string.Empty;
@@ -387,6 +424,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
 
     private void OnRulePressed(int row)
     {
+        if (_runActive || _requestPending) return;
         if (_suppressClick) { _suppressClick = false; return; }
         int index = _rulePage * RuleRows + row;
         if (index >= 0 && index < _rules.Count) OpenEditor(_rules[index]);
@@ -394,23 +432,39 @@ public sealed class XUiC_TraderRulesWindow : XUiController
 
     private void OnRuleHeld(int row, EHoldType hold)
     {
-        if (hold == EHoldType.HoldStart) { _dragArmed = true; _dragRow = row; _dragDistance = 0f; }
-        if (hold == EHoldType.HoldEnd) _dragArmed = false;
+        if (_runActive || _requestPending) return;
+        if (hold == EHoldType.HoldStart) { _dragArmed = true; _dragMoved = false; _dragRow = row; _dragDistance = 0f; }
+        if (hold == EHoldType.HoldEnd && !_dragMoved) _dragArmed = false;
     }
 
     private void OnRuleDragged(int row, EDragType drag, Vector2 delta)
     {
-        if (!_dragArmed || _dragRow != row) return;
-        if (drag == EDragType.Dragging) { _dragDistance += delta.y; return; }
+        if (_runActive || _requestPending || !_dragArmed || _dragRow != row) return;
+        if (drag == EDragType.DragStart)
+        {
+            _dragDistance = 0f;
+            _dragMoved = false;
+            SetText(_status, "拖动规则以调整顺序");
+            NetworkLog.Debug("Trader rule drag started. page=" + _rulePage + "; row=" + row);
+            return;
+        }
+        if (drag == EDragType.Dragging)
+        {
+            _dragDistance += delta.y;
+            _dragMoved |= Mathf.Abs(_dragDistance) > 8f;
+            if (_dragMoved) SetText(_status, "正在移动规则 " + (_rulePage * RuleRows + row + 1) + "…");
+            return;
+        }
         if (drag != EDragType.DragEnd) return;
         _dragArmed = false;
+        if (!_dragMoved) return;
         int offset = Mathf.RoundToInt(-_dragDistance / 51f);
         int index = _rulePage * RuleRows + row;
         int target = Mathf.Clamp(index + offset, 0, _rules.Count - 1);
-        if (target == index || index < 0 || index >= _rules.Count) return;
         _suppressClick = true;
+        if (target == index || index < 0 || index >= _rules.Count) { RefreshList(); return; }
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
-        if (!(bool)player || !_isAdmin || _requestPending) return;
+        if (!(bool)player || !_isAdmin || _requestPending || _runActive) return;
         _requestPending = true;
         string id = _rules[index].Id;
         if (!TraderRuleClient.Move(player, id, target - index, result =>
@@ -424,7 +478,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
 
     private void OpenEditor(TraderAutomationRule rule)
     {
-        if (!_isAdmin || _requestPending) return;
+        if (!_isAdmin || _requestPending || _runActive) return;
         _editing = rule?.Clone() ?? new TraderAutomationRule
         {
             Kind = TraderAutomationRuleKind.AutoSell, Scope = TraderRuleScope.SingleItem,
@@ -514,7 +568,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private void SavePressed(XUiController sender, int button)
     {
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
-        if (_editing == null || !(bool)player || !_isAdmin || _requestPending) return;
+        if (_editing == null || !(bool)player || !_isAdmin || _requestPending || _runActive) return;
         _editing.QualityMode = _qualityMode;
         _editing.NetworkCountComparison = _networkComparison;
         _editing.CurrencyCountComparison = _currencyComparison;
@@ -589,7 +643,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private void DeletePressed(XUiController sender, int button)
     {
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
-        if (_editing == null || !(bool)player || !_isAdmin || _requestPending
+        if (_editing == null || !(bool)player || !_isAdmin || _requestPending || _runActive
             || !_rules.Any(rule => rule.Id == _editing.Id)) return;
         _requestPending = true;
         if (!TraderRuleClient.Delete(player, _editing.Id, result =>
@@ -640,7 +694,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
 
     private void OpenPicker(PickerMode mode)
     {
-        if (_editing == null || mode == PickerMode.None) return;
+        if (_editing == null || mode == PickerMode.None || _runActive || _requestPending) return;
         _pickerMode = mode;
         _pickerPage = 0;
         _stockOnly = false;
@@ -653,9 +707,8 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         else
         {
             _pickerCategories.Clear();
-            _pickerCategories.AddRange(UIDisplayInfoManager.Current?.TraderCategoryDisplayDict?.Values
-                .OrderBy(category => category.DisplayName) ?? Enumerable.Empty<CraftingCategoryDisplayEntry>());
-            SetText(_pickerTitle, mode == PickerMode.TargetCategory ? "选择商人分类" : "选择要排除的分类");
+            _pickerCategories.AddRange(TraderCreativeCategories.All.OrderBy(category => category.DisplayName, StringComparer.CurrentCultureIgnoreCase));
+            SetText(_pickerTitle, mode == PickerMode.TargetCategory ? "选择创意模式分类" : "选择要排除的创意模式分类");
         }
         SetVisible(_picker, true);
         SetVisible(_editor, false);
@@ -737,7 +790,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         bool itemMode = _pickerMode == PickerMode.TargetItem || _pickerMode == PickerMode.ExcludedItem;
         string search = _pickerSearch?.Text?.Trim() ?? string.Empty;
         _visibleTypes.Clear();
-        List<CraftingCategoryDisplayEntry> categories = null;
+        List<TraderCreativeCategory> categories = null;
         if (itemMode)
         {
             foreach (int type in _pickerTypes)
@@ -745,12 +798,13 @@ public sealed class XUiC_TraderRulesWindow : XUiController
                 if (_stockOnly && !_stockTypes.Contains(type)) continue;
                 ItemClass item = ItemClass.GetForId(type);
                 if (item == null) continue;
-                if (search.Length > 0 && (item.GetLocalizedItemName() ?? string.Empty).IndexOf(search, StringComparison.CurrentCultureIgnoreCase) < 0) continue;
+                if (search.Length > 0 && !PinyinSearch.Matches(item.GetLocalizedItemName(), search)
+                    && !PinyinSearch.Matches(item.Name, search)) continue;
                 _visibleTypes.Add(type);
             }
         }
         else categories = _pickerCategories.Where(category => search.Length == 0
-            || (category.DisplayName ?? string.Empty).IndexOf(search, StringComparison.CurrentCultureIgnoreCase) >= 0).ToList();
+            || PinyinSearch.Matches(category.DisplayName, search)).ToList();
         int count = itemMode ? _visibleTypes.Count : categories.Count + (_pickerMode == PickerMode.TargetCategory ? 1 : 0);
         _pickerPage = Mathf.Clamp(_pickerPage, 0, Math.Max(0, (count - 1) / PickerRows));
         for (int i = 0; i < PickerRows; i++)
@@ -769,19 +823,15 @@ public sealed class XUiC_TraderRulesWindow : XUiController
             }
             else
             {
-                CraftingCategoryDisplayEntry category = _pickerMode == PickerMode.TargetCategory && index == 0 ? null
+                TraderCreativeCategory category = _pickerMode == PickerMode.TargetCategory && index == 0 ? null
                     : categories[index - (_pickerMode == PickerMode.TargetCategory ? 1 : 0)];
                 bool selected = category != null && ContainsCategory(_pickerMode == PickerMode.TargetCategory
                     ? _editing?.Category : _editing?.ExcludedCategories, category.Name);
                 SetText(_pickerNames[i], category == null ? (string.IsNullOrEmpty(_editing?.Category) ? "✓  全部商品" : "全部商品") :
                     (selected ? "✓  " : "") + category.DisplayName);
-                string categoryIcon = category?.Icon;
-                string icon = category == null ? "ui_game_symbol_shopping_cart"
-                    : string.IsNullOrEmpty(categoryIcon) ? "ui_game_symbol_other" : categoryIcon;
+                string icon = category == null ? "ui_game_symbol_shopping_cart" : category.Icon;
                 SetSprite(_pickerIcons[i], "SymbolAtlas", icon);
-                NetworkLog.Debug("Trader rule category icon assigned. category=" + (category?.Name ?? "<all>")
-                    + "; icon=" + icon
-                    + "; atlas=SymbolAtlas");
+                NetworkLog.Debug("Trader rule creative category icon assigned. category=" + (category?.Name ?? "<all>") + "; icon=" + icon);
             }
         }
         SetText(_pickerStockLabel, _stockOnly ? (_stockLoading ? "正在读取现有库存…" : "仅现有库存") : "全部有售价物品");
@@ -790,6 +840,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
 
     private void OnPickerRowPressed(int row)
     {
+        if (_runActive || _requestPending) return;
         int index = _pickerPage * PickerRows + row;
         if (_editing == null) return;
         if (_pickerMode == PickerMode.TargetItem || _pickerMode == PickerMode.ExcludedItem)
@@ -806,8 +857,9 @@ public sealed class XUiC_TraderRulesWindow : XUiController
             }
             return;
         }
-        List<CraftingCategoryDisplayEntry> categories = _pickerCategories.Where(category =>
-            string.IsNullOrEmpty(_pickerSearch?.Text) || (category.DisplayName ?? string.Empty).IndexOf(_pickerSearch.Text, StringComparison.CurrentCultureIgnoreCase) >= 0).ToList();
+        string search = _pickerSearch?.Text?.Trim() ?? string.Empty;
+        List<TraderCreativeCategory> categories = _pickerCategories.Where(category =>
+            search.Length == 0 || PinyinSearch.Matches(category.DisplayName, search)).ToList();
         if (_pickerMode == PickerMode.TargetCategory && index == 0)
         {
             _editing.Category = string.Empty;

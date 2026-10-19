@@ -987,7 +987,8 @@ internal static class NetworkRpcServer
             TraderRunActive = result.TraderRunActive,
             TraderRunCurrentRule = result.TraderRunCurrentRule,
             TraderRunTotalRules = result.TraderRunTotalRules,
-            TraderRunMessage = result.TraderRunMessage
+            TraderRunMessage = result.TraderRunMessage,
+            TraderRunRuleId = result.TraderRunRuleId
         };
     }
 

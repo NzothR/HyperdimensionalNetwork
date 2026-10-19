@@ -509,6 +509,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
         if (itemClass == null) return false;
         return (itemClass.Name ?? string.Empty).IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0
             || (itemClass.GetLocalizedItemName() ?? string.Empty).IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0
+            || PinyinSearch.Matches(itemClass.GetLocalizedItemName(), text)
             || value.type.ToString().IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 

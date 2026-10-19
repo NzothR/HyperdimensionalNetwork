@@ -91,6 +91,7 @@ internal sealed class NetworkRemoteResult
     public int TraderRunCurrentRule;
     public int TraderRunTotalRules;
     public string TraderRunMessage = string.Empty;
+    public string TraderRunRuleId = string.Empty;
 }
 
 internal sealed class NetworkRemoteRequest
