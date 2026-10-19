@@ -47,6 +47,7 @@ internal static class CraftingChainOrderService
         public int WorkstationQueueIndex = -1;
         public List<ItemStack> WorkstationOutputBaseline = new List<ItemStack>();
         public readonly List<WorkstationTask> WorkstationTasks = new List<WorkstationTask>();
+        public readonly List<TileEntityWorkstation> WorkstationCandidates = new List<TileEntityWorkstation>();
         public bool QueueSubmitted;
         public bool IsActive;
         public bool IsCompleted;
@@ -895,10 +896,63 @@ internal static class CraftingChainOrderService
             .Where(stage => stage.IsActive).SelectMany(stage => stage.WorkstationTasks)
             .Where(task => task.Workstation != null).Select(task => task.Workstation));
         bool playerQueueActive = order.Stages.Any(stage => stage.IsActive && stage.WorkstationTasks.Count == 0);
-        foreach (Stage stage in order.Stages.Where(candidate => !candidate.IsActive && !candidate.IsCompleted).ToList())
+        List<Stage> ready = order.Stages.Where(candidate => !candidate.IsActive && !candidate.IsCompleted
+            && DependenciesCompleted(order, candidate.Node)).ToList();
+        Dictionary<Stage, List<TileEntityWorkstation>> allocations = new Dictionary<Stage, List<TileEntityWorkstation>>();
+        // First give each independent recipe one free station. Only then distribute
+        // spare stations across recipes that have multiple batches.
+        foreach (Stage stage in ready.Where(candidate => candidate.Workstation != null))
         {
-            if (!DependenciesCompleted(order, stage.Node)) continue;
-            if (stage.WorkstationTasks.Count == 0)
+            TileEntityWorkstation selected = stage.WorkstationCandidates.FirstOrDefault(candidate =>
+                !activeWorkstations.Contains(candidate) && IsRunnableWorkstation(stage, candidate, 1));
+            if (selected == null) continue;
+            allocations[stage] = new List<TileEntityWorkstation> { selected };
+            activeWorkstations.Add(selected);
+        }
+        foreach (KeyValuePair<Stage, List<TileEntityWorkstation>> allocation in allocations)
+        {
+            Stage stage = allocation.Key;
+            if (stage.UsesForgeMaterials) continue;
+            foreach (TileEntityWorkstation candidate in stage.WorkstationCandidates)
+            {
+                if (allocation.Value.Count >= Math.Min(stage.Node.Batches, CraftingChainWorkstationService.MaxTrackedWorkstations)) break;
+                if (activeWorkstations.Contains(candidate) || !IsRunnableWorkstation(stage, candidate, 1)) continue;
+                List<TileEntityWorkstation> proposed = new List<TileEntityWorkstation>(allocation.Value) { candidate };
+                if (!CanRunAllocation(stage, proposed)) continue;
+                allocation.Value.Add(candidate);
+                activeWorkstations.Add(candidate);
+            }
+        }
+        foreach (Stage stage in allocations.Keys.ToList())
+        {
+            if (CanRunAllocation(stage, allocations[stage])) continue;
+            foreach (TileEntityWorkstation candidate in allocations[stage]) activeWorkstations.Remove(candidate);
+            allocations.Remove(stage);
+        }
+        // If every fair share is too small (for example, neither station can
+        // hold a whole batch alone), let one recipe use the available stations.
+        if (allocations.Count == 0)
+        {
+            foreach (Stage stage in ready.Where(candidate => candidate.Workstation != null))
+            {
+                List<TileEntityWorkstation> candidates = stage.WorkstationCandidates.Where(candidate =>
+                    !activeWorkstations.Contains(candidate) && IsRunnableWorkstation(stage, candidate, 1))
+                    .Take(stage.UsesForgeMaterials ? 1 : Math.Min(stage.Node.Batches, CraftingChainWorkstationService.MaxTrackedWorkstations))
+                    .ToList();
+                for (int count = candidates.Count; count > 0; count--)
+                {
+                    List<TileEntityWorkstation> proposed = candidates.Take(count).ToList();
+                    if (!CanRunAllocation(stage, proposed)) continue;
+                    allocations[stage] = proposed;
+                    foreach (TileEntityWorkstation candidate in proposed) activeWorkstations.Add(candidate);
+                    break;
+                }
+                if (allocations.Count > 0) break;
+            }
+        }
+        foreach (Stage stage in ready)
+        {
+            if (stage.Workstation == null)
             {
                 if (playerQueueActive) continue;
                 if (!QueueIsIdle(stage.Queue))
@@ -907,28 +961,48 @@ internal static class CraftingChainOrderService
                     return;
                 }
             }
+            else if (!allocations.TryGetValue(stage, out List<TileEntityWorkstation> selected)
+                || !CanRunAllocation(stage, selected)) continue;
             else
             {
-                if (stage.WorkstationTasks.Any(task => activeWorkstations.Contains(task.Workstation))) continue;
-                bool unavailable = false;
-                foreach (WorkstationTask task in stage.WorkstationTasks)
-                {
-                    TileEntityWorkstation live = GameManager.Instance?.World?.GetTileEntity(task.Workstation.ToWorldPos()) as TileEntityWorkstation;
-                    if (!ReferenceEquals(live, task.Workstation) || task.Workstation.IsUserAccessing()
-                        || !CraftingChainWorkstationService.IsQueueIdle(task.Workstation))
+                stage.WorkstationTasks.Clear();
+                int baseBatches = stage.Node.Batches / selected.Count;
+                int remainder = stage.Node.Batches % selected.Count;
+                for (int index = 0; index < selected.Count; index++)
+                    stage.WorkstationTasks.Add(new WorkstationTask
                     {
-                        unavailable = true;
-                        break;
-                    }
-                }
-                if (unavailable) continue;
+                        Workstation = selected[index],
+                        Batches = baseBatches + (index < remainder ? 1 : 0)
+                    });
+                stage.Workstation = selected[0];
+                NetworkLog.Debug("Crafting-chain allocated parallel workstations. player=" + order.player.entityId
+                    + "; recipe=" + stage.SourceRecipe.GetName() + "; stations=" + selected.Count
+                    + "; positions=" + string.Join("|", selected.Select(item => item.ToWorldPos().ToString())));
             }
             QueueStage(order, stage);
             if (!Orders.ContainsKey(order.player.entityId)) return;
             if (stage.WorkstationTasks.Count == 0) playerQueueActive = true;
-            else foreach (WorkstationTask task in stage.WorkstationTasks) activeWorkstations.Add(task.Workstation);
         }
         if (order.Stages.All(stage => stage.IsCompleted)) CompleteOrder(order);
+    }
+
+    private static bool IsRunnableWorkstation(Stage stage, TileEntityWorkstation workstation, int batches)
+    {
+        if (stage == null || workstation == null || batches <= 0
+            || !ReferenceEquals(GameManager.Instance?.World?.GetTileEntity(workstation.ToWorldPos()), workstation)) return false;
+        int outputCount = (int)Math.Min(int.MaxValue, (long)stage.QueueRecipe.count * batches);
+        return CraftingChainWorkstationService.CanRun(workstation, stage.SourceRecipe, BuildStageOutputValue(stage),
+            outputCount, stage.QueueRecipe.craftingTime, batches, out _);
+    }
+
+    private static bool CanRunAllocation(Stage stage, List<TileEntityWorkstation> selected)
+    {
+        if (stage == null || selected == null || selected.Count == 0) return false;
+        int baseBatches = stage.Node.Batches / selected.Count;
+        int remainder = stage.Node.Batches % selected.Count;
+        for (int index = 0; index < selected.Count; index++)
+            if (!IsRunnableWorkstation(stage, selected[index], baseBatches + (index < remainder ? 1 : 0))) return false;
+        return true;
     }
 
     private static bool DependenciesCompleted(Order order, CraftingChainPlanNode node)
@@ -1249,6 +1323,7 @@ internal static class CraftingChainOrderService
         XUiC_WorkstationWindowGroup workstationGroup = null;
         TileEntityWorkstation workstation = null;
         List<WorkstationTask> workstationTasks = new List<WorkstationTask>();
+        List<TileEntityWorkstation> availableWorkstations = new List<TileEntityWorkstation>();
         if (string.IsNullOrEmpty(recipe.craftingArea))
         {
             group = xui.FindWindowGroupByName("crafting") as XUiC_CraftingWindowGroup;
@@ -1267,6 +1342,7 @@ internal static class CraftingChainOrderService
                     && CraftingChainWorkstationService.IsQueueIdle(candidate)
                     && (LockManager.Instance == null || !LockManager.Instance.IsLockedByLocalPlayer(candidate)))
                 .Distinct().ToList();
+            availableWorkstations = available;
             Recipe candidateQueueRecipe = BuildQueueRecipe(xui, player, recipe, item.Quality);
             if (candidateQueueRecipe == null)
             {
@@ -1342,6 +1418,7 @@ internal static class CraftingChainOrderService
             UsesForgeMaterials = usesForge
         };
         stage.WorkstationTasks.AddRange(workstationTasks);
+        if (workstation != null) stage.WorkstationCandidates.AddRange(availableWorkstations);
         return true;
     }
 
@@ -1459,6 +1536,7 @@ internal static class CraftingChainOrderService
         if (stage.Workstation != null)
         {
             ItemStack[] slots = stage.Workstation.Output ?? Array.Empty<ItemStack>();
+            ItemStack[] original = slots.Select(stack => stack == null ? ItemStack.Empty.Clone() : stack.Clone()).ToArray();
             ItemStack[] updated = slots.Select(stack => stack == null ? ItemStack.Empty.Clone() : stack.Clone()).ToArray();
             for (int index = 0; index < updated.Length && remaining > 0; index++)
             {
@@ -1480,14 +1558,19 @@ internal static class CraftingChainOrderService
             }
             if (collected > 0)
             {
-                if (!TransitOutputToEscrow(order, stage, output, collected, out bool waitingInNetwork)) return false;
                 stage.Workstation.Output = updated;
+                if (!TransitOutputToEscrow(order, stage, output, collected, out bool waitingInNetwork))
+                {
+                    stage.Workstation.Output = original;
+                    return false;
+                }
                 if (waitingInNetwork) return false;
             }
         }
         else if (stage.OutputGrid != null)
         {
             ItemStack[] slots = stage.OutputGrid.GetSlots();
+            ItemStack[] original = slots.Select(stack => stack == null ? ItemStack.Empty.Clone() : stack.Clone()).ToArray();
             ItemStack[] updated = slots.Select(stack => stack == null ? ItemStack.Empty.Clone() : stack.Clone()).ToArray();
             for (int index = 0; index < updated.Length && remaining > 0; index++)
             {
@@ -1501,10 +1584,16 @@ internal static class CraftingChainOrderService
             }
             if (collected > 0)
             {
-                if (!TransitOutputToEscrow(order, stage, output, collected, out bool waitingInNetwork)) return false;
                 stage.OutputGrid.SetSlots(updated);
                 stage.OutputGrid.UpdateData(updated);
                 stage.OutputGrid.IsDirty = true;
+                if (!TransitOutputToEscrow(order, stage, output, collected, out bool waitingInNetwork))
+                {
+                    stage.OutputGrid.SetSlots(original);
+                    stage.OutputGrid.UpdateData(original);
+                    stage.OutputGrid.IsDirty = true;
+                    return false;
+                }
                 if (waitingInNetwork) return false;
             }
         }
@@ -1543,7 +1632,18 @@ internal static class CraftingChainOrderService
             stage.ExpectedOutput - stage.CollectedOutput));
         if (remaining == 0) return true;
         ItemValue output = BuildStageOutputValue(stage);
+        XUiC_WorkstationOutputGrid openGrid = order.xui?.CurrentWorkstationOutputGrid;
+        bool localGrid = openGrid?.WorkstationData?.TileEntity == task.Workstation;
+        if (task.Workstation.IsUserAccessing() && !localGrid)
+        {
+            NetworkLog.Debug("Crafting-chain waits for another user to close workstation output. player="
+                + order.player.entityId + "; position=" + task.Workstation.ToWorldPos());
+            return false;
+        }
+        // The tile entity owns the actual crafted items. Its open UI may carry a
+        // separate snapshot that must be refreshed before it writes back on close.
         ItemStack[] slots = task.Workstation.Output ?? Array.Empty<ItemStack>();
+        ItemStack[] original = slots.Select(stack => stack == null ? ItemStack.Empty.Clone() : stack.Clone()).ToArray();
         ItemStack[] updated = slots.Select(stack => stack == null ? ItemStack.Empty.Clone() : stack.Clone()).ToArray();
         int collected = 0;
         for (int index = 0; index < updated.Length && remaining > 0; index++)
@@ -1564,14 +1664,32 @@ internal static class CraftingChainOrderService
         }
         if (collected > 0)
         {
-            if (!TransitOutputToEscrow(order, stage, output, collected, out bool waitingInNetwork)) return false;
+            // The open workstation UI writes its own slot snapshot back to the tile entity
+            // on close. Debit that snapshot before crediting the network or the item duplicates.
             task.Workstation.Output = updated;
+            if (localGrid)
+            {
+                openGrid.SetSlots(updated);
+                openGrid.UpdateData(updated);
+                openGrid.IsDirty = true;
+            }
+            if (!TransitOutputToEscrow(order, stage, output, collected, out bool waitingInNetwork))
+            {
+                task.Workstation.Output = original;
+                if (localGrid)
+                {
+                    openGrid.SetSlots(original);
+                    openGrid.UpdateData(original);
+                    openGrid.IsDirty = true;
+                }
+                return false;
+            }
             if (waitingInNetwork) return false;
             task.CollectedOutput += collected;
             stage.CollectedOutput += collected;
             NetworkLog.Debug("Crafting-chain workstation output moved through network into order escrow. player=" + order.player.entityId
                 + "; recipe=" + stage.SourceRecipe.GetName() + "; position=" + task.Workstation.ToWorldPos()
-                + "; collected=" + collected + "; remaining=" + remaining);
+                + "; collected=" + collected + "; remaining=" + remaining + "; openUiSynchronized=" + localGrid);
         }
         if (remaining > 0)
         {
