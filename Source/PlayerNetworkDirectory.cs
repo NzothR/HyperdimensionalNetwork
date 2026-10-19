@@ -255,6 +255,7 @@ internal static class PlayerNetworkDirectory
 
     internal static string GetStablePlayerId(EntityPlayer player)
     {
+        if (!(bool)player) return null;
         try
         {
             PersistentPlayerData data = GameManager.Instance?.persistentPlayers?.GetPlayerDataFromEntityID(player.entityId);
