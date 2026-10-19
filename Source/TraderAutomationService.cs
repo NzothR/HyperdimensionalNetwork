@@ -129,7 +129,13 @@ internal static class TraderAutomationService
     {
         error = string.Empty;
         if (!(bool)player || !PlayerNetworkDirectory.IsNetworkAdministrator(player)) { error = "PermissionDenied"; return false; }
-        if (!Validate(rule, out error)) return false;
+        if (!Validate(rule, out error))
+        {
+            NetworkLog.Debug("Trader automation rule save rejected. player=" + player.entityId + "; kind=" + rule?.Kind
+                + "; scope=" + rule?.Scope + "; item=" + (rule?.ItemType ?? 0) + "; maximumCount=" + (rule?.MaximumCount ?? -1)
+                + "; zeroMeansUnlimited=" + AllowsUnlimitedMaximumCount(rule) + "; error=" + error);
+            return false;
+        }
         string networkId = PlayerNetworkDirectory.GetNetworkId(player);
         if (string.IsNullOrEmpty(networkId)) { error = "NetworkUnavailable"; return false; }
         bool scanExisting = rule.Kind == TraderAutomationRuleKind.AutoSell && rule.Enabled;
@@ -155,7 +161,7 @@ internal static class TraderAutomationService
             Rules[networkId] = updated;
             if (Save())
             {
-                NetworkLog.Debug("Trader automation rule saved. player=" + player.entityId + "; network=" + networkId + "; rule=" + rule.Id + "; type=" + rule.Kind + "; item=" + rule.ItemType);
+                NetworkLog.Debug("Trader automation rule saved. player=" + player.entityId + "; network=" + networkId + "; rule=" + rule.Id + "; type=" + rule.Kind + "; scope=" + rule.Scope + "; item=" + rule.ItemType + "; maximumCount=" + rule.MaximumCount + "; zeroMeansUnlimited=" + AllowsUnlimitedMaximumCount(rule));
             }
             else
             {
@@ -458,49 +464,19 @@ internal static class TraderAutomationService
                 }
                 long spendRemaining = rule.MaximumSpend > 0 ? Math.Min(rule.MaximumSpend, currencyCount) : currencyCount;
                 if (spendRemaining <= 0) continue;
-                int maximumCount = rule.MaximumCount == 0 ? int.MaxValue : rule.MaximumCount;
-                int purchased = 0;
-                HashSet<string> rejected = new HashSet<string>(StringComparer.Ordinal);
-                int attempt = 0;
-                for (; purchased < maximumCount && attempt < 2048; attempt++)
+                long maximumCount = AllowsUnlimitedMaximumCount(rule) ? long.MaxValue : rule.MaximumCount;
+                NetworkRemoteResult bought = TraderMarketplaceService.BuyAutomaticRule(
+                    world, player, run.SessionId, rule, currentOffers, maximumCount,
+                    rule.MaximumSpend > 0 ? Math.Min(rule.MaximumSpend, spendRemaining) : spendRemaining);
+                if (!bought.Success)
                 {
-                    TraderOffer offer = currentOffers.Where(candidate => candidate?.Value != null
-                        && Matches(rule, candidate.Value) && candidate.Count >= candidate.BundleSize && candidate.BundlePrice > 0
-                        && !rejected.Contains(candidate.TraderEntityId + ":" + candidate.InventoryIndex))
-                        .OrderBy(candidate => candidate.BundlePrice).ThenBy(candidate => candidate.TraderEntityId)
-                        .ThenBy(candidate => candidate.InventoryIndex).FirstOrDefault();
-                    if (offer == null)
-                    {
-                        if (attempt == 0) NetworkLog.Debug("Automatic trader purchase found no matching offer. rule=" + rule.Id + "; category=" + rule.Category + "; item=" + rule.ItemType + "; availableOffers=" + currentOffers.Count);
-                        break;
-                    }
-                    int affordableBundles = (int)Math.Min(int.MaxValue, spendRemaining / offer.BundlePrice);
-                    int availableBundles = offer.Count / offer.BundleSize;
-                    int desiredBundles = Math.Min(Math.Min(affordableBundles, availableBundles), (maximumCount - purchased) / offer.BundleSize);
-                    if (desiredBundles <= 0) { rejected.Add(offer.TraderEntityId + ":" + offer.InventoryIndex); continue; }
-                    int count = desiredBundles * offer.BundleSize;
-                    NetworkRemoteRequest buyRequest = new NetworkRemoteRequest
-                    {
-                        EntityId = player.entityId, RequestId = DateTime.UtcNow.Ticks, Operation = NetworkRequestOperation.TraderBuyItem,
-                        TraderSessionId = run.SessionId, TraderEntityId = offer.TraderEntityId, TraderInventoryIndex = offer.InventoryIndex,
-                        Value = offer.Value.Clone(), Count = count, TraderNetworkSource = true, TraderAutomation = true
-                    };
-                    NetworkRemoteResult bought = TraderMarketplaceService.Buy(world, player, null, buyRequest);
-                    if (!bought.Success)
-                    {
-                        rejected.Add(offer.TraderEntityId + ":" + offer.InventoryIndex);
-                        NetworkLog.Debug("Automatic trader purchase offer skipped. rule=" + rule.Id + "; trader="
-                            + offer.TraderEntityId + "; index=" + offer.InventoryIndex + "; error=" + bought.Error);
-                        continue;
-                    }
-                    purchased += bought.Amount;
-                    spendRemaining -= (long)offer.BundlePrice * desiredBundles;
-                    currentOffers = bought.TraderOffers ?? new List<TraderOffer>();
-                    rejected.Clear();
-                    NetworkLog.Debug("Automatic trader purchase completed. player=" + player.entityId + "; network=" + PlayerNetworkDirectory.GetNetworkId(player) + "; rule=" + rule.Id + "; item=" + offer.Value.type + "; count=" + bought.Amount + "; reason=" + run.Reason);
+                    NetworkLog.Debug("Automatic trader purchase rule failed. player=" + player.entityId + "; rule=" + rule.Id + "; error=" + bought.Error);
+                    continue;
                 }
-                if (attempt >= 2048)
-                    NetworkLog.Debug("Automatic trader purchase stopped at transaction safety limit. player=" + player.entityId + "; rule=" + rule.Id + "; purchased=" + purchased);
+                currentOffers = bought.TraderOffers ?? currentOffers;
+                NetworkLog.Debug("Automatic trader purchase rule completed. player=" + player.entityId + "; network="
+                    + PlayerNetworkDirectory.GetNetworkId(player) + "; rule=" + rule.Id + "; purchased=" + bought.Amount
+                    + "; remainingOffers=" + currentOffers.Count + "; reason=" + run.Reason);
             }
         }
         catch (Exception ex) { NetworkLog.Error("Automatic trader purchase execution failed. player=" + player.entityId + "; reason=" + run.Reason + "; exception=" + ex); }
@@ -538,7 +514,10 @@ internal static class TraderAutomationService
         finally { lock (Sync) ProcessingDeposits.Remove(networkId); }
     }
 
-    private static bool Matches(TraderAutomationRule rule, ItemValue value)
+    internal static bool AllowsUnlimitedMaximumCount(TraderAutomationRule rule)
+        => rule != null && rule.Kind == TraderAutomationRuleKind.AutoBuy && rule.Scope == TraderRuleScope.SingleItem;
+
+    internal static bool Matches(TraderAutomationRule rule, ItemValue value)
     {
         if (value?.ItemClass == null) return false;
         if (rule.Scope == TraderRuleScope.SingleItem && rule.ItemType != value.type) return false;
@@ -592,7 +571,7 @@ internal static class TraderAutomationService
             || !Enum.IsDefined(typeof(TraderQualityMatchMode), rule.QualityMode) || !Enum.IsDefined(typeof(TraderRuleComparison), rule.NetworkCountComparison)
             || !Enum.IsDefined(typeof(TraderRuleComparison), rule.CurrencyCountComparison) || rule.Quality < 0 || rule.Quality > 6
             || rule.MaximumCount < 0 || rule.MaximumCount > 1000000
-            || (rule.MaximumCount == 0 && (rule.Kind != TraderAutomationRuleKind.AutoBuy || rule.Scope != TraderRuleScope.SingleItem))
+            || (rule.MaximumCount == 0 && !AllowsUnlimitedMaximumCount(rule))
             || rule.MinimumNetworkCount < 0 || rule.MinimumCurrencyCount < 0 || rule.MaximumSpend < 0
             || rule.ScheduledHour < 0 || rule.ScheduledHour > 23 || rule.IntervalDays < 1 || rule.IntervalDays > 3650)
         { error = "InvalidTraderRule"; return false; }

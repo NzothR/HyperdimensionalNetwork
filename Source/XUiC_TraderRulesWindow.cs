@@ -364,7 +364,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         SetText(_networkComparisonLabel, "网络数量条件 " + ComparisonText(_networkComparison));
         SetText(_currencyComparisonLabel, "网络公爵币条件 " + ComparisonText(_currencyComparison));
         SetText(_enabledLabel, _editing.Enabled ? "已启用" : "已停用");
-        bool unlimitedCount = buy && _editing.Scope == TraderRuleScope.SingleItem;
+        bool unlimitedCount = TraderAutomationService.AllowsUnlimitedMaximumCount(_editing);
         SetText(_maximumCountTitle, unlimitedCount ? "单次最大物品数（0=不限）" : "单次最大物品数");
         string countHelp = unlimitedCount
             ? "单件商品自动购入的本次最多购买数量。设为 0 时不限制数量，会持续购买直到商人售罄、公爵币不足，或其他规则条件阻止。"
@@ -401,7 +401,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         _editing.CurrencyCountComparison = _currencyComparison;
         _editing.Scheduled = _editing.Kind == TraderAutomationRuleKind.AutoBuy && _scheduled;
         _editing.Quality = ReadInt(_quality, 1);
-        _editing.MaximumCount = ReadInt(_maximumCount, 1);
+        _editing.MaximumCount = ReadInt(_maximumCount, _editing.MaximumCount);
         _editing.MinimumNetworkCount = ReadInt(_minimumNetworkCount, 0);
         _editing.MaximumSpend = ReadInt(_maximumSpend, 0);
         _editing.MinimumCurrencyCount = ReadInt(_minimumCurrencyCount, 0);
@@ -439,7 +439,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private bool RefreshNumericValidation(bool showError)
     {
         if (_editing == null) return true;
-        bool unlimited = _editing.Kind == TraderAutomationRuleKind.AutoBuy && _editing.Scope == TraderRuleScope.SingleItem;
+        bool unlimited = TraderAutomationService.AllowsUnlimitedMaximumCount(_editing);
         string error = null;
         CheckNumber(_quality, 0, 6, "品质等级", ref error);
         CheckNumber(_maximumCount, unlimited ? 0 : 1, 1000000, "单次最大物品数", ref error);
@@ -630,7 +630,9 @@ public sealed class XUiC_TraderRulesWindow : XUiController
                     ? _editing?.Category : _editing?.ExcludedCategories, category.Name);
                 SetText(_pickerNames[i], category == null ? (string.IsNullOrEmpty(_editing?.Category) ? "✓  全部商品" : "全部商品") :
                     (selected ? "✓  " : "") + category.DisplayName);
-                SetSprite(_pickerIcons[i], "SymbolAtlas", "hdn_trader_buy");
+                string categoryIcon = category?.Icon;
+                SetSprite(_pickerIcons[i], "SymbolAtlas",
+                    string.IsNullOrEmpty(categoryIcon) ? "ui_game_symbol_loot_sack" : categoryIcon);
             }
         }
         SetText(_pickerStockLabel, _stockOnly ? (_stockLoading ? "正在读取现有库存…" : "仅现有库存") : "全部有售价物品");

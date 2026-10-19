@@ -21,6 +21,16 @@ internal static class TraderMarketplaceService
         public readonly Dictionary<int, EntityTrader> Traders = new Dictionary<int, EntityTrader>();
     }
 
+    private sealed class AutomaticBuyLine
+    {
+        public EntityTrader Trader;
+        public TraderData.Entry Entry;
+        public ItemValue Value;
+        public int InventoryIndex;
+        public int Count;
+        public int Price;
+    }
+
     private static readonly object Sync = new object();
     private static readonly Dictionary<int, Session> Sessions = new Dictionary<int, Session>();
     private static readonly Dictionary<int, string> TraderLeases = new Dictionary<int, string>();
@@ -228,6 +238,157 @@ internal static class TraderMarketplaceService
                 InventoryData = playerInventoryChanged ? updatedToolbelt.ToArray() : null,
                 TraderSessionId = session.Token,
                 TraderOffers = BuildOffers(session, player, request.TraderAutomation)
+            };
+        }
+    }
+
+    internal static NetworkRemoteResult BuyAutomaticRule(World world, EntityPlayer player, string sessionId,
+        TraderAutomationRule rule, List<TraderOffer> offers, long maximumCount, long spendLimit)
+    {
+        NetworkRemoteRequest request = new NetworkRemoteRequest
+        {
+            EntityId = (bool)player ? player.entityId : -1,
+            RequestId = DateTime.UtcNow.Ticks,
+            Operation = NetworkRequestOperation.TraderBuyItem,
+            TraderSessionId = sessionId ?? string.Empty,
+            TraderAutomation = true
+        };
+        lock (Sync)
+        {
+            if (rule == null || offers == null || maximumCount <= 0 || spendLimit <= 0)
+                return Failure(request, "InvalidTraderRule");
+            if (!TryGetSession(world, player, request, out Session session, out string error))
+                return Failure(request, error);
+
+            ItemValue currency = ItemClass.GetItem(TraderInfo.CurrencyItem, false);
+            if (currency == null || currency.IsEmpty()) return Failure(request, "TraderCurrencyUnavailable");
+            long availableFunds = NetworkStorage.GetCount(player, currency);
+            long remainingSpend = Math.Min(spendLimit, availableFunds);
+            long remainingCount = maximumCount;
+            EntityPlayer pricePlayer = TraderAutomationService.ResolveOnlineAdministrator(world, session.NetworkId);
+            List<AutomaticBuyLine> plan = new List<AutomaticBuyLine>();
+            HashSet<string> plannedEntries = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (TraderOffer offer in offers.Where(candidate => candidate?.Value != null
+                    && TraderAutomationService.Matches(rule, candidate.Value)
+                    && candidate.BundleSize > 0 && candidate.BundlePrice > 0)
+                .OrderBy(candidate => candidate.BundlePrice)
+                .ThenBy(candidate => candidate.TraderEntityId)
+                .ThenBy(candidate => candidate.InventoryIndex))
+            {
+                if (remainingCount <= 0 || remainingSpend <= 0) break;
+                string entryKey = offer.TraderEntityId + ":" + offer.InventoryIndex;
+                if (!plannedEntries.Add(entryKey)
+                    || !session.Traders.TryGetValue(offer.TraderEntityId, out EntityTrader trader)
+                    || !IsValid(trader) || trader.TraderData?.PrimaryInventory == null
+                    || offer.InventoryIndex < 0 || offer.InventoryIndex >= trader.TraderData.PrimaryInventory.Count) continue;
+
+                TraderData data = trader.TraderData;
+                TraderData.Entry entry = data.PrimaryInventory[offer.InventoryIndex];
+                ItemStack stock = entry?.Item;
+                if (stock == null || stock.IsEmpty() || stock.itemValue.ItemClass == null
+                    || !NetworkStorage.NormalizeKey(stock.itemValue).Equals(NetworkStorage.NormalizeKey(offer.Value))) continue;
+                int bundleSize = GetBundleSize(stock.itemValue, stock.itemValue.ItemClass);
+                int possibleBundles = (int)Math.Min(stock.count / bundleSize, remainingCount / bundleSize);
+                if (possibleBundles <= 0) continue;
+
+                int low = 0;
+                int high = possibleBundles;
+                int selectedPrice = 0;
+                while (low < high)
+                {
+                    int bundles = low + (high - low + 1) / 2;
+                    int count = bundles * bundleSize;
+                    int price;
+                    try { price = GetBuyPrice(pricePlayer, data, entry, stock.itemValue, count, offer.InventoryIndex); }
+                    catch (Exception ex)
+                    {
+                        NetworkLog.Debug("Automatic trader batch price calculation failed; offer skipped. trader="
+                            + trader.entityId + "; index=" + offer.InventoryIndex + "; item=" + stock.itemValue.type + "; exception=" + ex.Message);
+                        high = bundles - 1;
+                        continue;
+                    }
+                    if (price > 0 && price <= remainingSpend)
+                    {
+                        low = bundles;
+                        selectedPrice = price;
+                    }
+                    else high = bundles - 1;
+                }
+                if (low <= 0) continue;
+                int selectedCount = low * bundleSize;
+                try { selectedPrice = GetBuyPrice(pricePlayer, data, entry, stock.itemValue, selectedCount, offer.InventoryIndex); }
+                catch (Exception ex)
+                {
+                    NetworkLog.Debug("Automatic trader batch final price calculation failed; offer skipped. trader="
+                        + trader.entityId + "; index=" + offer.InventoryIndex + "; item=" + stock.itemValue.type + "; exception=" + ex.Message);
+                    continue;
+                }
+                if (selectedPrice <= 0 || selectedPrice > remainingSpend) continue;
+                plan.Add(new AutomaticBuyLine
+                {
+                    Trader = trader,
+                    Entry = entry,
+                    Value = stock.itemValue.Clone(),
+                    InventoryIndex = offer.InventoryIndex,
+                    Count = selectedCount,
+                    Price = selectedPrice
+                });
+                remainingCount -= selectedCount;
+                remainingSpend -= selectedPrice;
+            }
+
+            if (plan.Count == 0)
+            {
+                NetworkLog.Debug("Automatic trader batch found no affordable matching offers. player=" + player.entityId
+                    + "; rule=" + rule.Id + "; candidates=" + offers.Count + "; spendLimit=" + spendLimit);
+                return new NetworkRemoteResult
+                {
+                    RequestId = request.RequestId, Success = true, Amount = 0,
+                    TraderSessionId = session.Token, TraderOffers = offers
+                };
+            }
+
+            long totalPrice = plan.Sum(line => (long)line.Price);
+            long totalCount = plan.Sum(line => (long)line.Count);
+            List<StorageAddition> products = plan.Select(line => new StorageAddition
+            {
+                Value = line.Value.Clone(), Count = line.Count
+            }).ToList();
+            if (!NetworkStorage.RemoveBatch(player, new[] { new StorageAddition { Value = currency.Clone(), Count = totalPrice } }))
+                return Failure(request, "TraderPaymentCommitFailed");
+            if (!NetworkStorage.AddBatch(player, products))
+            {
+                bool restored = NetworkStorage.AddBatch(player, new[] { new StorageAddition { Value = currency.Clone(), Count = totalPrice } });
+                if (!restored)
+                    NetworkLog.Error("Automatic trader batch could not restore funds after product deposit failed. player=" + player.entityId
+                        + "; rule=" + rule.Id + "; funds=" + totalPrice);
+                return Failure(request, "NetworkCapacityUnavailable");
+            }
+
+            foreach (IGrouping<int, AutomaticBuyLine> traderLines in plan.GroupBy(line => line.Trader.entityId))
+            {
+                EntityTrader trader = traderLines.First().Trader;
+                foreach (AutomaticBuyLine line in traderLines.OrderByDescending(item => item.InventoryIndex))
+                {
+                    ItemStack stock = line.Entry.Item;
+                    stock.count -= line.Count;
+                    if (stock.count <= 0 && line.InventoryIndex < trader.TraderData.PrimaryInventory.Count
+                        && ReferenceEquals(trader.TraderData.PrimaryInventory[line.InventoryIndex], line.Entry))
+                        trader.TraderData.PrimaryInventory.RemoveAt(line.InventoryIndex);
+                }
+                trader.TraderData.AvailableMoney = (int)Math.Min(int.MaxValue, (long)trader.TraderData.AvailableMoney + traderLines.Sum(line => (long)line.Price));
+                trader.TraderData.SetModified(trader);
+            }
+
+            List<TraderOffer> updatedOffers = BuildOffers(session, player, automation: true);
+            NetworkLog.Debug("Automatic trader batch committed. player=" + player.entityId + "; network=" + session.NetworkId
+                + "; rule=" + rule.Id + "; traderEntries=" + plan.Count + "; itemTypes=" + products.Select(item => item.Value.type).Distinct().Count()
+                + "; items=" + totalCount + "; spend=" + totalPrice + "; offersBefore=" + offers.Count + "; offersAfter=" + updatedOffers.Count);
+            return new NetworkRemoteResult
+            {
+                RequestId = request.RequestId, Success = true, Amount = (int)Math.Min(int.MaxValue, totalCount),
+                TraderSessionId = session.Token, TraderOffers = updatedOffers
             };
         }
     }
