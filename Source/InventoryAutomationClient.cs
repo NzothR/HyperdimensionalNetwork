@@ -46,6 +46,7 @@ internal static class InventoryAutomationClient
     internal static void OnSlotChanged(EntityPlayerLocal player, bool toolbelt, int slot, ItemStack previous, ItemStack current)
     {
         if (!(bool)player || !_rulesLoaded || !_hasInventoryRules || current == null || current.IsEmpty()) return;
+        if (BookAutomationClient.ShouldOwnItem(player, current.itemValue)) return;
         bool newItem = previous == null || previous.IsEmpty() || !previous.itemValue.Equals(current.itemValue);
         if (!newItem && current.count <= previous.count) return;
         QueueSlot(toolbelt, slot);
@@ -83,6 +84,7 @@ internal static class InventoryAutomationClient
         if (grid == null || target.Slot < 0 || target.Slot >= grid.Length) return;
         ItemStack stack = grid[target.Slot];
         if (stack == null || stack.IsEmpty()) return;
+        if (BookAutomationClient.ShouldOwnItem(player, stack.itemValue)) return;
         if (NetworkRemoteClient.IsRemoteClient)
         {
             _mutationPending = true;

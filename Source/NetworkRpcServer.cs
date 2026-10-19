@@ -234,6 +234,9 @@ internal static class NetworkRpcServer
             case NetworkRequestOperation.TrashTake:
             case NetworkRequestOperation.TrashClose:
                 return TrashContainerService.Execute(player, sender?.latestPlayerData, request);
+            case NetworkRequestOperation.BookConsumeNetwork:
+            case NetworkRequestOperation.BookScrapNetwork:
+                return BookNetworkService.Execute(player, request);
             case NetworkRequestOperation.MembershipInvite:
             case NetworkRequestOperation.MembershipAcceptInvite:
             case NetworkRequestOperation.MembershipDeclineInvite:

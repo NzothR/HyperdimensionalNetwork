@@ -113,6 +113,7 @@ internal static class AutoRestockClient
         }
 
         ProcessAutomaticRestock(state);
+        BookAutomationClient.Update(player);
         InventoryAutomationClient.Update(player);
     }
 
@@ -145,6 +146,7 @@ internal static class AutoRestockClient
         state.PendingAutomaticScan = false;
         state.AuthorizedAutomaticScan = false;
         InventoryAutomationClient.OnNetworkChanged(player);
+        BookAutomationClient.OnNetworkChanged(player);
         RefreshBaseline(player);
         if (NetworkRemoteClient.IsRemoteClient) RequestSettingsIfNeeded(state, force: true);
         else ApplySettings(state, RestockSettingsService.Get(player));
@@ -299,7 +301,10 @@ internal static class AutoRestockClient
         state.HasSnapshot = true;
         if (state.SuppressDepth > 0) return;
         if (HasStackChanged(previous, current))
+        {
+            BookAutomationClient.OnSlotChanged(state.Player, toolbelt, index, previous, current);
             InventoryAutomationClient.OnSlotChanged(state.Player, toolbelt, index, previous, current);
+        }
         if (!HasStackCountChanged(previous, current)) return;
         NetworkLog.Debug("Player inventory slot changed. player=" + state.Player.entityId + "; toolbelt=" + toolbelt + "; slot=" + index
             + "; countBefore=" + GetStackCount(previous) + "; countAfter=" + GetStackCount(current)
@@ -573,6 +578,14 @@ internal static class AutoRestockClient
             IsNetworkAdministrator = state.IsAdmin,
             AutoRestockCooldownMs = state.CooldownMs
         };
+    }
+
+    internal static RestockSettingsSnapshot CurrentSettings(EntityPlayerLocal player)
+    {
+        if (!(bool)player) return null;
+        if (!NetworkRemoteClient.IsRemoteClient) return RestockSettingsService.Get(player);
+        PlayerState state = GetState(player);
+        return state.SettingsLoaded ? ToSnapshot(state) : null;
     }
 
     public static bool IsAmmoBankEnabled(EntityPlayerLocal player)

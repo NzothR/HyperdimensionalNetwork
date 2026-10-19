@@ -174,7 +174,11 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         Bind("btnTraderRuleCycleSchedule", (sender, button) =>
         {
             if (_editing == null) return;
-            if (_editing.Kind == TraderAutomationRuleKind.AutoTrash && _isAdmin) _editing.Personal = !_editing.Personal;
+            if (_editing.Kind == TraderAutomationRuleKind.AutoTrash && _isAdmin)
+            {
+                if (_rules.Any(rule => rule.Id == _editing.Id)) return;
+                _editing.Personal = !_editing.Personal;
+            }
             else _scheduled = !_scheduled;
             RefreshEditor();
         });
@@ -515,7 +519,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
 
     private void CycleRuleKind(XUiController sender, int button)
     {
-        if (_editing == null) return;
+        if (_editing == null || _rules.Any(rule => rule.Id == _editing.Id)) return;
         int next = ((int)_editing.Kind % 4) + 1;
         if (!_isAdmin && next <= (int)TraderAutomationRuleKind.AutoBuy) next = (int)TraderAutomationRuleKind.AutoDeposit;
         _editing.Kind = (TraderAutomationRuleKind)next;

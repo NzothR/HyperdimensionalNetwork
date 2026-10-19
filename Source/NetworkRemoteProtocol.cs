@@ -52,7 +52,9 @@ internal enum NetworkRequestOperation : byte
     TrashOpen = 41,
     TrashPut = 42,
     TrashTake = 43,
-    TrashClose = 44
+    TrashClose = 44,
+    BookConsumeNetwork = 45,
+    BookScrapNetwork = 46
 }
 
 internal enum NetworkMembershipNotice : byte { None = 0, Invite = 1, Prepare = 2, Completed = 3, Changed = 4, InviteInvalidated = 5 }
@@ -602,7 +604,7 @@ internal static class NetworkRemoteClient
     }
 
     public static bool RequestTraderVoidSell(EntityPlayerLocal player, ItemValue value, int count, bool networkSource, bool personalPayout,
-        XUiC_ItemStack.StackLocationTypes sourceLocation, int slot, Action<NetworkRemoteResult> callback)
+        XUiC_ItemStack.StackLocationTypes sourceLocation, int slot, Action<NetworkRemoteResult> callback, bool automation = false)
     {
         if (!IsRemoteClient || !(bool)player || value == null || value.type <= 0 || count <= 0 || slot < 0) return false;
         NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.TraderVoidSell);
@@ -610,6 +612,7 @@ internal static class NetworkRemoteClient
         request.Count = count;
         request.TraderNetworkSource = networkSource;
         request.TraderPersonalPayout = personalPayout;
+        request.TraderAutomation = automation;
         request.SourceLocation = sourceLocation;
         request.Slot = slot;
         return Send(player, request, personalPayout || sourceLocation == XUiC_ItemStack.StackLocationTypes.ToolBelt && !networkSource,
@@ -699,6 +702,16 @@ internal static class NetworkRemoteClient
         NetworkRemoteRequest request = NewRequest(player, operation);
         request.Slot = slot; request.Value = value?.Clone(); request.Count = count; request.SourceLocation = sourceLocation;
         return Send(player, request, false, false, operation is NetworkRequestOperation.TrashPut or NetworkRequestOperation.TrashTake, callback);
+    }
+
+    internal static bool RequestBookNetwork(EntityPlayerLocal player, NetworkRequestOperation operation, ItemValue value,
+        Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player || value == null || operation is not (NetworkRequestOperation.BookConsumeNetwork
+            or NetworkRequestOperation.BookScrapNetwork)) return false;
+        NetworkRemoteRequest request = NewRequest(player, operation);
+        request.Value = value.Clone(); request.Count = 1;
+        return Send(player, request, false, false, false, callback);
     }
 
     public static bool DepositBackpackAll(EntityPlayer player, Action<NetworkRemoteResult> callback)

@@ -141,7 +141,8 @@ internal static class TraderTransactionService
         ItemValue currency = ItemClass.GetItem(TraderInfo.CurrencyItem, false);
         bool creditedToPlayer = request.TraderPersonalPayout
             && TryCreditPersonalPayout(player, playerData, currency, price, out updatedBag, out updatedToolbelt);
-        bool creditedToNetwork = !creditedToPlayer && currency != null && !currency.IsEmpty()
+        bool creditedToNetwork = !creditedToPlayer && !(request.TraderPersonalPayout && request.TraderAutomation)
+            && currency != null && !currency.IsEmpty()
             && NetworkStorage.AddStack(player, new ItemStack(currency.Clone(), price));
         if (!creditedToPlayer && !creditedToNetwork)
         {

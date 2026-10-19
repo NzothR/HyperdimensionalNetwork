@@ -137,6 +137,7 @@ HyperdimensionalNetworkTraderRulesRunRequested,Rule execution started,已开始�
 HyperdimensionalNetworkAutomationSettings,Automation settings,自动化设置
 HyperdimensionalNetworkTrashOpen,Open trash container,打开垃圾桶
 HyperdimensionalNetworkTrashWindow,Trash (destroy on close),垃圾桶（关闭时销毁）
+HyperdimensionalNetworkManualBooksHelp,Left: read unread books; Shift+left: read all; Right: sell read books; Shift+right: scrap read books,左键阅读未读书；Shift+左键全部阅读；右键售出已读书；Shift+右键分解已读书
 HyperdimensionalNetworkTraderRuleToggle,Enable / disable,启用/停用
 HyperdimensionalNetworkTraderRuleRun,Run all now,立即执行全部
 HyperdimensionalNetworkTraderRuleUp,Move up,上移
@@ -225,3 +226,4 @@ HyperdimensionalNetworkCraftingChainNodeElapsed,Elapsed: {0},已耗时：{0}
 HyperdimensionalNetworkCraftingChainNodeError,Output missing or queue changed. Deposit this node's product into the network to resume, or cancel the order.,产物缺失或队列被更改。将此节点需要的成品存入网络以继续，或取消订单。
 HyperdimensionalNetworkCraftingChainFuelInsufficient,Workstation stopped: fuel depleted.,工作站已停止：燃料不足。
 HyperdimensionalNetworkCraftingChainWorkstationStopped,Workstation stopped: check fuel and operating state.,工作站已停止：请检查燃料和运行状态。
+HyperdimensionalNetworkManualBooksResult,Books processed,已处理书籍
