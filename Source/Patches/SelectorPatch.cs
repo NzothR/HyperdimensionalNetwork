@@ -11,7 +11,6 @@ internal static class SelectorPatch
 {
     private static readonly FieldInfo ButtonsByName = AccessTools.Field(typeof(XUiC_WindowSelector), "buttonsByName");
     private static readonly FieldInfo Buttons = AccessTools.Field(typeof(XUiC_WindowSelector), "buttons");
-    private static readonly HashSet<XUiController> Bound = new HashSet<XUiController>();
 
     [HarmonyPostfix, HarmonyPatch("Init")]
     public static void InitPostfix(XUiC_WindowSelector __instance) => Setup(__instance);
@@ -57,8 +56,7 @@ internal static class SelectorPatch
             Buttons.SetValue(selector, next);
         }
         else if (Buttons?.GetValue(selector) == null) Buttons?.SetValue(selector, new[] { selectable });
-        if (Bound.Add(button)) button.OnPress += selector.HandleOnPress;
-        NetworkLog.Debug("Navigation entry ready. registered=" + (ButtonsByName?.GetValue(selector) is Dictionary<string, XUiC_ButtonSelectable> entries && entries.ContainsKey("hyperdimensionalNetwork")) + "; x=" + (button.ViewComponent.UiTransform != null ? button.ViewComponent.UiTransform.localPosition.x.ToString("F1") : "<no transform>"));
+        NetworkLog.Debug("Navigation entry ready. registered=" + (ButtonsByName?.GetValue(selector) is Dictionary<string, XUiC_ButtonSelectable> entries && entries.ContainsKey("hyperdimensionalNetwork")) + "; pressBinding=selector-auto-bind; x=" + (button.ViewComponent.UiTransform != null ? button.ViewComponent.UiTransform.localPosition.x.ToString("F1") : "<no transform>"));
     }
 
     private static void ApplyNetworkEntryIcon(XUiC_WindowSelector selector, XUiController button)
