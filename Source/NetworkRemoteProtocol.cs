@@ -82,6 +82,7 @@ internal sealed class NetworkRemoteResult
     public bool ReplenishmentEnabled = true;
     public bool AmmoBankEnabled = true;
     public bool RetainSearchOnClose = true;
+    public bool ManualSaleEnabled;
     public string TraderSessionId = string.Empty;
     public List<TraderOffer> TraderOffers = new List<TraderOffer>();
     public List<TraderAutomationRule> TraderRules = new List<TraderAutomationRule>();

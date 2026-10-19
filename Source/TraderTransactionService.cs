@@ -39,11 +39,11 @@ internal static class TraderTransactionService
         return value != null && !value.IsEmpty() && value.type > 0 && value.ItemClass != null && IsSellable(value, value.ItemClass);
     }
 
-    public static bool ToggleVoidSaleMode()
+    public static void SetVoidSaleMode(bool enabled)
     {
-        _voidSaleMode = !_voidSaleMode;
-        NetworkLog.Debug("Virtual trader sale mode changed. enabled=" + _voidSaleMode);
-        return _voidSaleMode;
+        if (_voidSaleMode == enabled) return;
+        _voidSaleMode = enabled;
+        NetworkLog.Debug("Virtual trader sale mode changed. enabled=" + enabled);
     }
 
     public static void DisableVoidSaleMode()

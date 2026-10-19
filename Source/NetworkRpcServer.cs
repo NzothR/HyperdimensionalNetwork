@@ -238,7 +238,8 @@ internal static class NetworkRpcServer
             AutoRestockCooldownMs = settings.AutoRestockCooldownMs,
             ReplenishmentEnabled = settings.ReplenishmentEnabled,
             AmmoBankEnabled = settings.AmmoBankEnabled,
-            RetainSearchOnClose = settings.RetainSearchOnClose
+            RetainSearchOnClose = settings.RetainSearchOnClose,
+            ManualSaleEnabled = settings.ManualSaleEnabled
         };
     }
 
@@ -974,6 +975,7 @@ internal static class NetworkRpcServer
             ReplenishmentEnabled = result.ReplenishmentEnabled,
             AmmoBankEnabled = result.AmmoBankEnabled,
             RetainSearchOnClose = result.RetainSearchOnClose,
+            ManualSaleEnabled = result.ManualSaleEnabled,
             TraderSessionId = result.TraderSessionId,
             TraderOffers = result.TraderOffers?.Select(offer => new TraderOffer
             {

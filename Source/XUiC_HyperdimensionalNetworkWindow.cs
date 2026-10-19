@@ -29,6 +29,11 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     private XUiController _retainSearchLabel;
     private XUiController _retainSearchValue;
     private XUiController _retainSearchButton;
+    private XUiController _manualSaleLabel;
+    private XUiController _manualSaleValue;
+    private XUiController _manualSaleButton;
+    private readonly XUiController[] _sellButtons = new XUiController[63];
+    private float _nextSellButtonRefresh;
     private XUiController _settingsStatus;
     private RestockSettingsSnapshot _settings;
     private bool _settingsRequestPending;
@@ -64,9 +69,11 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         _retainSearchLabel = GetChildById("labelRetainSearch");
         _retainSearchValue = GetChildById("labelRetainSearchValue");
         _retainSearchButton = GetChildById("btnToggleRetainSearch");
+        _manualSaleLabel = GetChildById("labelManualSaleEnabled");
+        _manualSaleValue = GetChildById("labelManualSaleEnabledValue");
+        _manualSaleButton = GetChildById("btnToggleManualSaleEnabled");
         _settingsStatus = GetChildById("restockSettingsStatus");
         BindPress("btnHyperdimensionalCraftingChain", OnCraftingChainPressed);
-        BindPress("btnHyperdimensionalTraderSell", OnTraderSellPressed);
         BindPress("btnHyperdimensionalTraderPayout", OnTraderPayoutPressed);
         BindPress("btnHyperdimensionalTraderBuy", OnTraderMarketPressed);
         BindPress("btnHyperdimensionalTraderRules", OnTraderRulesPressed);
@@ -78,6 +85,17 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         BindPress("btnToggleReplenishmentEnabled", OnToggleReplenishmentPressed);
         BindPress("btnToggleAmmoBankEnabled", OnToggleAmmoBankPressed);
         BindPress("btnToggleRetainSearch", OnToggleRetainSearchPressed);
+        BindPress("btnToggleManualSaleEnabled", OnToggleManualSalePressed);
+        for (int i = 0; i < _sellButtons.Length; i++)
+        {
+            int slotIndex = i;
+            _sellButtons[i] = GetChildById("btnNetworkItemSell" + i);
+            if (_sellButtons[i] != null) _sellButtons[i].OnPress += (sender, mouseButton) => _grid?.GetSlot(slotIndex)?.Sell();
+        }
+        int buttonCount = Array.FindAll(_sellButtons, button => button != null).Length;
+        NetworkLog.Debug("Network sale overlay initialized. buttons=" + buttonCount);
+        if (buttonCount != _sellButtons.Length)
+            NetworkLog.Error("Network sale overlay is incomplete. buttons=" + buttonCount + "; expected=" + _sellButtons.Length);
         SetVisible(_settingsPanel, false);
         HideNetworkAdminSettings();
         List<XUiC_ItemStack> slots = new List<XUiC_ItemStack>();
@@ -92,6 +110,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         base.OnOpen();
         SetSettingsVisible(false);
         _settings = null;
+        TraderTransactionService.DisableVoidSaleMode();
         SetVisible(_manualRestockButton, false);
         HideNetworkAdminSettings();
         TraderTransactionService.LoadPersonalPayoutMode(xui?.playerUI?.entityPlayer);
@@ -99,6 +118,14 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         _grid?.Reload();
         RefreshPager();
         NetworkLog.Debug("Network window opened. entries=" + (_grid?.EntryCount ?? 0));
+    }
+
+    public override void Update(float _dt)
+    {
+        base.Update(_dt);
+        if (UnityEngine.Time.realtimeSinceStartup < _nextSellButtonRefresh) return;
+        _nextSellButtonRefresh = UnityEngine.Time.realtimeSinceStartup + 0.15f;
+        RefreshSellButtons();
     }
 
     public override void OnClose()
@@ -138,14 +165,6 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
             _grid?.Reload();
         });
         if (!sent) NetworkLog.Debug("Manual restock was not queued because an inventory transaction is pending. player=" + player.entityId);
-    }
-
-    private void OnTraderSellPressed(XUiController sender, int mouseButton)
-    {
-        bool enabled = TraderTransactionService.ToggleVoidSaleMode();
-        EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
-        if ((bool)player)
-            GameManager.ShowTooltip(player, Localization.Get(enabled ? "HyperdimensionalNetworkTraderSellModeOn" : "HyperdimensionalNetworkTraderSellModeOff"), false, false, 0f);
     }
 
     private void OnTraderPayoutPressed(XUiController sender, int mouseButton)
@@ -238,6 +257,12 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         SetSetting(RestockSettingKey.RetainSearchOnClose, _settings.RetainSearchOnClose ? 0 : 1);
     }
 
+    private void OnToggleManualSalePressed(XUiController sender, int mouseButton)
+    {
+        if (_settings == null || _settingsRequestPending) return;
+        SetSetting(RestockSettingKey.ManualSaleEnabled, _settings.ManualSaleEnabled ? 0 : 1);
+    }
+
     private void LoadRestockSettings()
     {
         if (_settingsRequestPending) return;
@@ -301,6 +326,10 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
             ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
         SetLabel(_retainSearchValue, Localization.Get(_settings.RetainSearchOnClose
             ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
+        SetLabel(_manualSaleValue, Localization.Get(_settings.ManualSaleEnabled
+            ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
+        TraderTransactionService.SetVoidSaleMode(_settings.ManualSaleEnabled);
+        RefreshSellButtons();
         SetVisible(_manualRestockButton, _settings.ReplenishmentEnabled);
         string status = Localization.Get("HyperdimensionalNetworkSettingsReady");
         if (_settings.AutoRestockCooldownMs > 0)
@@ -336,6 +365,11 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
                     SetVisible(_retainSearchValue, visible);
                     SetVisible(_retainSearchButton, visible);
                     break;
+                case RestockSettingKey.ManualSaleEnabled:
+                    SetVisible(_manualSaleLabel, visible);
+                    SetVisible(_manualSaleValue, visible);
+                    SetVisible(_manualSaleButton, visible);
+                    break;
             }
         }
     }
@@ -347,6 +381,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         SetVisible(_categoryBar, !visible);
         SetVisible(_searchInputControls, !visible);
         SetVisible(_pagerControls, !visible);
+        RefreshSellButtons();
         if (visible && _settings == null) SetLabel(_settingsStatus, Localization.Get("HyperdimensionalNetworkSettingsLoading"));
     }
 
@@ -358,6 +393,19 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         SetVisible(_ammoBankEnabledLabel, false);
         SetVisible(_ammoBankEnabledValue, false);
         SetVisible(_ammoBankEnabledButton, false);
+    }
+
+    private void RefreshSellButtons()
+    {
+        bool enabled = TraderTransactionService.VoidSaleMode && _settingsPanel?.ViewComponent?.IsVisible != true;
+        for (int i = 0; i < _sellButtons.Length; i++)
+        {
+            XUiC_HyperdimensionalSlot slot = enabled ? _grid?.GetSlot(i) : null;
+            ItemStack stack = slot?.ItemStack;
+            bool visible = stack != null && !stack.IsEmpty() && TraderTransactionService.CanSell(stack.itemValue);
+            if (_sellButtons[i]?.ViewComponent != null && _sellButtons[i].ViewComponent.IsVisible != visible)
+                _sellButtons[i].ViewComponent.IsVisible = visible;
+        }
     }
 
     private void BindPress(string id, XUiEvent_OnPressEventHandler handler)

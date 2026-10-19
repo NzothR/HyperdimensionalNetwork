@@ -59,6 +59,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         _result.ReplenishmentEnabled = reader.ReadBoolean();
         _result.AmmoBankEnabled = reader.ReadBoolean();
         _result.RetainSearchOnClose = reader.ReadBoolean();
+        _result.ManualSaleEnabled = reader.ReadBoolean();
         _result.TraderSessionId = ReadBoundedString(reader, 64);
         int traderOfferCount = reader.ReadInt32();
         if (traderOfferCount < 0 || traderOfferCount > 2048) throw new InvalidDataException("Invalid trader offer count: " + traderOfferCount);
@@ -128,6 +129,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         binary.Write(result.ReplenishmentEnabled);
         binary.Write(result.AmmoBankEnabled);
         binary.Write(result.RetainSearchOnClose);
+        binary.Write(result.ManualSaleEnabled);
         binary.Write(result.TraderSessionId ?? string.Empty);
         int offerCount = result.TraderOffers?.Count ?? 0;
         if (offerCount > 2048) throw new InvalidDataException("Trader offer count exceeds the response limit: " + offerCount);

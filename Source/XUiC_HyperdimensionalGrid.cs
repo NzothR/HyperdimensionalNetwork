@@ -27,6 +27,8 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
     public int PageCount => Math.Max(1, ((NetworkRemoteClient.IsRemoteClient ? _filteredTotalEntries : _visibleEntries.Count) + Math.Max(1, _pageSize) - 1) / Math.Max(1, _pageSize));
     public int PagingElementCount => Math.Max(_pageSize, NetworkRemoteClient.IsRemoteClient ? _filteredTotalEntries : _visibleEntries.Count);
     public int VisibleSlotCount => _pageSize;
+    internal XUiC_HyperdimensionalSlot GetSlot(int index) => itemControllers != null && index >= 0 && index < itemControllers.Length
+        ? itemControllers[index] as XUiC_HyperdimensionalSlot : null;
     public int Page => _page;
     internal bool IsMutationPending => _mutationPending;
 
@@ -49,6 +51,8 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
             slot.ViewComponent.IsVisible = true;
         }
         NetworkLog.Debug("Grid initialized. visibleSlots=" + _pageSize + "; infoWindow=" + (infoWindow != null));
+        if (_pageSize != PageSizeFallback)
+            NetworkLog.Error("Network grid slot count differs from its 9x7 layout. slots=" + _pageSize + "; expected=" + PageSizeFallback);
         Reload();
     }
 

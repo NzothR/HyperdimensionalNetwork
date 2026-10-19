@@ -3,7 +3,6 @@ namespace HyperdimensionalNetwork;
 public sealed class XUiC_HyperdimensionalSlot : XUiC_ItemStack
 {
     private XUiC_HyperdimensionalGrid _grid;
-    private XUiController _sellButton;
     private int _visibleIndex;
     private bool _leftDown;
     private bool _rightDown;
@@ -23,28 +22,10 @@ public sealed class XUiC_HyperdimensionalSlot : XUiC_ItemStack
 
     public override void Update(float _dt)
     {
-        UpdateSellButton();
         if (!TryHandleMousePut()) base.Update(_dt);
     }
 
-    public override void Init()
-    {
-        base.Init();
-        _sellButton = GetChildById("btnNetworkItemSell");
-        if (_sellButton != null) _sellButton.OnPress += OnSellPressed;
-        UpdateSellButton();
-    }
-
-    private void UpdateSellButton()
-    {
-        if (_sellButton?.ViewComponent == null) return;
-        ItemStack stack = ItemStack;
-        bool visible = TraderTransactionService.VoidSaleMode && stack != null && !stack.IsEmpty()
-            && TraderTransactionService.CanSell(stack.itemValue);
-        if (_sellButton.ViewComponent.IsVisible != visible) _sellButton.ViewComponent.IsVisible = visible;
-    }
-
-    private void OnSellPressed(XUiController sender, int mouseButton)
+    internal void Sell()
     {
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
         if (!(bool)player || !TraderTransactionService.VoidSaleMode || ItemStack == null || ItemStack.IsEmpty()) return;

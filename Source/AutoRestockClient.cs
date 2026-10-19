@@ -25,6 +25,7 @@ internal static class AutoRestockClient
         public bool ReplenishmentEnabled = true;
         public bool AmmoBankEnabled = true;
         public bool RetainSearchOnClose = true;
+        public bool ManualSaleEnabled;
         public RestockTargetMode TargetMode;
         public bool IsAdmin;
         public int CooldownMs = 1000;
@@ -477,6 +478,7 @@ internal static class AutoRestockClient
         state.ReplenishmentEnabled = result.ReplenishmentEnabled;
         state.AmmoBankEnabled = result.AmmoBankEnabled;
         state.RetainSearchOnClose = result.RetainSearchOnClose;
+        state.ManualSaleEnabled = result.ManualSaleEnabled;
         state.TargetMode = result.RestockTargetMode;
         state.IsAdmin = result.IsNetworkAdministrator;
         state.CooldownMs = Math.Max(0, Math.Min(60000, result.AutoRestockCooldownMs));
@@ -489,6 +491,7 @@ internal static class AutoRestockClient
         state.ReplenishmentEnabled = settings.ReplenishmentEnabled;
         state.AmmoBankEnabled = settings.AmmoBankEnabled;
         state.RetainSearchOnClose = settings.RetainSearchOnClose;
+        state.ManualSaleEnabled = settings.ManualSaleEnabled;
         state.TargetMode = settings.TargetMode;
         state.IsAdmin = settings.IsNetworkAdministrator;
         state.CooldownMs = Math.Max(0, Math.Min(60000, settings.AutoRestockCooldownMs));
@@ -503,6 +506,7 @@ internal static class AutoRestockClient
             ReplenishmentEnabled = state.ReplenishmentEnabled,
             AmmoBankEnabled = state.AmmoBankEnabled,
             RetainSearchOnClose = state.RetainSearchOnClose,
+            ManualSaleEnabled = state.ManualSaleEnabled,
             TargetMode = state.TargetMode,
             IsNetworkAdministrator = state.IsAdmin,
             AutoRestockCooldownMs = state.CooldownMs

@@ -12,7 +12,8 @@ internal enum RestockSettingKey : byte
     AutoRestockTarget = 2,
     ReplenishmentEnabled = 3,
     AmmoBankEnabled = 4,
-    RetainSearchOnClose = 5
+    RetainSearchOnClose = 5,
+    ManualSaleEnabled = 6
 }
 
 internal enum RestockTargetMode : byte
@@ -44,6 +45,7 @@ internal sealed class RestockSettingsSnapshot
     public bool ReplenishmentEnabled = true;
     public bool AmmoBankEnabled = true;
     public bool RetainSearchOnClose = true;
+    public bool ManualSaleEnabled;
     public int AutoRestockCooldownMs;
 }
 
@@ -85,6 +87,13 @@ internal static class RestockSettingCatalog
             Name = "RetainSearchOnClose",
             LabelKey = "HyperdimensionalNetworkSettingRetainSearch",
             Permission = RestockSettingPermission.NetworkMember
+        },
+        new RestockSettingDefinition
+        {
+            Key = RestockSettingKey.ManualSaleEnabled,
+            Name = "ManualSaleEnabled",
+            LabelKey = "HyperdimensionalNetworkSettingManualSale",
+            Permission = RestockSettingPermission.NetworkMember
         }
     };
 
@@ -103,10 +112,11 @@ internal static class RestockSettingsService
         public bool AutoRestockEnabled;
         public RestockTargetMode TargetMode = RestockTargetMode.ToolbeltAndLockedBackpackStacks;
         public bool RetainSearchOnClose = true;
+        public bool ManualSaleEnabled;
     }
 
     private const int FileMagic = 0x31545352; // RST1
-    private const int FileVersion = 3;
+    private const int FileVersion = 4;
     private const int MaximumPlayers = 100000;
     private static readonly object Sync = new object();
     private static readonly Dictionary<string, PlayerSettings> Settings = new Dictionary<string, PlayerSettings>(StringComparer.Ordinal);
@@ -164,7 +174,8 @@ internal static class RestockSettingsService
             {
                 AutoRestockEnabled = current.AutoRestockEnabled,
                 TargetMode = current.TargetMode,
-                RetainSearchOnClose = current.RetainSearchOnClose
+                RetainSearchOnClose = current.RetainSearchOnClose,
+                ManualSaleEnabled = current.ManualSaleEnabled
             };
             switch (key)
             {
@@ -182,6 +193,10 @@ internal static class RestockSettingsService
                 case RestockSettingKey.RetainSearchOnClose:
                     if (value != 0 && value != 1) { error = "InvalidSettingValue"; return false; }
                     updated.RetainSearchOnClose = value == 1;
+                    break;
+                case RestockSettingKey.ManualSaleEnabled:
+                    if (value != 0 && value != 1) { error = "InvalidSettingValue"; return false; }
+                    updated.ManualSaleEnabled = value == 1;
                     break;
             }
 
@@ -255,6 +270,7 @@ internal static class RestockSettingsService
             ReplenishmentEnabled = networkSettings?.ReplenishmentEnabled ?? true,
             AmmoBankEnabled = networkSettings?.AmmoBankEnabled ?? true,
             RetainSearchOnClose = value.RetainSearchOnClose,
+            ManualSaleEnabled = value.ManualSaleEnabled,
             AutoRestockCooldownMs = AutoRestockCooldownMs
         };
     }
@@ -303,7 +319,8 @@ internal static class RestockSettingsService
                     if (string.IsNullOrWhiteSpace(playerId) || mode > RestockTargetMode.ToolbeltOnly || Settings.ContainsKey(playerId))
                         throw new InvalidDataException("Invalid or duplicate restock settings record.");
                     bool retainSearch = version < 3 || reader.ReadBoolean();
-                    Settings.Add(playerId, new PlayerSettings { AutoRestockEnabled = enabled, TargetMode = mode, RetainSearchOnClose = retainSearch });
+                    bool manualSaleEnabled = version >= 4 && reader.ReadBoolean();
+                    Settings.Add(playerId, new PlayerSettings { AutoRestockEnabled = enabled, TargetMode = mode, RetainSearchOnClose = retainSearch, ManualSaleEnabled = manualSaleEnabled });
                 }
                 if (stream.Position != stream.Length) throw new InvalidDataException("Unexpected trailing restock settings data.");
             }
@@ -341,6 +358,7 @@ internal static class RestockSettingsService
                     writer.Write(entry.Value.AutoRestockEnabled);
                     writer.Write((byte)entry.Value.TargetMode);
                     writer.Write(entry.Value.RetainSearchOnClose);
+                    writer.Write(entry.Value.ManualSaleEnabled);
                 }
                 writer.Flush();
                 stream.Flush(true);
