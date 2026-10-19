@@ -86,7 +86,7 @@ HyperdimensionalNetworkSettingHotbarOnly,Toolbelt only,仅快捷栏
 HyperdimensionalNetworkSettingReplenishmentEnabled,Enable replenishment,启用补货功能
 HyperdimensionalNetworkSettingAmmoBankEnabled,Enable ammo bank,启用弹药银行
 HyperdimensionalNetworkSettingRetainSearch,Retain search on close,保留搜索内容
-HyperdimensionalNetworkSettingManualSale,Enable manual sale,启用手动出售
+HyperdimensionalNetworkSettingManualSale,Toggle manual sale,切换手动出售
 HyperdimensionalNetworkSettingsReady,Settings saved. Cooldown,设置已保存。冷却时间
 HyperdimensionalNetworkSettingsLoading,Loading settings...,正在读取设置……
 HyperdimensionalNetworkSettingsUnavailable,Could not load settings,无法读取设置

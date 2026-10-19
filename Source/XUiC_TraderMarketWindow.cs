@@ -7,7 +7,7 @@ namespace HyperdimensionalNetwork;
 
 public sealed class XUiC_TraderMarketWindow : XUiController
 {
-    private const int PageSize = 12;
+    private const int PageSize = 11;
     private static bool _buyToBackpack;
     private static int _pendingReturnPlayerId = -1;
     private readonly List<TraderOffer> _offers = new List<TraderOffer>();
@@ -20,6 +20,8 @@ public sealed class XUiC_TraderMarketWindow : XUiController
     private readonly XUiController[] _rowButtons = new XUiController[PageSize];
     private XUiC_Paging _pager;
     private XUiC_TextInput _search;
+    private XUiC_CategoryList _categories;
+    private string _category = string.Empty;
     private XUiController _status;
     private XUiController _selectedLabel;
     private XUiController _countLabel;
@@ -49,6 +51,13 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         if (_pager != null) _pager.OnPageChanged += RefreshRows;
         _search = GetChildById("traderMarketSearch") as XUiC_TextInput;
         if (_search != null) _search.OnChangeHandler += (sender, value, code) => ApplyFilter();
+        _categories = GetChildById("marketCategoryList") as XUiC_CategoryList;
+        if (_categories != null) _categories.CategoryChanged += category =>
+        {
+            _category = category?.CategoryName ?? string.Empty;
+            NetworkLog.Debug("Trader market category changed. category=" + _category);
+            ApplyFilter();
+        };
         _status = GetChildById("traderMarketStatus");
         _selectedLabel = GetChildById("marketSelected");
         _countLabel = GetChildById("marketCount");
@@ -78,6 +87,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             && PlayerPrefs.GetInt("HyperdimensionalNetwork.TraderBuyToBackpack." + playerId, 0) != 0;
         _offers.Clear();
         _filtered.Clear();
+        _category = string.Empty;
         if (_search != null) _search.Text = string.Empty;
         RefreshRows();
         SetStatus(Localization.Get("HyperdimensionalNetworkTraderMarketLoading"));
@@ -219,7 +229,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         _sessionId = result.TraderSessionId;
         ApplyResult(result);
         _nextRefreshAt = Time.realtimeSinceStartup + 0.25f;
-        NetworkLog.Debug("Trader market session opened in list UI. session=" + _sessionId
+        NetworkLog.Debug("Trader market session opened in category list UI. session=" + _sessionId
             + "; offers=" + _offers.Count);
     }
 
@@ -271,6 +281,8 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         string search = _search?.Text?.Trim();
         foreach (TraderOffer offer in _offers)
         {
+            if (!string.IsNullOrEmpty(_category)
+                && !XUiC_HyperdimensionalGrid.MatchesCategory(offer.Value, _category)) continue;
             string name = offer.Value.ItemClass?.GetLocalizedItemName() ?? string.Empty;
             if (string.IsNullOrEmpty(search) || name.IndexOf(search, StringComparison.CurrentCultureIgnoreCase) >= 0)
                 _filtered.Add(offer);

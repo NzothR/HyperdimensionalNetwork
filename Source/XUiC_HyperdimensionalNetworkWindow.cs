@@ -12,6 +12,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     private XUiController _searchInputControls;
     private XUiController _pagerControls;
     private XUiController _manualRestockButton;
+    private XUiController _manualSaleButton;
     private XUiController _categoryBar;
     private XUiController _settingsPanel;
     private XUiController _autoRestockLabel;
@@ -29,13 +30,6 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     private XUiController _retainSearchLabel;
     private XUiController _retainSearchValue;
     private XUiController _retainSearchButton;
-    private XUiController _manualSalePanel;
-    private XUiController _manualSaleItem;
-    private XUiController _manualSaleModeValue;
-    private XUiController _manualSaleCountLabel;
-    private XUiController _manualSalePriceLabel;
-    private XUiC_ItemStack _manualSaleSlot;
-    private int _manualSaleCount;
     private XUiController _settingsStatus;
     private RestockSettingsSnapshot _settings;
     private bool _settingsRequestPending;
@@ -54,6 +48,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         _searchInputControls = GetChildById("searchInputControls");
         _pagerControls = GetChildById("pagerControls");
         _manualRestockButton = GetChildById("btnHyperdimensionalRestock");
+        _manualSaleButton = GetChildById("btnHyperdimensionalManualSale");
         _categoryBar = GetChildById("categoryBar");
         _settingsPanel = GetChildById("restockSettingsPanel");
         _autoRestockLabel = GetChildById("labelAutoRestock");
@@ -71,11 +66,6 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         _retainSearchLabel = GetChildById("labelRetainSearch");
         _retainSearchValue = GetChildById("labelRetainSearchValue");
         _retainSearchButton = GetChildById("btnToggleRetainSearch");
-        _manualSalePanel = GetChildById("manualSalePanel");
-        _manualSaleItem = GetChildById("manualSaleItem");
-        _manualSaleModeValue = GetChildById("manualSaleModeValue");
-        _manualSaleCountLabel = GetChildById("manualSaleCount");
-        _manualSalePriceLabel = GetChildById("manualSalePrice");
         _settingsStatus = GetChildById("restockSettingsStatus");
         BindPress("btnHyperdimensionalCraftingChain", OnCraftingChainPressed);
         BindPress("btnHyperdimensionalTraderPayout", OnTraderPayoutPressed);
@@ -89,15 +79,8 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         BindPress("btnToggleReplenishmentEnabled", OnToggleReplenishmentPressed);
         BindPress("btnToggleAmmoBankEnabled", OnToggleAmmoBankPressed);
         BindPress("btnToggleRetainSearch", OnToggleRetainSearchPressed);
-        BindPress("btnHyperdimensionalManualSale", OnManualSaleOpenPressed);
-        BindPress("btnManualSaleToggle", OnToggleManualSalePressed);
-        BindPress("btnManualSaleClose", (sender, button) => SetVisible(_manualSalePanel, false));
-        BindPress("btnManualSaleMinus", (sender, button) => ChangeManualSaleCount(-1));
-        BindPress("btnManualSalePlus", (sender, button) => ChangeManualSaleCount(1));
-        BindPress("btnManualSaleMax", (sender, button) => SetManualSaleMaximum());
-        BindPress("btnManualSaleConfirm", OnManualSaleConfirmPressed);
+        BindPress("btnHyperdimensionalManualSale", OnToggleManualSalePressed);
         SetVisible(_settingsPanel, false);
-        SetVisible(_manualSalePanel, false);
         HideNetworkAdminSettings();
         List<XUiC_ItemStack> slots = new List<XUiC_ItemStack>();
         GetChildrenByType(slots);
@@ -110,8 +93,6 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     {
         base.OnOpen();
         SetSettingsVisible(false);
-        SetVisible(_manualSalePanel, false);
-        _manualSaleSlot = null;
         _settings = null;
         TraderTransactionService.DisableVoidSaleMode();
         SetVisible(_manualRestockButton, false);
@@ -126,8 +107,6 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     public override void OnClose()
     {
         TraderTransactionService.DisableVoidSaleMode();
-        SetVisible(_manualSalePanel, false);
-        _manualSaleSlot = null;
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
         if (_search != null && !AutoRestockClient.ShouldRetainSearchOnClose(player))
         {
@@ -136,6 +115,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
             NetworkLog.Debug("Network search cleared on close by the player's preference. player=" + (player?.entityId ?? -1));
         }
         base.OnClose();
+        TraderSellActionPatch.RefreshSelectedItem(xui);
     }
 
     private void OnCategoryChanged(XUiC_CategoryEntry category) => _grid?.SetCategory(category?.CategoryName);
@@ -179,7 +159,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         NetworkLog.Debug("Trader market window requested by player=" + (xui?.playerUI?.entityPlayer?.entityId ?? -1));
         windowManager.Close("hyperdimensionalNetwork");
         windowManager.Close("windowpaging");
-        windowManager.Open("hyperdimensionalTraderMarket", _bModal: false);
+        windowManager.Open("hyperdimensionalTraderMarket", _bModal: true);
         if (!windowManager.IsWindowOpen("hyperdimensionalTraderMarket"))
         {
             NetworkLog.Error("Trader market window group failed to open.");
@@ -259,138 +239,11 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         SetSetting(RestockSettingKey.RetainSearchOnClose, _settings.RetainSearchOnClose ? 0 : 1);
     }
 
-    private void OnManualSaleOpenPressed(XUiController sender, int mouseButton)
-    {
-        if (_settingsPanel?.ViewComponent?.IsVisible == true) SetSettingsVisible(false);
-        if (_manualSalePanel?.ViewComponent?.IsVisible == true)
-        {
-            SetVisible(_manualSalePanel, false);
-            return;
-        }
-        XUiC_ItemStack selected = xui?.GetChildByType<XUiC_ItemInfoWindow>()?.selectedItemStack;
-        if (selected?.ItemStack == null || selected.ItemStack.IsEmpty()
-            || (selected is not XUiC_HyperdimensionalSlot
-                && selected.StackLocation != XUiC_ItemStack.StackLocationTypes.Backpack
-                && selected.StackLocation != XUiC_ItemStack.StackLocationTypes.ToolBelt))
-        {
-            EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
-            if ((bool)player) GameManager.ShowTooltip(player, Localization.Get("HyperdimensionalNetworkManualSaleSelectItem"));
-            NetworkLog.Debug("Manual sale panel was not opened because no eligible network or carried item is selected.");
-            return;
-        }
-        _manualSaleSlot = selected;
-        _manualSaleCount = Math.Max(1, GetSaleBundleSize(selected.ItemStack));
-        SetVisible(_manualSalePanel, true);
-        RefreshManualSalePanel();
-        NetworkLog.Debug("Manual sale panel opened. item=" + selected.ItemStack.itemValue.type
-            + "; available=" + selected.ItemStack.count + "; networkSource=" + (selected is XUiC_HyperdimensionalSlot));
-    }
-
-    private void ChangeManualSaleCount(int steps)
-    {
-        if (_manualSaleSlot?.ItemStack == null || _manualSaleSlot.ItemStack.IsEmpty()) return;
-        int bundle = GetSaleBundleSize(_manualSaleSlot.ItemStack);
-        int maximum = _manualSaleSlot.ItemStack.count / bundle * bundle;
-        _manualSaleCount = Math.Max(bundle, Math.Min(maximum, _manualSaleCount + steps * bundle));
-        RefreshManualSalePanel();
-    }
-
-    private void SetManualSaleMaximum()
-    {
-        if (_manualSaleSlot?.ItemStack == null || _manualSaleSlot.ItemStack.IsEmpty()) return;
-        int bundle = GetSaleBundleSize(_manualSaleSlot.ItemStack);
-        _manualSaleCount = _manualSaleSlot.ItemStack.count / bundle * bundle;
-        RefreshManualSalePanel();
-    }
-
-    private static int GetSaleBundleSize(ItemStack stack)
-    {
-        ItemClass itemClass = stack?.itemValue?.ItemClass;
-        if (itemClass == null) return 1;
-        try { return Math.Max(1, itemClass.IsBlock()
-            ? Block.list[stack.itemValue.type].EconomicBundleSize : itemClass.EconomicBundleSize); }
-        catch (Exception ex)
-        {
-            NetworkLog.Debug("Manual sale bundle size fell back to one. item=" + stack.itemValue.type
-                + "; exception=" + ex.Message);
-            return 1;
-        }
-    }
-
-    private void RefreshManualSalePanel()
-    {
-        if (_manualSalePanel?.ViewComponent?.IsVisible != true) return;
-        SetLabel(_manualSaleModeValue, Localization.Get(_settings?.ManualSaleEnabled == true
-            ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
-        ItemStack stack = _manualSaleSlot?.ItemStack;
-        if (stack == null || stack.IsEmpty())
-        {
-            SetLabel(_manualSaleItem, Localization.Get("HyperdimensionalNetworkManualSaleSelectItem"));
-            SetLabel(_manualSaleCountLabel, "-");
-            SetLabel(_manualSalePriceLabel, string.Empty);
-            return;
-        }
-        int bundle = GetSaleBundleSize(stack);
-        int maximum = stack.count / bundle * bundle;
-        _manualSaleCount = maximum > 0 ? Math.Max(bundle, Math.Min(maximum, _manualSaleCount / bundle * bundle)) : 0;
-        SetLabel(_manualSaleItem, stack.itemValue.ItemClass?.GetLocalizedItemName() + " × " + stack.count);
-        SetLabel(_manualSaleCountLabel, _manualSaleCount.ToString());
-        int price = 0;
-        if (_manualSaleCount > 0 && TraderTransactionService.CanSell(stack.itemValue))
-        {
-            try { price = TraderTransactionService.GetVirtualSellPrice(xui?.playerUI?.entityPlayer,
-                stack.itemValue, _manualSaleCount, stack.itemValue.ItemClass); }
-            catch (Exception ex)
-            {
-                NetworkLog.Debug("Manual sale preview price could not be calculated. item="
-                    + stack.itemValue.type + "; count=" + _manualSaleCount + "; exception=" + ex.Message);
-            }
-        }
-        SetLabel(_manualSalePriceLabel, price > 0 ? price + " $" : Localization.Get("xuiNoSellPrice"));
-    }
-
-    private void OnManualSaleConfirmPressed(XUiController sender, int mouseButton)
-    {
-        EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
-        XUiC_ItemStack slot = _manualSaleSlot;
-        if (!(bool)player || _settings?.ManualSaleEnabled != true || slot?.ItemStack == null
-            || slot.ItemStack.IsEmpty() || _manualSaleCount <= 0 || NetworkRemoteClient.IsMutationPending) return;
-        int itemType = slot.ItemStack.itemValue.type;
-        int count = _manualSaleCount;
-        bool networkSource = slot is XUiC_HyperdimensionalSlot;
-        if (count > slot.ItemStack.count || !TraderTransactionService.CanSell(slot.ItemStack.itemValue)) return;
-        NetworkLog.Debug("Manual sale requested from external panel. player=" + player.entityId
-            + "; item=" + itemType + "; count=" + count + "; networkSource=" + networkSource);
-        bool sent = TraderTransactionService.SellFromSlot(player, slot, networkSource, count, result =>
-        {
-            if (!result.Success)
-            {
-                GameManager.ShowTooltip(player, Localization.Get("HyperdimensionalNetworkTraderSaleFailed") + ": " + result.Error);
-                NetworkLog.Debug("Manual sale rejected. player=" + player.entityId + "; item=" + itemType
-                    + "; count=" + count + "; error=" + result.Error);
-                RefreshManualSalePanel();
-                return;
-            }
-            if (result.BagData != null || result.InventoryData != null)
-            {
-                if (!NetworkInventorySync.Apply(player, result))
-                    NetworkLog.Error("Manual sale committed but inventory snapshot could not be applied. player="
-                        + player.entityId + "; requestId=" + result.RequestId);
-                xui.GetChildByType<XUiC_Backpack>()?.RefreshBackpackSlots();
-            }
-            _grid?.Reload();
-            SetVisible(_manualSalePanel, false);
-            _manualSaleSlot = null;
-            GameManager.ShowTooltip(player, Localization.Get("HyperdimensionalNetworkTraderSaleComplete") + " " + result.Amount);
-            NetworkLog.Debug("Manual sale completed. player=" + player.entityId + "; item=" + itemType
-                + "; count=" + count + "; proceeds=" + result.Amount + "; requestId=" + result.RequestId);
-        });
-        if (!sent) NetworkLog.Debug("Manual sale could not be queued. player=" + player.entityId + "; item=" + itemType);
-    }
-
     private void OnToggleManualSalePressed(XUiController sender, int mouseButton)
     {
         if (_settings == null || _settingsRequestPending) return;
+        NetworkLog.Debug("Manual sale toggle requested. player=" + (xui?.playerUI?.entityPlayer?.entityId ?? -1)
+            + "; enabled=" + !_settings.ManualSaleEnabled);
         SetSetting(RestockSettingKey.ManualSaleEnabled, _settings.ManualSaleEnabled ? 0 : 1);
     }
 
@@ -457,10 +310,12 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
             ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
         SetLabel(_retainSearchValue, Localization.Get(_settings.RetainSearchOnClose
             ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
-        SetLabel(_manualSaleModeValue, Localization.Get(_settings.ManualSaleEnabled
-            ? "HyperdimensionalNetworkSettingOn" : "HyperdimensionalNetworkSettingOff"));
         TraderTransactionService.SetVoidSaleMode(_settings.ManualSaleEnabled);
-        RefreshManualSalePanel();
+        TraderSellActionPatch.RefreshSelectedItem(xui);
+        if (_manualSaleButton?.ViewComponent is XUiV_Button manualSaleButton)
+            manualSaleButton.Selected = _settings.ManualSaleEnabled;
+        NetworkLog.Debug("Manual sale setting applied. player=" + (xui?.playerUI?.entityPlayer?.entityId ?? -1)
+            + "; enabled=" + _settings.ManualSaleEnabled);
         SetVisible(_manualRestockButton, _settings.ReplenishmentEnabled);
         string status = Localization.Get("HyperdimensionalNetworkSettingsReady");
         if (_settings.AutoRestockCooldownMs > 0)
@@ -505,7 +360,6 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     private void SetSettingsVisible(bool visible)
     {
         SetVisible(_settingsPanel, visible);
-        if (visible) SetVisible(_manualSalePanel, false);
         SetVisible(_grid, !visible);
         SetVisible(_categoryBar, !visible);
         SetVisible(_searchInputControls, !visible);

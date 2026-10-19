@@ -512,7 +512,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
             || value.type.ToString().IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
-    private static bool MatchesCategory(ItemValue value, string category)
+    internal static bool MatchesCategory(ItemValue value, string category)
     {
         ItemClass itemClass = value?.ItemClass;
         if (itemClass == null) return false;
