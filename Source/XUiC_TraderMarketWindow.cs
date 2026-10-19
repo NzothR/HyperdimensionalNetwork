@@ -302,10 +302,24 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         _offers.Clear();
         if (result.TraderOffers != null)
             _offers.AddRange(result.TraderOffers.Where(offer => offer?.Value != null && offer.Count > 0));
+        // Vanilla displays PrimaryInventory in inventory-index order. Keep that order across
+        // traders, but place all offers for the same item together with cheaper offers first.
+        List<TraderOffer> orderedOffers = _offers
+            .OrderBy(offer => offer.TraderEntityId)
+            .ThenBy(offer => offer.InventoryIndex)
+            .GroupBy(offer => offer.Value.type)
+            .SelectMany(group => group.OrderBy(offer => offer.BundlePrice)
+                .ThenBy(offer => offer.TraderEntityId)
+                .ThenBy(offer => offer.InventoryIndex))
+            .ToList();
+        _offers.Clear();
+        _offers.AddRange(orderedOffers);
         if (_categories != null)
         {
             List<TraderData.Entry> categoryOffers = _offers
-                .Select(offer => new TraderData.Entry(new ItemStack(offer.Value.Clone(), offer.Count)))
+                // These offers have already passed the server's stock checks. The aggregate
+                // has no single trader stage, so bypass the vanilla stage filter here only.
+                .Select(offer => new TraderData.Entry(new ItemStack(offer.Value.Clone(), offer.Count), 0, true))
                 .ToList();
             _categories.SetupCategoriesBasedOnItems(categoryOffers, -1);
             bool keepCategory = !string.IsNullOrEmpty(_category)
@@ -320,14 +334,6 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             NetworkLog.Debug("Trader market categories refreshed from current offers. offers=" + _offers.Count
                 + "; categories=" + _categories.CategoryButtons.Count(button => !string.IsNullOrEmpty(button.SpriteName)));
         }
-        _offers.Sort((left, right) =>
-        {
-            int byName = string.Compare(left.Value.ItemClass?.GetLocalizedItemName(),
-                right.Value.ItemClass?.GetLocalizedItemName(), StringComparison.CurrentCultureIgnoreCase);
-            if (byName != 0) return byName;
-            int byPrice = left.BundlePrice.CompareTo(right.BundlePrice);
-            return byPrice != 0 ? byPrice : left.TraderEntityId.CompareTo(right.TraderEntityId);
-        });
         _selected = _offers.FirstOrDefault(offer => offer.TraderEntityId == selectedTrader
             && offer.InventoryIndex == selectedIndex);
         if (_selected != null)
