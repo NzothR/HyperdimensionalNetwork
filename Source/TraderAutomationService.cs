@@ -91,6 +91,55 @@ internal static class TraderAutomationService
                 ? rules.Select(rule => rule.Clone()).ToList() : new List<TraderAutomationRule>();
     }
 
+    internal static bool RemoveNetworkData(string networkId, out string error)
+    {
+        error = string.Empty;
+        if (string.IsNullOrWhiteSpace(networkId)) { error = "NetworkUnavailable"; return false; }
+        List<PendingBuyRun> cancelled;
+        lock (Sync)
+        {
+            if (!EnsureLoaded()) { error = "TraderRulesUnavailable"; return false; }
+            bool hadRules = Rules.TryGetValue(networkId, out List<TraderAutomationRule> oldRules);
+            Rules.Remove(networkId);
+            if (!Save())
+            {
+                if (hadRules) Rules[networkId] = oldRules;
+                error = "TraderRulesSaveFailed";
+                return false;
+            }
+            cancelled = PendingRuns.Where(run => string.Equals(run.NetworkId, networkId, StringComparison.OrdinalIgnoreCase)).ToList();
+            foreach (PendingBuyRun run in cancelled) PendingRuns.Remove(run);
+            ProcessingDeposits.Remove(networkId);
+            ManualRunNetworks.Remove(networkId);
+            ManualRunProgress.Remove(networkId);
+            ActiveRuleIds.Remove(networkId);
+        }
+        foreach (PendingBuyRun run in cancelled)
+        {
+            if (!string.IsNullOrEmpty(run.SessionId)) TraderMarketplaceService.ForceClose(run.SessionId);
+        }
+        NetworkLog.Debug("Trader rules and pending runs removed for retired network. network=" + networkId + "; cancelledRuns=" + cancelled.Count);
+        return true;
+    }
+
+    internal static void CancelNetworkRuntime(string networkId, string reason)
+    {
+        if (string.IsNullOrWhiteSpace(networkId)) return;
+        List<PendingBuyRun> cancelled;
+        lock (Sync)
+        {
+            cancelled = PendingRuns.Where(run => string.Equals(run.NetworkId, networkId, StringComparison.OrdinalIgnoreCase)).ToList();
+            foreach (PendingBuyRun run in cancelled) PendingRuns.Remove(run);
+            ManualRunNetworks.Remove(networkId);
+            ManualRunProgress.Remove(networkId);
+            ActiveRuleIds.Remove(networkId);
+        }
+        foreach (PendingBuyRun run in cancelled)
+            if (!string.IsNullOrEmpty(run.SessionId)) TraderMarketplaceService.ForceClose(run.SessionId);
+        if (cancelled.Count > 0)
+            NetworkLog.Debug("Pending trader runs cancelled for a network merge. network=" + networkId + "; runs=" + cancelled.Count + "; reason=" + reason);
+    }
+
     public static NetworkRemoteResult QueryRules(EntityPlayer player, NetworkRemoteRequest request)
     {
         bool isAdmin = (bool)player && PlayerNetworkDirectory.IsNetworkAdministrator(player);
@@ -368,7 +417,7 @@ internal static class TraderAutomationService
             .GroupBy(PlayerNetworkDirectory.GetNetworkId, StringComparer.OrdinalIgnoreCase))
         {
             string networkId = networkPlayers.Key;
-            if (string.IsNullOrEmpty(networkId)) continue;
+            if (string.IsNullOrEmpty(networkId) || NetworkMembershipService.IsNetworkFrozen(networkId)) continue;
             EntityPlayer player = ResolveOnlineAdministrator(world, networkId) ?? networkPlayers.FirstOrDefault();
             if (!(bool)player) continue;
             List<TraderAutomationRule> due;
@@ -493,6 +542,7 @@ internal static class TraderAutomationService
     {
         foreach (PendingBuyRun run in PendingRuns.ToArray())
         {
+            if (NetworkMembershipService.IsNetworkFrozen(run.NetworkId)) continue;
             if (!ReferenceEquals(run.World, world)) { TraderMarketplaceService.ForceClose(run.SessionId); FinishManualRun(run, "规则执行中断：世界已切换"); PendingRuns.Remove(run); continue; }
             EntityPlayer player = world.GetEntity(run.PlayerEntityId) as EntityPlayer;
             if (!(bool)player) { TraderMarketplaceService.ForceClose(run.SessionId); FinishManualRun(run, "规则执行中断：玩家已离线"); PendingRuns.Remove(run); continue; }

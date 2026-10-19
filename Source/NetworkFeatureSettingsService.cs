@@ -75,6 +75,22 @@ internal static class NetworkFeatureSettingsService
         }
     }
 
+    internal static bool RemoveNetwork(string networkId, out string error)
+    {
+        error = string.Empty;
+        if (string.IsNullOrWhiteSpace(networkId)) { error = "NetworkUnavailable"; return false; }
+        lock (Sync)
+        {
+            if (!EnsureLoaded()) { error = "NetworkFeatureSettingsUnavailable"; return false; }
+            if (!Settings.TryGetValue(networkId, out NetworkFeatureSettings old)) return true;
+            Settings.Remove(networkId);
+            if (Save()) return true;
+            Settings[networkId] = old;
+            error = "SettingsSaveFailed";
+            return false;
+        }
+    }
+
     private static NetworkFeatureSettings Clone(NetworkFeatureSettings source)
     {
         return new NetworkFeatureSettings

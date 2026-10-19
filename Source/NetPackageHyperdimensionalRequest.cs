@@ -66,6 +66,9 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         _request.TraderRuleId = ReadBoundedString(reader, 64);
         _request.TraderRuleMove = reader.ReadInt32();
         if (reader.ReadBoolean()) _request.TraderRule = ReadTraderRule(reader);
+        _request.MembershipTargetPlayerId = ReadBoundedString(reader, 128);
+        _request.MembershipOperationId = ReadBoundedString(reader, 64);
+        _request.MembershipCandidatePage = reader.ReadInt32();
     }
 
     public override void write(PooledBinaryWriter writer)
@@ -112,6 +115,9 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         binary.Write(_request.TraderRuleMove);
         binary.Write(_request.TraderRule != null);
         if (_request.TraderRule != null) WriteTraderRule(binary, _request.TraderRule);
+        binary.Write(_request.MembershipTargetPlayerId ?? string.Empty);
+        binary.Write(_request.MembershipOperationId ?? string.Empty);
+        binary.Write(_request.MembershipCandidatePage);
     }
 
     public override void ProcessPackage(World world, GameManager callbacks)
@@ -133,11 +139,13 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         int valueBytes = _request?.Value == null ? 0 : 128;
         int requirementsBytes = (_request?.Requirements?.Count ?? 0) * 512;
         int slotBytes = ((_request?.RestockToolbeltSlots?.Count ?? 0) + (_request?.RestockBackpackSlots?.Count ?? 0)) * sizeof(int);
-        return 90 + Encoding.UTF8.GetByteCount(_request?.ExpectedNetworkId ?? string.Empty)
+        return 96 + Encoding.UTF8.GetByteCount(_request?.ExpectedNetworkId ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_request?.Category ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_request?.Search ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_request?.TraderSessionId ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_request?.TraderRuleId ?? string.Empty)
+            + Encoding.UTF8.GetByteCount(_request?.MembershipTargetPlayerId ?? string.Empty)
+            + Encoding.UTF8.GetByteCount(_request?.MembershipOperationId ?? string.Empty)
             + (_request?.TraderRule == null ? 0 : 104 + Encoding.UTF8.GetByteCount(_request.TraderRule.Category ?? string.Empty)
                 + Encoding.UTF8.GetByteCount(_request.TraderRule.ExcludedCategories ?? string.Empty)
                 + Encoding.UTF8.GetByteCount(_request.TraderRule.ExcludedItemTypes ?? string.Empty))

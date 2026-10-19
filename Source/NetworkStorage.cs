@@ -241,6 +241,166 @@ internal static class NetworkStorage
         }
     }
 
+    internal static bool TryTransferContents(string sourceNetworkId, string targetNetworkId,
+        out List<StorageAddition> transferred, out string error)
+    {
+        transferred = new List<StorageAddition>();
+        error = string.Empty;
+        if (string.IsNullOrWhiteSpace(sourceNetworkId) || string.IsNullOrWhiteSpace(targetNetworkId)
+            || string.Equals(sourceNetworkId, targetNetworkId, StringComparison.OrdinalIgnoreCase))
+        { error = "InvalidNetworkTransfer"; return false; }
+        if (!NetworkSaveDataDirectory.TryGetDirectory(out string directory)) { error = "NetworkStorageUnavailable"; return false; }
+
+        string sourcePath = Path.Combine(directory, sourceNetworkId + ".hwn");
+        string targetPath = Path.Combine(directory, targetNetworkId + ".hwn");
+        lock (Sync)
+        {
+            if (UnsafePaths.Contains(sourcePath) || UnsafePaths.Contains(targetPath)) { error = "NetworkStorageUnsafe"; return false; }
+            Dictionary<ItemValue, long> source = GetStorageForPath(sourcePath);
+            Dictionary<ItemValue, long> target = GetStorageForPath(targetPath);
+            if (UnsafePaths.Contains(sourcePath) || UnsafePaths.Contains(targetPath)) { error = "NetworkStorageUnsafe"; return false; }
+            if (source.Count == 0) return true;
+
+            Dictionary<ItemValue, long> additions = new Dictionary<ItemValue, long>(ItemValueComparer.Instance);
+            Dictionary<ItemValue, long> removals = new Dictionary<ItemValue, long>(ItemValueComparer.Instance);
+            foreach (KeyValuePair<ItemValue, long> entry in source)
+            {
+                if (entry.Value <= 0) continue;
+                long targetCount = target.TryGetValue(entry.Key, out long current) ? current : 0;
+                if (entry.Value > long.MaxValue - targetCount)
+                { error = "NetworkInventoryOverflow"; return false; }
+                ItemValue key = entry.Key.Clone();
+                additions[key] = entry.Value;
+                removals[key.Clone()] = -entry.Value;
+                transferred.Add(new StorageAddition { Value = key.Clone(), Count = entry.Value });
+            }
+            if (additions.Count == 0) return true;
+
+            // Append the destination first, then the source. A source-write failure is compensated
+            // before returning; if compensation itself fails, both journals are blocked fail-closed.
+            if (!AppendTransaction(targetPath, additions))
+            { transferred.Clear(); error = "NetworkStorageTransferWriteFailed"; return false; }
+            if (!AppendTransaction(sourcePath, removals))
+            {
+                Dictionary<ItemValue, long> rollback = additions.ToDictionary(item => item.Key.Clone(), item => -item.Value, ItemValueComparer.Instance);
+                if (AppendTransaction(targetPath, rollback))
+                {
+                    Apply(target, rollback);
+                    foreach (ItemValue key in rollback.Keys.Where(key => !target.ContainsKey(key)).ToList()) Unindex(targetPath, key);
+                    BumpRevision(targetPath);
+                }
+                else
+                {
+                    UnsafePaths.Add(sourcePath);
+                    UnsafePaths.Add(targetPath);
+                    NetworkLog.Error("Network transfer compensation failed; both journals are blocked. source=" + sourceNetworkId + "; target=" + targetNetworkId);
+                }
+                transferred.Clear();
+                error = "NetworkStorageTransferWriteFailed";
+                return false;
+            }
+
+            foreach (ItemValue key in additions.Keys)
+                if (!target.ContainsKey(key)) Index(targetPath, key);
+            Apply(target, additions);
+            Apply(source, removals);
+            foreach (ItemValue key in removals.Keys) Unindex(sourcePath, key);
+            BumpRevision(targetPath);
+            BumpRevision(sourcePath);
+            NetworkLog.Debug("Network inventory transfer committed. source=" + sourceNetworkId + "; target=" + targetNetworkId
+                + "; variants=" + additions.Count + "; targetRevision=" + Revisions[targetPath] + "; sourceRevision=" + Revisions[sourcePath]);
+            return true;
+        }
+    }
+
+    internal static bool TryTransferBatch(string sourceNetworkId, string targetNetworkId,
+        IEnumerable<StorageAddition> items, out string error)
+    {
+        error = string.Empty;
+        if (string.IsNullOrWhiteSpace(sourceNetworkId) || string.IsNullOrWhiteSpace(targetNetworkId)
+            || string.Equals(sourceNetworkId, targetNetworkId, StringComparison.OrdinalIgnoreCase) || items == null)
+        { error = "InvalidNetworkTransfer"; return false; }
+        if (!NetworkSaveDataDirectory.TryGetDirectory(out string directory)) { error = "NetworkStorageUnavailable"; return false; }
+        string sourcePath = Path.Combine(directory, sourceNetworkId + ".hwn");
+        string targetPath = Path.Combine(directory, targetNetworkId + ".hwn");
+        lock (Sync)
+        {
+            if (UnsafePaths.Contains(sourcePath) || UnsafePaths.Contains(targetPath)) { error = "NetworkStorageUnsafe"; return false; }
+            Dictionary<ItemValue, long> source = GetStorageForPath(sourcePath);
+            Dictionary<ItemValue, long> target = GetStorageForPath(targetPath);
+            Dictionary<ItemValue, long> additions = new Dictionary<ItemValue, long>(ItemValueComparer.Instance);
+            foreach (StorageAddition item in items)
+            {
+                if (item?.Value == null || item.Count <= 0) continue;
+                ItemValue key = NormalizeKey(item.Value);
+                additions[key] = SafeAdd(additions.TryGetValue(key, out long previous) ? previous : 0, item.Count);
+            }
+            if (additions.Count == 0) return true;
+            Dictionary<ItemValue, long> removals = new Dictionary<ItemValue, long>(ItemValueComparer.Instance);
+            foreach (KeyValuePair<ItemValue, long> item in additions)
+            {
+                long sourceCount = source.TryGetValue(item.Key, out long owned) ? owned : 0;
+                long targetCount = target.TryGetValue(item.Key, out long current) ? current : 0;
+                if (sourceCount < item.Value) { error = "NetworkTransferSourceChanged"; return false; }
+                if (item.Value > long.MaxValue - targetCount) { error = "NetworkInventoryOverflow"; return false; }
+                removals[item.Key.Clone()] = -item.Value;
+            }
+            if (!AppendTransaction(targetPath, additions)) { error = "NetworkStorageTransferWriteFailed"; return false; }
+            if (!AppendTransaction(sourcePath, removals))
+            {
+                Dictionary<ItemValue, long> rollback = additions.ToDictionary(item => item.Key.Clone(), item => -item.Value, ItemValueComparer.Instance);
+                if (AppendTransaction(targetPath, rollback))
+                {
+                    Apply(target, rollback);
+                    foreach (ItemValue key in rollback.Keys.Where(key => !target.ContainsKey(key)).ToList()) Unindex(targetPath, key);
+                    BumpRevision(targetPath);
+                }
+                else
+                {
+                    UnsafePaths.Add(sourcePath); UnsafePaths.Add(targetPath);
+                    NetworkLog.Error("Membership transfer compensation failed; both journals are blocked. source=" + sourceNetworkId + "; target=" + targetNetworkId);
+                    error = "NetworkStorageTransferRollbackFailed";
+                    return false;
+                }
+                error = "NetworkStorageTransferWriteFailed";
+                return false;
+            }
+            foreach (ItemValue key in additions.Keys) if (!target.ContainsKey(key)) Index(targetPath, key);
+            Apply(target, additions);
+            Apply(source, removals);
+            foreach (ItemValue key in removals.Keys) Unindex(sourcePath, key);
+            BumpRevision(targetPath); BumpRevision(sourcePath);
+            NetworkLog.Debug("Network inventory compensation committed. source=" + sourceNetworkId + "; target=" + targetNetworkId
+                + "; variants=" + additions.Count);
+            return true;
+        }
+    }
+
+    internal static bool RemoveEmptyNetworkStorage(string networkId, out string error)
+    {
+        error = string.Empty;
+        if (!NetworkSaveDataDirectory.TryGetDirectory(out string directory)) { error = "NetworkStorageUnavailable"; return false; }
+        string path = Path.Combine(directory, networkId + ".hwn");
+        lock (Sync)
+        {
+            if (UnsafePaths.Contains(path)) { error = "NetworkStorageUnsafe"; return false; }
+            Dictionary<ItemValue, long> storage = GetStorageForPath(path);
+            if (storage.Count > 0) { error = "NetworkStorageNotEmpty"; return false; }
+            try
+            {
+                if (File.Exists(path)) File.Delete(path);
+                Storages.Remove(path); TypeIndexes.Remove(path); SortedIndexes.Remove(path); Revisions.Remove(path); ValidLengths.Remove(path);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = "NetworkStorageCleanupFailed";
+                NetworkLog.Error("Empty network journal could not be removed. network=" + networkId + "; exception=" + ex);
+                return false;
+            }
+        }
+    }
+
     public static int Remove(EntityPlayer player, ItemValue value, int requested)
     {
         if (!(bool)player || value == null || requested <= 0 || PlayerNetworkDirectory.IsRemoteClient()) return 0;
@@ -267,6 +427,11 @@ internal static class NetworkStorage
     {
         string path = GetPath(player);
         if (path == null) return new Dictionary<ItemValue, long>(ItemValueComparer.Instance);
+        return GetStorageForPath(path);
+    }
+
+    private static Dictionary<ItemValue, long> GetStorageForPath(string path)
+    {
         if (Storages.TryGetValue(path, out Dictionary<ItemValue, long> data)) return data;
         data = Load(path);
         Storages[path] = data;
@@ -532,6 +697,7 @@ internal static class NetworkStorage
         if (!(bool)player || PlayerNetworkDirectory.IsRemoteClient()) return null;
         string networkId = PlayerNetworkDirectory.GetNetworkId(player);
         if (string.IsNullOrEmpty(networkId)) return null;
+        if (NetworkMembershipService.IsStorageBlocked(player, networkId)) return null;
         if (!NetworkSaveDataDirectory.TryGetDirectory(out string modDirectory)) return null;
         return Path.Combine(modDirectory, networkId + ".hwn");
     }

@@ -71,6 +71,7 @@ internal static class AutoRestockClient
     {
         EntityPlayerLocal player = NetworkRemoteClient.GetLocalPlayer();
         if (!(bool)player) return;
+        if (NetworkMembershipClient.IsPreparing) return;
         PlayerState state = GetState(player);
         if (!ReferenceEquals(state.ToolbeltGrid, player.inventory.ItemGrid) || !ReferenceEquals(state.BackpackGrid, player.bag.ItemGrid))
         {
@@ -120,6 +121,22 @@ internal static class AutoRestockClient
         BindGrid(state, toolbelt: false, player.bag.ItemGrid);
         Capture(state);
         state.HasSnapshot = true;
+    }
+
+    internal static void OnNetworkIdentityChanged(EntityPlayerLocal player)
+    {
+        if (!(bool)player) return;
+        PlayerState state = GetState(player);
+        state.SettingsLoaded = false;
+        state.SettingsPending = false;
+        state.NextSettingsRequestAt = 0f;
+        state.AutomaticRequestPending = false;
+        state.PendingAutomaticScan = false;
+        state.AuthorizedAutomaticScan = false;
+        RefreshBaseline(player);
+        if (NetworkRemoteClient.IsRemoteClient) RequestSettingsIfNeeded(state, force: true);
+        else ApplySettings(state, RestockSettingsService.Get(player));
+        NetworkLog.Debug("Automatic restock settings and inventory baselines reset after network identity changed. player=" + player.entityId);
     }
 
     public static void OnInventorySnapshotApplied(EntityPlayerLocal player, bool backpackChanged, bool toolbeltChanged)

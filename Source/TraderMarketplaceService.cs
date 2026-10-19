@@ -414,6 +414,17 @@ internal static class TraderMarketplaceService
         lock (Sync) return Sessions.ContainsKey(playerEntityId);
     }
 
+    internal static bool CloseForMembershipChange(int playerEntityId)
+    {
+        lock (Sync)
+        {
+            if (!Sessions.ContainsKey(playerEntityId)) return false;
+            ReleaseUnsafe(playerEntityId);
+            NetworkLog.Debug("Trader market session released because player membership changed. player=" + playerEntityId);
+            return true;
+        }
+    }
+
     public static void OnWorldShuttingDown()
     {
         lock (Sync)

@@ -32,6 +32,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     private XUiController _retainSearchValue;
     private XUiController _retainSearchButton;
     private XUiController _settingsStatus;
+    private XUiController _managementButton;
     private RestockSettingsSnapshot _settings;
     private bool _settingsRequestPending;
 
@@ -70,6 +71,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         _retainSearchValue = GetChildById("labelRetainSearchValue");
         _retainSearchButton = GetChildById("btnToggleRetainSearch");
         _settingsStatus = GetChildById("restockSettingsStatus");
+        _managementButton = GetChildById("btnNetworkManagement");
         BindPress("btnHyperdimensionalCraftingChain", OnCraftingChainPressed);
         BindPress("btnHyperdimensionalTraderPayout", OnTraderPayoutPressed);
         BindPress("btnHyperdimensionalTraderBuy", OnTraderMarketPressed);
@@ -77,6 +79,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         BindPress("btnHyperdimensionalRestock", OnManualRestockPressed);
         BindPress("btnHyperdimensionalSettings", OnSettingsPressed);
         BindPress("btnRestockSettingsClose", OnCloseSettingsPressed);
+        BindPress("btnNetworkManagement", OnManagementPressed);
         BindPress("btnToggleAutoRestock", OnToggleAutoRestockPressed);
         BindPress("btnCycleAutoRestockTarget", OnCycleRestockTargetPressed);
         BindPress("btnToggleReplenishmentEnabled", OnToggleReplenishmentPressed);
@@ -214,6 +217,15 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     }
 
     private void OnCloseSettingsPressed(XUiController sender, int mouseButton) => SetSettingsVisible(false);
+
+    private void OnManagementPressed(XUiController sender, int mouseButton)
+    {
+        GUIWindowManager windowManager = xui?.playerUI?.windowManager;
+        if (windowManager == null || windowManager.IsWindowOpen("hyperdimensionalNetworkManagement")) return;
+        windowManager.Open("hyperdimensionalNetworkManagement", _bModal: true);
+        if (!windowManager.IsWindowOpen("hyperdimensionalNetworkManagement"))
+            NetworkLog.Error("Network membership window group failed to open.");
+    }
 
     private void OnToggleAutoRestockPressed(XUiController sender, int mouseButton)
     {

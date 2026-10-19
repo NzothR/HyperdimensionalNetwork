@@ -32,11 +32,30 @@ internal static class NetworkRpcServer
             {
                 result = Failure(request, "NetworkUnavailable");
             }
-            else if (!string.IsNullOrEmpty(request.ExpectedNetworkId)
+            else if (!NetworkMembershipService.IsMembershipOperation(request.Operation) && !string.IsNullOrEmpty(request.ExpectedNetworkId)
                 && !string.Equals(request.ExpectedNetworkId, networkId, StringComparison.OrdinalIgnoreCase))
             {
                 result = Failure(request, "StaleNetwork");
                 NetworkLog.Debug("Rejected stale network request. player=" + player.entityId + "; expected=" + request.ExpectedNetworkId + "; actual=" + networkId + "; operation=" + request.Operation);
+            }
+            else if (NetworkMembershipService.ShouldRejectRequest(player, networkId, request.Operation))
+            {
+                result = Failure(request, "MembershipTransitionInProgress");
+            }
+            else if (request.Operation == NetworkRequestOperation.MembershipQuery)
+            {
+                result = NetworkMembershipService.ProcessRequest(world, player, request);
+            }
+            else if (NetworkMembershipService.IsMembershipOperation(request.Operation))
+            {
+                result = ProcessMutation(world, player, sender, request);
+            }
+            else if ((request.Operation == NetworkRequestOperation.ReturnAuthorization
+                || request.Operation == NetworkRequestOperation.ReturnWithdrawal || request.Operation == NetworkRequestOperation.AmmoBankRefund)
+                && NetworkMembershipService.IsPlayerBlocked(player))
+            {
+                using (NetworkMembershipService.EnterInternalNetworkScope(networkId))
+                    result = ProcessMutation(world, player, sender, request);
             }
             else if (request.Operation == NetworkRequestOperation.QueryPage)
             {
@@ -64,8 +83,9 @@ internal static class NetworkRpcServer
             {
                 result = ProcessMutation(world, player, sender, request);
             }
-            result.NetworkId = networkId;
+            result.NetworkId = PlayerNetworkDirectory.GetNetworkId(player) ?? string.Empty;
             result.Revision = NetworkStorage.GetRevision(player);
+            result.MembershipRevision = PlayerNetworkDirectory.GetMembershipRevision();
         }
         catch (Exception ex)
         {
@@ -194,6 +214,14 @@ internal static class NetworkRpcServer
             case NetworkRequestOperation.TraderMoveRule:
             case NetworkRequestOperation.TraderRunRules:
                 return TraderAutomationService.ExecuteRuleRequest(world, player, request);
+            case NetworkRequestOperation.MembershipInvite:
+            case NetworkRequestOperation.MembershipAcceptInvite:
+            case NetworkRequestOperation.MembershipDeclineInvite:
+            case NetworkRequestOperation.MembershipLeave:
+            case NetworkRequestOperation.MembershipKick:
+            case NetworkRequestOperation.MembershipTransferAdministrator:
+            case NetworkRequestOperation.MembershipAcknowledgePrepare:
+                return NetworkMembershipService.ProcessRequest(world, player, request);
             default:
                 return Failure(request, "UnsupportedOperation");
         }
@@ -894,6 +922,9 @@ internal static class NetworkRpcServer
             || left.TraderEntityId != right.TraderEntityId || left.TraderInventoryIndex != right.TraderInventoryIndex
             || !string.Equals(left.TraderSessionId, right.TraderSessionId, StringComparison.Ordinal)
             || !string.Equals(left.ExpectedNetworkId, right.ExpectedNetworkId, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(left.MembershipTargetPlayerId, right.MembershipTargetPlayerId, StringComparison.Ordinal)
+            || !string.Equals(left.MembershipOperationId, right.MembershipOperationId, StringComparison.Ordinal)
+            || left.MembershipCandidatePage != right.MembershipCandidatePage
             || !string.Equals(left.Category, right.Category, StringComparison.Ordinal)
             || !string.Equals(left.Search, right.Search, StringComparison.Ordinal)
             || (left.Requirements?.Count ?? 0) != (right.Requirements?.Count ?? 0)
@@ -945,7 +976,9 @@ internal static class NetworkRpcServer
             TraderInventoryIndex = request.TraderInventoryIndex,
             RestockToolbeltSlots = request.RestockToolbeltSlots?.ToList() ?? new List<int>(),
             RestockBackpackSlots = request.RestockBackpackSlots?.ToList() ?? new List<int>(),
-            TraderRule = request.TraderRule?.Clone(), TraderRuleId = request.TraderRuleId, TraderRuleMove = request.TraderRuleMove
+            TraderRule = request.TraderRule?.Clone(), TraderRuleId = request.TraderRuleId, TraderRuleMove = request.TraderRuleMove,
+            MembershipTargetPlayerId = request.MembershipTargetPlayerId, MembershipOperationId = request.MembershipOperationId,
+            MembershipCandidatePage = request.MembershipCandidatePage
         };
     }
 
@@ -988,7 +1021,26 @@ internal static class NetworkRpcServer
             TraderRunCurrentRule = result.TraderRunCurrentRule,
             TraderRunTotalRules = result.TraderRunTotalRules,
             TraderRunMessage = result.TraderRunMessage,
-            TraderRunRuleId = result.TraderRunRuleId
+            TraderRunRuleId = result.TraderRunRuleId,
+            MembershipNotice = result.MembershipNotice,
+            MembershipRevision = result.MembershipRevision,
+            MembershipOperationId = result.MembershipOperationId,
+            MembershipTargetPlayerId = result.MembershipTargetPlayerId,
+            MembershipSourceNetworkId = result.MembershipSourceNetworkId,
+            MembershipTargetNetworkId = result.MembershipTargetNetworkId,
+            MembershipInviterName = result.MembershipInviterName,
+            MembershipWillMerge = result.MembershipWillMerge,
+            MembershipOnlineCount = result.MembershipOnlineCount,
+            NetworkMembers = result.NetworkMembers?.Select(member => new NetworkMemberInfo
+            {
+                PlayerId = member.PlayerId, DisplayName = member.DisplayName, IsOnline = member.IsOnline,
+                IsAdministrator = member.IsAdministrator, Eligible = member.Eligible, EligibilityError = member.EligibilityError
+            }).ToList() ?? new List<NetworkMemberInfo>(),
+            MembershipCandidates = result.MembershipCandidates?.Select(member => new NetworkMemberInfo
+            {
+                PlayerId = member.PlayerId, DisplayName = member.DisplayName, IsOnline = member.IsOnline,
+                IsAdministrator = member.IsAdministrator, Eligible = member.Eligible, EligibilityError = member.EligibilityError
+            }).ToList() ?? new List<NetworkMemberInfo>()
         };
     }
 
@@ -1013,6 +1065,20 @@ internal static class NetworkRpcServer
             Success = false,
             Error = error ?? "Failure"
         };
+    }
+
+    internal static void SendUnsolicited(int entityId, NetworkRemoteResult result)
+    {
+        if (result == null) return;
+        result.RequestId = 0;
+        if (result.MembershipRevision <= 0) result.MembershipRevision = PlayerNetworkDirectory.GetMembershipRevision();
+        EntityPlayerLocal localPlayer = GameManager.Instance?.World?.GetEntity(entityId) as EntityPlayerLocal;
+        if ((bool)localPlayer)
+        {
+            NetworkRemoteClient.HandleResponse(entityId, result);
+            return;
+        }
+        SendResponse(entityId, result);
     }
 
     private static void SendResponse(int entityId, NetworkRemoteResult result)

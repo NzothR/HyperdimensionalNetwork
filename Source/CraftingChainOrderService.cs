@@ -1971,7 +1971,10 @@ internal static class CraftingChainOrderService
             List<ItemStack> items = order.EscrowItems.Where(item => item != null && !item.IsEmpty())
                 .Select(item => item.Clone()).ToList();
             List<StorageAddition> additions = items.Select(item => new StorageAddition { Value = item.itemValue.Clone(), Count = item.count }).ToList();
-            if (!NetworkStorage.AddBatch(order.player, additions))
+            bool returned;
+            using (NetworkMembershipService.EnterInternalNetworkScope(order.NetworkId))
+                returned = NetworkStorage.AddBatch(order.player, additions);
+            if (!returned)
             {
                 order.Status = Localization.Get("HyperdimensionalNetworkCraftingChainReturnFailed");
                 order.ReturnPending = true;

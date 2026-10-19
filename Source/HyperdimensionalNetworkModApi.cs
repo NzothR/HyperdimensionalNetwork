@@ -22,6 +22,7 @@ public sealed class HyperdimensionalNetworkModApi : IModApi
     private static void OnGameUpdate(ref ModEvents.SGameUpdateData data)
     {
         World world = GameManager.Instance?.World;
+        NetworkMembershipService.Update(world);
         TraderMarketplaceService.SweepDisconnected(world);
         TraderAutomationService.Update(world);
     }
@@ -29,12 +30,16 @@ public sealed class HyperdimensionalNetworkModApi : IModApi
     private static void OnWorldShuttingDown(ref ModEvents.SWorldShuttingDownData data)
     {
         CraftingChainOrderService.OnWorldShuttingDown();
+        NetworkMembershipService.OnWorldShuttingDown();
+        NetworkMembershipClient.OnWorldShuttingDown();
         TraderMarketplaceService.OnWorldShuttingDown();
     }
 
     private static void OnShutdown(ref ModEvents.SGameShutdownData data)
     {
         CraftingChainOrderService.OnWorldShuttingDown();
+        NetworkMembershipService.OnWorldShuttingDown();
+        NetworkMembershipClient.OnWorldShuttingDown();
         TraderMarketplaceService.OnWorldShuttingDown();
         NetworkStorage.FlushAll();
     }

@@ -13,6 +13,66 @@ HyperdimensionalNetworkManualSaleSelectItem,Select an item in the network or bac
 HyperdimensionalNetworkTraderCurrencyUnavailable,Not enough available Duke's Coins for this purchase,可用公爵币不足，无法完成购买
 HyperdimensionalNetworkSettingsTitle,Network Settings,网络设置
 HyperdimensionalNetworkSettingsHint,Personal settings apply only to you. Network feature switches are administrator-only.,个人设置只影响你自己。网络功能开关仅管理员可见和设置。
+HyperdimensionalNetworkManagementOpen,Manage network members,管理网络成员
+HyperdimensionalNetworkManagementTitle,Network Management,网络管理
+HyperdimensionalNetworkManagementLoading,Loading network membership...,正在读取网络成员……
+HyperdimensionalNetworkManagementUnavailable,Network membership is unavailable,暂时无法读取网络成员
+HyperdimensionalNetworkManagementReady,Invite online players or manage current members,可邀请在线玩家或管理现有成员
+HyperdimensionalNetworkManagementNetwork,Network,网络
+HyperdimensionalNetworkManagementMemberCount,{0} online / {1} total,{0} 人在线 / 共 {1} 人
+HyperdimensionalNetworkManagementAdministrator,Administrator,管理员
+HyperdimensionalNetworkManagementMember,Member,成员
+HyperdimensionalNetworkManagementMembers,Current members,当前成员
+HyperdimensionalNetworkManagementInvitePlayers,Invite online players,邀请在线玩家
+HyperdimensionalNetworkManagementOffline,offline,离线
+HyperdimensionalNetworkManagementSharedAdministrator,Administrator has network members,该管理员仍有网络成员
+HyperdimensionalNetworkManagementNetworkFull,Network has reached its member limit,网络成员已达上限
+HyperdimensionalNetworkManagementInvitePending,Invitation already pending,已有待处理邀请
+HyperdimensionalNetworkManagementMemberBusy,Player is changing network membership,玩家正在变更网络成员关系
+HyperdimensionalNetworkManagementKickTitle,Remove network member,移除网络成员
+HyperdimensionalNetworkManagementKickConfirm,Move this member to a new private network?,将该成员移入新的私人网络？
+HyperdimensionalNetworkManagementTransferTitle,Transfer network administrator,转让网络管理员
+HyperdimensionalNetworkManagementTransferConfirm,Make this member the new administrator?,将该成员设为新管理员？
+HyperdimensionalNetworkManagementLeaveTitle,Leave network,离开网络
+HyperdimensionalNetworkManagementLeaveConfirm,You will move to a new private network. Your personal settings stay with you.,你将移入新的私人网络，个人设置会保留。
+HyperdimensionalNetworkManagementLeave,Leave network,离开网络
+HyperdimensionalNetworkManagementKickShort,Kick,移除
+HyperdimensionalNetworkManagementTransferShort,Admin,转让
+HyperdimensionalNetworkManagementInviteShort,Invite,邀请
+HyperdimensionalNetworkInviteTitle,Network Invitation,网络邀请
+HyperdimensionalNetworkInviteFrom,Invited by:,邀请人：
+HyperdimensionalNetworkInviteSwitchText,Accepting leaves your current shared network and moves you directly into the inviter's network as a regular member. Items in your old network stay there. Personal settings stay with you.,接受后你将离开当前共享网络并直接成为邀请人网络的普通成员。原网络中的物品仍留在原网络，个人设置会保留。
+HyperdimensionalNetworkInviteMergeText,Accepting merges your private network inventory into the inviter's network and removes your old network and its rules. You become a regular member. Personal settings stay with you. Merged items follow the destination network's automatic sale rules.,接受后你的个人网络库存将并入邀请人网络，原网络及其规则会被移除。你将成为普通成员，个人设置会保留。合并物品会经过目标网络的自动出售规则。
+HyperdimensionalNetworkInviteAccept,Join,加入
+HyperdimensionalNetworkInviteMergeAccept,Accept and merge,接受并合并
+HyperdimensionalNetworkInviteDecline,Decline,拒绝
+HyperdimensionalNetworkInviteExpired,This network invitation expired,此网络邀请已过期
+HyperdimensionalNetworkInviteUnavailable,This network invitation is no longer valid,此网络邀请已失效
+HyperdimensionalNetworkMembershipPreparing,Finishing network tasks before changing membership...,正在完成网络任务后切换成员身份……
+HyperdimensionalNetworkMembershipComplete,Network membership updated,网络成员关系已更新
+HyperdimensionalNetworkMembershipFailed,Network membership change failed,网络成员关系变更失败
+HyperdimensionalNetworkMembershipWorking,Updating network membership...,正在更新网络成员关系……
+HyperdimensionalNetworkErrorInvitePending,This player already has a pending invitation,该玩家已有待处理邀请
+HyperdimensionalNetworkErrorInviteUnavailable,This invitation is no longer valid,此邀请已失效
+HyperdimensionalNetworkErrorInviteExpired,This invitation expired,此邀请已过期
+HyperdimensionalNetworkErrorAdministratorHasMembers,An administrator with network members cannot join another network,仍有网络成员的管理员不能加入其他网络
+HyperdimensionalNetworkErrorAdministratorCannotLeave,The network administrator must transfer the role before leaving,网络管理员需先转让管理员身份才能离开
+HyperdimensionalNetworkErrorAlreadyNetworkMember,This player is already in the network,该玩家已属于此网络
+HyperdimensionalNetworkErrorCannotKickSelf,You cannot remove yourself,不能移除自己
+HyperdimensionalNetworkErrorMemberUnavailable,That network member is no longer available,该网络成员已不存在
+HyperdimensionalNetworkErrorMembershipBusy,A network membership change is already in progress,当前已有网络成员关系变更正在进行
+HyperdimensionalNetworkErrorMembershipChanged,Network membership changed before the operation completed,操作完成前网络成员关系已变化
+HyperdimensionalNetworkErrorPrepareTimeout,The player did not finish preparing in time. Send a new invitation and try again,玩家未能及时完成切换准备，请重新邀请后再试
+HyperdimensionalNetworkErrorSaveFailed,The network could not be saved. No membership change was committed,网络保存失败，成员关系未提交
+HyperdimensionalNetworkErrorNetworkFull,The network has reached its member limit,网络成员已达上限
+HyperdimensionalNetworkErrorNetworkUnavailable,The network is currently unavailable,网络当前不可用
+HyperdimensionalNetworkErrorPermissionDenied,You do not have permission for this operation,你没有权限执行此操作
+HyperdimensionalNetworkErrorPlayerOffline,The player is no longer online,该玩家当前不在线
+HyperdimensionalNetworkErrorIdentityUnavailable,Your player identity could not be verified,无法验证玩家身份
+HyperdimensionalNetworkErrorTransferFailed,The network inventory transfer failed. Try again later,网络库存转移失败，请稍后重试
+HyperdimensionalNetworkErrorRollbackFailed,The inventory rollback failed. Contact the server administrator,库存回滚失败，请联系服务器管理员
+HyperdimensionalNetworkErrorTransitionFailed,The network membership change failed safely,网络成员关系变更未能安全完成
+HyperdimensionalNetworkManagementBusy,Wait for the current network operation to finish,请等待当前网络操作完成
 HyperdimensionalNetworkTraderSellMode,Manual sale mode,手动出售模式
 HyperdimensionalNetworkTraderSellItem,Sell this network stack,出售此网络物品堆
 HyperdimensionalNetworkTraderSellAction,Sell,出售

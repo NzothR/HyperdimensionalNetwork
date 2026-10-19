@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -97,6 +98,17 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         _result.TraderRunTotalRules = reader.ReadInt32();
         _result.TraderRunMessage = ReadBoundedString(reader, 256);
         _result.TraderRunRuleId = ReadBoundedString(reader, 64);
+        _result.MembershipNotice = (NetworkMembershipNotice)reader.ReadByte();
+        _result.MembershipRevision = reader.ReadInt64();
+        _result.MembershipOperationId = ReadBoundedString(reader, 64);
+        _result.MembershipTargetPlayerId = ReadBoundedString(reader, 128);
+        _result.MembershipSourceNetworkId = ReadBoundedString(reader, 64);
+        _result.MembershipTargetNetworkId = ReadBoundedString(reader, 64);
+        _result.MembershipInviterName = ReadBoundedString(reader, 128);
+        _result.MembershipWillMerge = reader.ReadBoolean();
+        _result.MembershipOnlineCount = reader.ReadInt32();
+        ReadMembers(reader, _result.NetworkMembers);
+        ReadMembers(reader, _result.MembershipCandidates);
     }
 
     public override void write(PooledBinaryWriter writer)
@@ -176,6 +188,17 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         binary.Write(result.TraderRunTotalRules);
         binary.Write(result.TraderRunMessage ?? string.Empty);
         binary.Write(result.TraderRunRuleId ?? string.Empty);
+        binary.Write((byte)result.MembershipNotice);
+        binary.Write(result.MembershipRevision);
+        binary.Write(result.MembershipOperationId ?? string.Empty);
+        binary.Write(result.MembershipTargetPlayerId ?? string.Empty);
+        binary.Write(result.MembershipSourceNetworkId ?? string.Empty);
+        binary.Write(result.MembershipTargetNetworkId ?? string.Empty);
+        binary.Write(result.MembershipInviterName ?? string.Empty);
+        binary.Write(result.MembershipWillMerge);
+        binary.Write(result.MembershipOnlineCount);
+        WriteMembers(binary, result.NetworkMembers);
+        WriteMembers(binary, result.MembershipCandidates);
     }
 
     public override void ProcessPackage(World world, GameManager callbacks)
@@ -203,11 +226,56 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         int ruleTextBytes = _result?.TraderRules?.Sum(rule => Encoding.UTF8.GetByteCount(rule?.Category ?? string.Empty)
             + Encoding.UTF8.GetByteCount(rule?.ExcludedCategories ?? string.Empty)
             + Encoding.UTF8.GetByteCount(rule?.ExcludedItemTypes ?? string.Empty)) ?? 0;
-        return 127 + entries * 512 + offers * 640 + rules * 136 + ruleTextBytes + bytes + valueBytes + Encoding.UTF8.GetByteCount(_result?.Error ?? string.Empty)
+        return 154 + entries * 512 + offers * 640 + rules * 136 + ruleTextBytes + bytes + valueBytes + Encoding.UTF8.GetByteCount(_result?.Error ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_result?.NetworkId ?? string.Empty) + Encoding.UTF8.GetByteCount(_result?.TraderSessionId ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_result?.TraderRunMessage ?? string.Empty)
-            + Encoding.UTF8.GetByteCount(_result?.TraderRunRuleId ?? string.Empty);
+            + Encoding.UTF8.GetByteCount(_result?.TraderRunRuleId ?? string.Empty)
+            + Encoding.UTF8.GetByteCount(_result?.MembershipOperationId ?? string.Empty)
+            + Encoding.UTF8.GetByteCount(_result?.MembershipTargetPlayerId ?? string.Empty)
+            + Encoding.UTF8.GetByteCount(_result?.MembershipSourceNetworkId ?? string.Empty)
+            + Encoding.UTF8.GetByteCount(_result?.MembershipTargetNetworkId ?? string.Empty)
+            + Encoding.UTF8.GetByteCount(_result?.MembershipInviterName ?? string.Empty)
+            + MembershipMembersLength(_result?.NetworkMembers) + MembershipMembersLength(_result?.MembershipCandidates);
     }
+
+    private static void ReadMembers(BinaryReader reader, List<NetworkMemberInfo> members)
+    {
+        int count = reader.ReadInt32();
+        if (count < 0 || count > 128) throw new InvalidDataException("Invalid membership list count: " + count);
+        for (int i = 0; i < count; i++)
+            members.Add(new NetworkMemberInfo
+            {
+                PlayerId = ReadBoundedString(reader, 128),
+                DisplayName = ReadBoundedString(reader, 128),
+                IsOnline = reader.ReadBoolean(),
+                IsAdministrator = reader.ReadBoolean(),
+                Eligible = reader.ReadBoolean(),
+                EligibilityError = ReadBoundedString(reader, 64)
+            });
+    }
+
+    private static void WriteMembers(BinaryWriter writer, List<NetworkMemberInfo> members)
+    {
+        int count = members?.Count ?? 0;
+        if (count > 128) throw new InvalidDataException("Membership list exceeds the response limit: " + count);
+        writer.Write(count);
+        if (members == null) return;
+        foreach (NetworkMemberInfo member in members)
+        {
+            if (member == null) throw new InvalidDataException("Membership response contains an empty row.");
+            writer.Write(member.PlayerId ?? string.Empty);
+            writer.Write(member.DisplayName ?? string.Empty);
+            writer.Write(member.IsOnline);
+            writer.Write(member.IsAdministrator);
+            writer.Write(member.Eligible);
+            writer.Write(member.EligibilityError ?? string.Empty);
+        }
+    }
+
+    private static int MembershipMembersLength(List<NetworkMemberInfo> members)
+        => (members?.Sum(member => 18 + Encoding.UTF8.GetByteCount(member?.PlayerId ?? string.Empty)
+            + Encoding.UTF8.GetByteCount(member?.DisplayName ?? string.Empty)
+            + Encoding.UTF8.GetByteCount(member?.EligibilityError ?? string.Empty)) ?? 0);
 
     private static string ReadBoundedString(BinaryReader reader, int maximumBytes)
     {

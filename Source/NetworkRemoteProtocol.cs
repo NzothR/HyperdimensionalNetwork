@@ -38,7 +38,27 @@ internal enum NetworkRequestOperation : byte
     TraderSaveRule = 27,
     TraderDeleteRule = 28,
     TraderMoveRule = 29,
-    TraderRunRules = 30
+    TraderRunRules = 30,
+    MembershipQuery = 31,
+    MembershipInvite = 32,
+    MembershipAcceptInvite = 33,
+    MembershipDeclineInvite = 34,
+    MembershipLeave = 35,
+    MembershipKick = 36,
+    MembershipTransferAdministrator = 37,
+    MembershipAcknowledgePrepare = 38
+}
+
+internal enum NetworkMembershipNotice : byte { None = 0, Invite = 1, Prepare = 2, Completed = 3, Changed = 4, InviteInvalidated = 5 }
+
+internal sealed class NetworkMemberInfo
+{
+    public string PlayerId = string.Empty;
+    public string DisplayName = string.Empty;
+    public bool IsOnline;
+    public bool IsAdministrator;
+    public bool Eligible;
+    public string EligibilityError = string.Empty;
 }
 
 internal sealed class TraderOffer
@@ -92,6 +112,17 @@ internal sealed class NetworkRemoteResult
     public int TraderRunTotalRules;
     public string TraderRunMessage = string.Empty;
     public string TraderRunRuleId = string.Empty;
+    public NetworkMembershipNotice MembershipNotice;
+    public long MembershipRevision;
+    public string MembershipOperationId = string.Empty;
+    public string MembershipTargetPlayerId = string.Empty;
+    public string MembershipSourceNetworkId = string.Empty;
+    public string MembershipTargetNetworkId = string.Empty;
+    public string MembershipInviterName = string.Empty;
+    public bool MembershipWillMerge;
+    public int MembershipOnlineCount;
+    public List<NetworkMemberInfo> NetworkMembers = new List<NetworkMemberInfo>();
+    public List<NetworkMemberInfo> MembershipCandidates = new List<NetworkMemberInfo>();
 }
 
 internal sealed class NetworkRemoteRequest
@@ -121,6 +152,9 @@ internal sealed class NetworkRemoteRequest
     public TraderAutomationRule TraderRule;
     public string TraderRuleId = string.Empty;
     public int TraderRuleMove;
+    public string MembershipTargetPlayerId = string.Empty;
+    public string MembershipOperationId = string.Empty;
+    public int MembershipCandidatePage;
     public string TraderSessionId = string.Empty;
     public int TraderEntityId;
     public int TraderInventoryIndex;
@@ -151,6 +185,7 @@ internal static class NetworkRemoteClient
     private static float _nextTimeoutSweep;
     private static float _nextMatchingFlush;
     private static long _knownRevision = -1;
+    private static long _knownMembershipRevision;
     private static int _authorizedEntityId = -1;
     private static int _authorizedDepth;
     private static long _authorizedRequestId;
@@ -428,6 +463,36 @@ internal static class NetworkRemoteClient
         return Send(player, NewRequest(player, NetworkRequestOperation.QueryRestockSettings), false, false, false, callback);
     }
 
+    internal static bool RequestMembership(EntityPlayerLocal player, NetworkRequestOperation operation, string targetPlayerId,
+        string operationId, int memberPage, int candidatePage, Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player || !NetworkMembershipService.IsMembershipOperation(operation)) return false;
+        NetworkRemoteRequest request = NewRequest(player, operation);
+        request.MembershipTargetPlayerId = targetPlayerId ?? string.Empty;
+        request.MembershipOperationId = operationId ?? string.Empty;
+        request.Page = Math.Max(0, memberPage);
+        request.MembershipCandidatePage = Math.Max(0, candidatePage);
+        return Send(player, request, false, false, false, callback);
+    }
+
+    internal static int PendingRequestCount { get { lock (Sync) return Pending.Count; } }
+
+    internal static void ResetMembershipIdentityForWorldShutdown()
+    {
+        lock (Sync)
+        {
+            Pending.Clear();
+            NetworkIds.Clear();
+            MatchingEntries.Clear();
+            MatchingTypeFetchedAt.Clear();
+            MatchingTypesQueued.Clear();
+            _activeMutationRequestId = 0;
+            _knownRevision = -1;
+            _knownMembershipRevision = 0;
+        }
+        NetworkLog.Debug("Remote membership identity and pending request caches cleared for world shutdown.");
+    }
+
     public static bool OpenTraderMarket(EntityPlayerLocal player, Action<NetworkRemoteResult> callback)
     {
         if (!IsRemoteClient || !(bool)player) return false;
@@ -628,30 +693,59 @@ internal static class NetworkRemoteClient
         PendingRequest pending;
         bool responseCurrent;
         bool revisionChanged = false;
+        bool membershipStateCurrent;
         lock (Sync)
         {
-            if (!string.IsNullOrEmpty(result.NetworkId))
-                NetworkIds[entityId] = result.NetworkId;
-            if (result.Revision > _knownRevision)
+            if (!Pending.TryGetValue(result.RequestId, out pending)) pending = null;
+            else if (pending.EntityId != entityId)
+            {
+                NetworkLog.Error("Ignored network response routed to the wrong player entity. requestId=" + result.RequestId + "; expectedEntity=" + pending.EntityId + "; receivedEntity=" + entityId);
+                return;
+            }
+            else
+            {
+                Pending.Remove(result.RequestId);
+                if (_activeMutationRequestId == result.RequestId) _activeMutationRequestId = 0;
+            }
+
+            membershipStateCurrent = result.MembershipRevision <= 0 || result.MembershipRevision >= _knownMembershipRevision;
+            if (result.MembershipRevision > _knownMembershipRevision) _knownMembershipRevision = result.MembershipRevision;
+            if (membershipStateCurrent && !string.IsNullOrEmpty(result.NetworkId))
+            {
+                if (!NetworkIds.TryGetValue(entityId, out string currentNetworkId)
+                    || string.Equals(currentNetworkId, result.NetworkId, StringComparison.OrdinalIgnoreCase))
+                    NetworkIds[entityId] = result.NetworkId;
+                else
+                {
+                    NetworkIds[entityId] = result.NetworkId;
+                    NetworkLog.Debug("Network identity cache advanced by membership revision. entity=" + entityId + "; previous="
+                        + currentNetworkId + "; current=" + result.NetworkId + "; membershipRevision=" + result.MembershipRevision);
+                }
+            }
+            bool membershipChanged = result.MembershipNotice == NetworkMembershipNotice.Changed && membershipStateCurrent;
+            if (membershipChanged)
+            {
+                MatchingEntries.Clear();
+                MatchingTypeFetchedAt.Clear();
+                _knownRevision = result.Revision;
+                revisionChanged = true;
+            }
+            else if (membershipStateCurrent && result.Revision > _knownRevision)
             {
                 _knownRevision = result.Revision;
                 MatchingEntries.Clear();
                 MatchingTypeFetchedAt.Clear();
                 revisionChanged = true;
             }
-            responseCurrent = result.Revision >= _knownRevision;
-            if (!Pending.TryGetValue(result.RequestId, out pending))
-            {
-                NetworkLog.Debug("Ignored unmatched network response. requestId=" + result.RequestId + "; network=" + result.NetworkId);
-                return;
-            }
-            if (pending.EntityId != entityId)
-            {
-                NetworkLog.Error("Ignored network response routed to the wrong player entity. requestId=" + result.RequestId + "; expectedEntity=" + pending.EntityId + "; receivedEntity=" + entityId);
-                return;
-            }
-            Pending.Remove(result.RequestId);
-            if (_activeMutationRequestId == result.RequestId) _activeMutationRequestId = 0;
+            responseCurrent = membershipStateCurrent && result.Revision >= _knownRevision;
+        }
+        if (result.MembershipNotice != NetworkMembershipNotice.None && membershipStateCurrent)
+            NetworkMembershipClient.HandleNotice(entityId, result);
+        if (pending == null)
+        {
+            if (result.RequestId != 0) NetworkLog.Debug("Ignored unmatched network response. requestId=" + result.RequestId + "; network=" + result.NetworkId);
+            if (revisionChanged) AmmoBankService.RefreshAmmoHud(GetLocalPlayer());
+            return;
         }
         if (pending.Request.Operation == NetworkRequestOperation.QueryMatching && responseCurrent && result.Success)
         {
@@ -881,12 +975,17 @@ internal static class NetworkRemoteClient
         if (!(bool)connection || !connection.IsClient || connection.IsServer) return false;
         lock (Sync)
         {
+            if (NetworkMembershipClient.IsPreparing && request.Operation != NetworkRequestOperation.ReturnAuthorization
+                && request.Operation != NetworkRequestOperation.ReturnWithdrawal && request.Operation != NetworkRequestOperation.AmmoBankRefund
+                && request.Operation != NetworkRequestOperation.MembershipAcknowledgePrepare)
+                return false;
             bool mutation = request.Operation != NetworkRequestOperation.QueryPage
                 && request.Operation != NetworkRequestOperation.QueryMatching
                 && request.Operation != NetworkRequestOperation.QueryRestockSettings
                 && request.Operation != NetworkRequestOperation.TraderQueryMarket
                 && request.Operation != NetworkRequestOperation.TraderCloseMarket
-                && request.Operation != NetworkRequestOperation.TraderQueryRules;
+                && request.Operation != NetworkRequestOperation.TraderQueryRules
+                && request.Operation != NetworkRequestOperation.MembershipQuery;
             if (mutation && _activeMutationRequestId != 0)
             {
                 NetworkLog.Debug("Remote mutation not queued because another inventory transaction is awaiting confirmation. operation=" + request.Operation + "; activeRequestId=" + _activeMutationRequestId);

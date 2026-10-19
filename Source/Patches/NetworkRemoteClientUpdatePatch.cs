@@ -14,5 +14,6 @@ internal static class NetworkRemoteClientUpdatePatch
         XUiC_TraderMarketWindow.ProcessPendingReturn(playerUI);
         XUiC_TraderRulesWindow.ProcessPendingReturn(playerUI);
         if ((bool)playerUI) CraftingChainOrderService.Update(playerUI.xui);
+        NetworkMembershipClient.Update();
     }
 }
