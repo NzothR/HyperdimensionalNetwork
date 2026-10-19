@@ -229,6 +229,11 @@ internal static class NetworkRpcServer
                 return TraderAutomationService.ExecuteRuleRequest(world, player, request);
             case NetworkRequestOperation.AutomationProcessSlot:
                 return InventoryAutomationService.ExecuteSlot(player, sender?.latestPlayerData, request);
+            case NetworkRequestOperation.TrashOpen:
+            case NetworkRequestOperation.TrashPut:
+            case NetworkRequestOperation.TrashTake:
+            case NetworkRequestOperation.TrashClose:
+                return TrashContainerService.Execute(player, sender?.latestPlayerData, request);
             case NetworkRequestOperation.MembershipInvite:
             case NetworkRequestOperation.MembershipAcceptInvite:
             case NetworkRequestOperation.MembershipDeclineInvite:
@@ -1177,6 +1182,8 @@ internal static class NetworkRpcServer
             UpdatedSourceCount = result.UpdatedSourceCount,
             Value = result.Value?.Clone(),
             Entries = result.Entries?.Select(entry => new StoredEntry { Value = entry.Value.Clone(), Count = entry.Count }).ToList() ?? new List<StoredEntry>(),
+            TrashSlots = result.TrashSlots?.Select(entry => new TrashSlotEntry { Slot = entry.Slot, Value = entry.Value.Clone(), Count = entry.Count }).ToList()
+                ?? new List<TrashSlotEntry>(),
             BagData = result.BagData == null ? null : (byte[])result.BagData.Clone(),
             InventoryData = result.InventoryData == null ? null : (byte[])result.InventoryData.Clone(),
             EntityBagData = result.EntityBagData == null ? null : (byte[])result.EntityBagData.Clone(),

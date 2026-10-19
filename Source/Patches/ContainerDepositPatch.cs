@@ -21,6 +21,16 @@ internal static class ContainerDepositPatch
         }
         XUiController backpackButton = __instance.GetChildById("btnHyperdimensionalBackpackAll");
         if (backpackButton != null) backpackButton.OnPress += (sender, mouse) => DepositBackpack(FindParent<XUiC_BackpackWindow>(__instance));
+        XUiController trashButton = __instance.GetChildById("btnHyperdimensionalTrash");
+        if (trashButton != null) trashButton.OnPress += (sender, mouse) =>
+        {
+            EntityPlayerLocal player = __instance.xui?.playerUI?.entityPlayer;
+            if (!(bool)player || !AutoRestockClient.IsFeatureEnabled(player, NetworkFeatureSetting.TrashEnabled)) return;
+            GUIWindowManager manager = player.playerUI?.windowManager;
+            if (manager == null) return;
+            if (manager.IsWindowOpen("hyperdimensionalTrash")) manager.Close("hyperdimensionalTrash");
+            else manager.Open("hyperdimensionalTrash", _bModal: true);
+        };
     }
 
     internal static bool DepositFromControls(XUiC_ContainerStandardControls controls)

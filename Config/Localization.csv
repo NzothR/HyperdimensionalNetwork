@@ -135,6 +135,8 @@ HyperdimensionalNetworkTraderRulesSaved,Rule saved,规则已保存
 HyperdimensionalNetworkTraderRulesDeleted,Rule deleted,规则已删除
 HyperdimensionalNetworkTraderRulesRunRequested,Rule execution started,已开始按顺序执行规则
 HyperdimensionalNetworkAutomationSettings,Automation settings,自动化设置
+HyperdimensionalNetworkTrashOpen,Open trash container,打开垃圾桶
+HyperdimensionalNetworkTrashWindow,Trash (destroy on close),垃圾桶（关闭时销毁）
 HyperdimensionalNetworkTraderRuleToggle,Enable / disable,启用/停用
 HyperdimensionalNetworkTraderRuleRun,Run all now,立即执行全部
 HyperdimensionalNetworkTraderRuleUp,Move up,上移
