@@ -179,8 +179,8 @@ internal static class NetworkRpcServer
                 return DepositBackpackAll(player, sender?.latestPlayerData, request);
             case NetworkRequestOperation.DepositLootAll:
                 return DepositLootAll(world, player, request);
-            case NetworkRequestOperation.DepositLootBagAll:
-                return DepositLootBagAll(world, player, request);
+            case NetworkRequestOperation.DepositEntityBagAll:
+                return DepositEntityBagAll(world, player, request);
             case NetworkRequestOperation.WithdrawCursor:
             case NetworkRequestOperation.WithdrawBackpack:
                 return Withdraw(player, sender?.latestPlayerData, request);
@@ -412,22 +412,22 @@ internal static class NetworkRpcServer
         return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Amount = additions.Sum(entry => (int)Math.Min(entry.Count, int.MaxValue)) };
     }
 
-    private static NetworkRemoteResult DepositLootBagAll(World world, EntityPlayer player, NetworkRemoteRequest request)
+    private static NetworkRemoteResult DepositEntityBagAll(World world, EntityPlayer player, NetworkRemoteRequest request)
     {
-        EntityLootContainer lootBag = world.GetEntity(request.TargetEntityId) as EntityLootContainer;
-        if (lootBag?.bag == null || !PlayerHoldsLootLock(player.entityId, lootBag))
-            return Failure(request, "LootBagUnavailable");
+        Entity bagEntity = world.GetEntity(request.TargetEntityId);
+        if (bagEntity?.bag == null || !(bagEntity is ILockTarget lockTarget) || !PlayerHoldsLootLock(player.entityId, lockTarget))
+            return Failure(request, "EntityBagUnavailable");
 
-        float interactDistance = Constants.cPlayerInteractDistance;
-        float distanceSq = lootBag.GetDistanceSq(player);
+        float interactDistance = bagEntity is EntityDrone ? Constants.cDigAndBuildDistance + 1f : Constants.cPlayerInteractDistance;
+        float distanceSq = bagEntity.GetDistanceSq(player);
         if (distanceSq > interactDistance * interactDistance)
         {
-            NetworkLog.Debug("Remote zombie loot bag deposit rejected by the vanilla interaction-distance check. player=" + player.entityId
-                + "; lootBag=" + lootBag.entityId + "; distance=" + Math.Sqrt(distanceSq) + "; maximum=" + interactDistance);
+            NetworkLog.Debug("Remote entity bag deposit rejected by the vanilla interaction-distance check. player=" + player.entityId
+                + "; entity=" + bagEntity.entityId + "; type=" + bagEntity.GetType().Name + "; distance=" + Math.Sqrt(distanceSq) + "; maximum=" + interactDistance);
             return Failure(request, "OutOfRange");
         }
 
-        Bag bag = lootBag.bag;
+        Bag bag = bagEntity.bag;
         NetworkStackCompatibility.RestoreExtendedCounts(NetworkStackCompatibility.GetSlots(bag));
         List<StorageAddition> additions = new List<StorageAddition>();
         List<KeyValuePair<int, ItemStack>> originalStacks = new List<KeyValuePair<int, ItemStack>>();
@@ -452,7 +452,8 @@ internal static class NetworkRpcServer
                 if ((lockedSlots == null || i >= lockedSlots.Length || !lockedSlots[i])
                     && (bag.ItemGrid[i] == null || !bag.ItemGrid[i].IsEmpty())) bag.SetSlot(i, ItemStack.Empty.Clone());
             bag.ItemGrid.Touch();
-            updatedBag = WriteLootBag(bag);
+            updatedBag = WriteEntityBag(bag);
+            SynchronizeEntityBag(bagEntity);
             committed = true;
         }
         finally
@@ -460,7 +461,7 @@ internal static class NetworkRpcServer
             if (!committed)
             {
                 if (!NetworkStorage.RemoveBatch(player, additions))
-                    NetworkLog.Error("Could not compensate network items after a zombie loot bag update failure. player=" + player.entityId + "; requestId=" + request.RequestId);
+                    NetworkLog.Error("Could not compensate network items after an entity bag update failure. player=" + player.entityId + "; entity=" + bagEntity.entityId + "; requestId=" + request.RequestId);
                 foreach (KeyValuePair<int, ItemStack> original in originalStacks)
                 {
                     try
@@ -469,26 +470,34 @@ internal static class NetworkRpcServer
                     }
                     catch (Exception ex)
                     {
-                        NetworkLog.Error("Zombie loot bag rollback could not restore a slot. entity=" + lootBag.entityId + "; slot=" + original.Key + "; exception=" + ex);
+                        NetworkLog.Error("Entity bag rollback could not restore a slot. entity=" + bagEntity.entityId + "; slot=" + original.Key + "; exception=" + ex);
                     }
                 }
                 try { bag.ItemGrid.Touch(); }
-                catch (Exception ex) { NetworkLog.Error("Zombie loot bag rollback could not refresh its inventory state. entity=" + lootBag.entityId + "; exception=" + ex); }
+                catch (Exception ex) { NetworkLog.Error("Entity bag rollback could not refresh its inventory state. entity=" + bagEntity.entityId + "; exception=" + ex); }
+                try { SynchronizeEntityBag(bagEntity); }
+                catch (Exception ex) { NetworkLog.Error("Entity bag rollback could not synchronize restored contents. entity=" + bagEntity.entityId + "; exception=" + ex); }
             }
         }
 
-        NetworkLog.Debug("Zombie loot bag deposited into network. player=" + player.entityId + "; lootBag=" + lootBag.entityId
+        NetworkLog.Debug("Entity bag deposited into network. player=" + player.entityId + "; entity=" + bagEntity.entityId + "; type=" + bagEntity.GetType().Name
             + "; variants=" + additions.Count + "; total=" + additions.Sum(item => item.Count) + "; requestId=" + request.RequestId);
         return new NetworkRemoteResult
         {
             RequestId = request.RequestId,
             Success = true,
             Amount = additions.Sum(entry => (int)Math.Min(entry.Count, int.MaxValue)),
-            LootBagData = updatedBag
+            EntityBagData = updatedBag
         };
     }
 
-    private static byte[] WriteLootBag(Bag bag)
+    private static void SynchronizeEntityBag(Entity entity)
+    {
+        if (entity is EntityVehicle vehicle) vehicle.SetBagModified();
+        else if (entity is EntityDrone drone) drone.SendSyncData(8);
+    }
+
+    private static byte[] WriteEntityBag(Bag bag)
     {
         List<ItemValue> writeMetadata = NetworkStackCompatibility.PrepareForWrite(NetworkStackCompatibility.GetSlots(bag));
         try { return StreamUtils.ToBlob(writer => bag.Write(writer, StreamModeWrite.ToClient)).ToArray(); }
@@ -1139,7 +1148,7 @@ internal static class NetworkRpcServer
             Entries = result.Entries?.Select(entry => new StoredEntry { Value = entry.Value.Clone(), Count = entry.Count }).ToList() ?? new List<StoredEntry>(),
             BagData = result.BagData == null ? null : (byte[])result.BagData.Clone(),
             InventoryData = result.InventoryData == null ? null : (byte[])result.InventoryData.Clone(),
-            LootBagData = result.LootBagData == null ? null : (byte[])result.LootBagData.Clone(),
+            EntityBagData = result.EntityBagData == null ? null : (byte[])result.EntityBagData.Clone(),
             RestockSettingsLoaded = result.RestockSettingsLoaded,
             AutoRestockEnabled = result.AutoRestockEnabled,
             RestockTargetMode = result.RestockTargetMode,

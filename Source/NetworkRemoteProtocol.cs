@@ -47,7 +47,7 @@ internal enum NetworkRequestOperation : byte
     MembershipKick = 36,
     MembershipTransferAdministrator = 37,
     MembershipAcknowledgePrepare = 38,
-    DepositLootBagAll = 39
+    DepositEntityBagAll = 39
 }
 
 internal enum NetworkMembershipNotice : byte { None = 0, Invite = 1, Prepare = 2, Completed = 3, Changed = 4, InviteInvalidated = 5 }
@@ -95,7 +95,7 @@ internal sealed class NetworkRemoteResult
     public List<StoredEntry> Entries = new List<StoredEntry>();
     public byte[] BagData;
     public byte[] InventoryData;
-    public byte[] LootBagData;
+    public byte[] EntityBagData;
     public bool RestockSettingsLoaded;
     public bool AutoRestockEnabled;
     public RestockTargetMode RestockTargetMode;
@@ -671,11 +671,11 @@ internal static class NetworkRemoteClient
         return Send(localPlayer, request, false, false, false, callback);
     }
 
-    public static bool DepositLootBagAll(EntityPlayer player, int lootBagEntityId, Action<NetworkRemoteResult> callback)
+    public static bool DepositEntityBagAll(EntityPlayer player, int entityId, Action<NetworkRemoteResult> callback)
     {
-        if (!IsRemoteClient || !(player is EntityPlayerLocal localPlayer) || lootBagEntityId <= 0) return false;
-        NetworkRemoteRequest request = NewRequest(localPlayer, NetworkRequestOperation.DepositLootBagAll);
-        request.TargetEntityId = lootBagEntityId;
+        if (!IsRemoteClient || !(player is EntityPlayerLocal localPlayer) || entityId <= 0) return false;
+        NetworkRemoteRequest request = NewRequest(localPlayer, NetworkRequestOperation.DepositEntityBagAll);
+        request.TargetEntityId = entityId;
         return Send(localPlayer, request, false, false, false, callback);
     }
 

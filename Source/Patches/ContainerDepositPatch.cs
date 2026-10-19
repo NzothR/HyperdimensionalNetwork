@@ -11,19 +11,54 @@ internal static class ContainerDepositPatch
     public static void InitPostfix(XUiC_ContainerStandardControls __instance)
     {
         XUiController lootButton = __instance.GetChildById("btnHyperdimensionalLootAll");
-        if (lootButton != null) lootButton.OnPress += (sender, mouse) =>
-        {
-            XUiC_LootWindow lootWindow = FindParent<XUiC_LootWindow>(__instance);
-            if (lootWindow != null)
-            {
-                DepositLootFromWindow(lootWindow);
-                return;
-            }
-            XUiC_BagContainer bagContainer = FindParent<XUiC_BagContainer>(__instance);
-            if (bagContainer != null) DepositLootBagFromWindow(bagContainer);
-        };
+        if (lootButton != null) lootButton.OnPress += (sender, mouse) => DepositFromControls(__instance);
         XUiController backpackButton = __instance.GetChildById("btnHyperdimensionalBackpackAll");
         if (backpackButton != null) backpackButton.OnPress += (sender, mouse) => DepositBackpack(FindParent<XUiC_BackpackWindow>(__instance));
+    }
+
+    internal static bool DepositFromControls(XUiC_ContainerStandardControls controls)
+    {
+        if (controls?.MoveAllowed == null) return false;
+        controls.UpdateLockedSlotStates?.Invoke(controls);
+        if (!controls.MoveAllowed(out XUiController parentWindow, out XUiC_ItemStackGrid source, out _)
+            || source == null)
+        {
+            NetworkLog.Debug("Container deposit skipped because the standard controls did not provide a source grid. controls=" + controls.GetType().Name);
+            return false;
+        }
+
+        if (source is XUiC_LootContainer)
+        {
+            XUiC_LootWindow lootWindow = parentWindow as XUiC_LootWindow ?? FindParent<XUiC_LootWindow>(controls);
+            if (lootWindow == null)
+            {
+                NetworkLog.Debug("Container deposit found a loot grid without its parent loot window. source=" + source.GetType().Name);
+                return false;
+            }
+            return DepositLootFromWindow(lootWindow);
+        }
+
+        if (source is XUiC_BagContainer bagContainer)
+        {
+            XUiC_BagStorageWindowGroup bagWindow = FindParent<XUiC_BagStorageWindowGroup>(controls);
+            if (bagWindow?.Entity?.bag == null)
+            {
+                NetworkLog.Debug("Container deposit found a bag grid without an entity-backed storage window. source=" + source.GetType().Name);
+                return false;
+            }
+            return DepositEntityBagFromWindow(bagContainer, bagWindow.Entity);
+        }
+
+        if (NetworkRemoteClient.IsRemoteClient)
+        {
+            NetworkLog.Debug("Remote container deposit skipped because this modded grid has no supported server-side storage identity. source=" + source.GetType().FullName);
+            return false;
+        }
+
+        bool moved = DepositGrid(controls.xui, source, controls.LockedSlots);
+        controls.MoveAllDone?.Invoke(true, moved);
+        NetworkLog.Debug("Local generic container deposit completed. source=" + source.GetType().FullName + "; moved=" + moved);
+        return moved;
     }
 
     internal static bool DepositLootFromWindow(XUiC_LootWindow window)
@@ -62,27 +97,24 @@ internal static class ContainerDepositPatch
         return moved;
     }
 
-    internal static bool DepositLootBagFromWindow(XUiC_BagContainer bagContainer)
+    internal static bool DepositEntityBagFromWindow(XUiC_BagContainer bagContainer, Entity bagEntity)
     {
         EntityPlayer player = bagContainer?.xui?.playerUI?.entityPlayer;
         Bag bag = bagContainer?.Bag;
-        XUiController groupController = bagContainer?.xui?.FindWindowGroupByName(XUiC_BagStorageWindowGroup.ID);
-        XUiC_BagStorageWindowGroup group = groupController?.GetChildByType<XUiC_BagStorageWindowGroup>();
-        EntityLootContainer lootBag = group?.Entity as EntityLootContainer;
-        if (!(bool)player || bag == null || lootBag?.bag == null || !ReferenceEquals(bag, lootBag.bag)) return false;
+        if (!(bool)player || bag == null || bagEntity?.bag == null || !ReferenceEquals(bag, bagEntity.bag)) return false;
 
         if (NetworkRemoteClient.IsRemoteClient)
         {
-            bool queued = NetworkRemoteClient.DepositLootBagAll(player, lootBag.entityId, result =>
+            bool queued = NetworkRemoteClient.DepositEntityBagAll(player, bagEntity.entityId, result =>
             {
                 bool moved = result.Success && result.Amount > 0;
                 if (result.Success)
                 {
-                    if (NetworkInventorySync.ApplyLootBag(lootBag, result.LootBagData)) bagContainer.OnBagItemChangedInternal();
-                    else NetworkLog.Error("Loot bag deposit succeeded but its server snapshot could not be applied. entity=" + lootBag.entityId + "; requestId=" + result.RequestId);
-                    NetworkLog.Debug("Remote zombie loot bag deposit confirmed. entity=" + lootBag.entityId + "; amount=" + result.Amount + "; requestId=" + result.RequestId);
+                    if (NetworkInventorySync.ApplyEntityBag(bagEntity, result.EntityBagData)) bagContainer.OnBagItemChangedInternal();
+                    else NetworkLog.Error("Entity bag deposit succeeded but its server snapshot could not be applied. entity=" + bagEntity.entityId + "; type=" + bagEntity.GetType().Name + "; requestId=" + result.RequestId);
+                    NetworkLog.Debug("Remote entity bag deposit confirmed. entity=" + bagEntity.entityId + "; type=" + bagEntity.GetType().Name + "; amount=" + result.Amount + "; requestId=" + result.RequestId);
                 }
-                else NetworkLog.Debug("Remote zombie loot bag deposit rejected. entity=" + lootBag.entityId + "; error=" + result.Error + "; requestId=" + result.RequestId);
+                else NetworkLog.Debug("Remote entity bag deposit rejected. entity=" + bagEntity.entityId + "; type=" + bagEntity.GetType().Name + "; error=" + result.Error + "; requestId=" + result.RequestId);
                 XUiC_ContainerStandardControls controls = bagContainer.GetChildByType<XUiC_ContainerStandardControls>();
                 if (controls?.MoveAllDone != null) controls.MoveAllDone(true, moved);
             });
@@ -90,7 +122,7 @@ internal static class ContainerDepositPatch
             {
                 XUiC_ContainerStandardControls controls = bagContainer.GetChildByType<XUiC_ContainerStandardControls>();
                 if (controls?.MoveAllDone != null) controls.MoveAllDone(true, false);
-                NetworkLog.Error("Remote zombie loot bag deposit could not be queued; the bag was left unchanged. entity=" + lootBag.entityId);
+                NetworkLog.Error("Remote entity bag deposit could not be queued; the bag was left unchanged. entity=" + bagEntity.entityId + "; type=" + bagEntity.GetType().Name);
             }
             return queued;
         }
@@ -98,7 +130,7 @@ internal static class ContainerDepositPatch
         bool localMoved = DepositGrid(bagContainer.xui, bagContainer, bag.LockedSlots);
         XUiC_ContainerStandardControls localControls = bagContainer.GetChildByType<XUiC_ContainerStandardControls>();
         if (localControls?.MoveAllDone != null) localControls.MoveAllDone(true, localMoved);
-        NetworkLog.Debug("Local zombie loot bag deposit completed. entity=" + lootBag.entityId + "; moved=" + localMoved);
+        NetworkLog.Debug("Local entity bag deposit completed. entity=" + bagEntity.entityId + "; type=" + bagEntity.GetType().Name + "; moved=" + localMoved);
         return localMoved;
     }
 

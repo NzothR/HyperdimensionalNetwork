@@ -53,7 +53,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         }
         _result.BagData = ReadBoundedBlob(reader);
         _result.InventoryData = ReadBoundedBlob(reader);
-        _result.LootBagData = ReadBoundedBlob(reader);
+        _result.EntityBagData = ReadBoundedBlob(reader);
         _result.RestockSettingsLoaded = reader.ReadBoolean();
         _result.AutoRestockEnabled = reader.ReadBoolean();
         _result.RestockTargetMode = (RestockTargetMode)reader.ReadByte();
@@ -143,7 +143,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         }
         WriteBoundedBlob(binary, result.BagData);
         WriteBoundedBlob(binary, result.InventoryData);
-        WriteBoundedBlob(binary, result.LootBagData);
+        WriteBoundedBlob(binary, result.EntityBagData);
         binary.Write(result.RestockSettingsLoaded);
         binary.Write(result.AutoRestockEnabled);
         binary.Write((byte)result.RestockTargetMode);
@@ -219,7 +219,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
     {
         int entries = _result?.Entries?.Count ?? 0;
         if (entries > 4096) throw new InvalidDataException("Network response entry count exceeds the protocol limit: " + entries);
-        int bytes = (_result?.BagData?.Length ?? 0) + (_result?.InventoryData?.Length ?? 0) + (_result?.LootBagData?.Length ?? 0);
+        int bytes = (_result?.BagData?.Length ?? 0) + (_result?.InventoryData?.Length ?? 0) + (_result?.EntityBagData?.Length ?? 0);
         int valueBytes = _result?.Value == null ? 0 : 512;
         int offers = _result?.TraderOffers?.Count ?? 0;
         if (offers > 2048) throw new InvalidDataException("Trader offer count exceeds the response limit: " + offers);
