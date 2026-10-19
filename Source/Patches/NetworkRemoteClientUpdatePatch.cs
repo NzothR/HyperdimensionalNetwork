@@ -12,6 +12,7 @@ internal static class NetworkRemoteClientUpdatePatch
         AutoRestockClient.Update();
         LocalPlayerUI playerUI = LocalPlayerUI.GetUIForPrimaryPlayer();
         XUiC_TraderMarketWindow.ProcessPendingReturn(playerUI);
+        XUiC_TraderRulesWindow.ProcessPendingReturn(playerUI);
         if ((bool)playerUI) CraftingChainOrderService.Update(playerUI.xui);
     }
 }

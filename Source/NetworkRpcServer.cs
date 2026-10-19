@@ -982,7 +982,12 @@ internal static class NetworkRpcServer
                 Value = offer.Value?.Clone(), Count = offer.Count, BundleSize = offer.BundleSize,
                 BundlePrice = offer.BundlePrice, TraderEntityId = offer.TraderEntityId, InventoryIndex = offer.InventoryIndex
             }).ToList() ?? new List<TraderOffer>(),
-            TraderRules = result.TraderRules?.Select(rule => rule.Clone()).ToList() ?? new List<TraderAutomationRule>()
+            TraderRules = result.TraderRules?.Select(rule => rule.Clone()).ToList() ?? new List<TraderAutomationRule>(),
+            TraderRunProgressAvailable = result.TraderRunProgressAvailable,
+            TraderRunActive = result.TraderRunActive,
+            TraderRunCurrentRule = result.TraderRunCurrentRule,
+            TraderRunTotalRules = result.TraderRunTotalRules,
+            TraderRunMessage = result.TraderRunMessage
         };
     }
 

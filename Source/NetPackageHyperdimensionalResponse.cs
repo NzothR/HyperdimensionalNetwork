@@ -91,6 +91,11 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
                 Scope = (TraderRuleScope)reader.ReadByte(), Category = ReadBoundedString(reader, 128),
                 ExcludedCategories = ReadBoundedString(reader, 1024), ExcludedItemTypes = ReadBoundedString(reader, 1024)
             });
+        _result.TraderRunProgressAvailable = reader.ReadBoolean();
+        _result.TraderRunActive = reader.ReadBoolean();
+        _result.TraderRunCurrentRule = reader.ReadInt32();
+        _result.TraderRunTotalRules = reader.ReadInt32();
+        _result.TraderRunMessage = ReadBoundedString(reader, 256);
     }
 
     public override void write(PooledBinaryWriter writer)
@@ -164,6 +169,11 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
                 binary.Write((byte)rule.Scope); binary.Write(rule.Category ?? string.Empty);
                 binary.Write(rule.ExcludedCategories ?? string.Empty); binary.Write(rule.ExcludedItemTypes ?? string.Empty);
             }
+        binary.Write(result.TraderRunProgressAvailable);
+        binary.Write(result.TraderRunActive);
+        binary.Write(result.TraderRunCurrentRule);
+        binary.Write(result.TraderRunTotalRules);
+        binary.Write(result.TraderRunMessage ?? string.Empty);
     }
 
     public override void ProcessPackage(World world, GameManager callbacks)
@@ -191,8 +201,9 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         int ruleTextBytes = _result?.TraderRules?.Sum(rule => Encoding.UTF8.GetByteCount(rule?.Category ?? string.Empty)
             + Encoding.UTF8.GetByteCount(rule?.ExcludedCategories ?? string.Empty)
             + Encoding.UTF8.GetByteCount(rule?.ExcludedItemTypes ?? string.Empty)) ?? 0;
-        return 116 + entries * 512 + offers * 640 + rules * 136 + ruleTextBytes + bytes + valueBytes + Encoding.UTF8.GetByteCount(_result?.Error ?? string.Empty)
-            + Encoding.UTF8.GetByteCount(_result?.NetworkId ?? string.Empty) + Encoding.UTF8.GetByteCount(_result?.TraderSessionId ?? string.Empty);
+        return 127 + entries * 512 + offers * 640 + rules * 136 + ruleTextBytes + bytes + valueBytes + Encoding.UTF8.GetByteCount(_result?.Error ?? string.Empty)
+            + Encoding.UTF8.GetByteCount(_result?.NetworkId ?? string.Empty) + Encoding.UTF8.GetByteCount(_result?.TraderSessionId ?? string.Empty)
+            + Encoding.UTF8.GetByteCount(_result?.TraderRunMessage ?? string.Empty);
     }
 
     private static string ReadBoundedString(BinaryReader reader, int maximumBytes)

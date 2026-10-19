@@ -8,7 +8,7 @@ namespace HyperdimensionalNetwork;
 
 internal enum TraderAutomationRuleKind : byte { AutoSell = 1, AutoBuy = 2 }
 internal enum TraderQualityMatchMode : byte { Any = 0, Exact = 1, Greater = 2, GreaterOrEqual = 3, Less = 4, LessOrEqual = 5 }
-internal enum TraderRuleComparison : byte { Greater = 0, GreaterOrEqual = 1, Equal = 2, LessOrEqual = 3, Less = 4 }
+internal enum TraderRuleComparison : byte { Greater = 0, GreaterOrEqual = 1, Equal = 2, LessOrEqual = 3, Less = 4, Ignore = 5 }
 internal enum TraderRuleScope : byte { SingleItem = 0, Category = 1 }
 
 internal sealed class TraderAutomationRule
@@ -44,12 +44,24 @@ internal static class TraderAutomationService
         public World World;
         public int PlayerEntityId;
         public string SessionId;
+        public string NetworkId;
         public List<TraderAutomationRule> Rules;
         public string Reason;
         public float StartedAt;
         public float NextQueryAt;
         public int LastOfferCount = -1;
         public int StableOfferQueries;
+        public int NextRuleIndex;
+        public bool OffersReady;
+        public List<TraderOffer> CurrentOffers = new List<TraderOffer>();
+    }
+
+    private sealed class TraderRunProgress
+    {
+        public bool Active;
+        public int CurrentRule;
+        public int TotalRules;
+        public string Message = string.Empty;
     }
     private const int FileMagic = 0x31525448; // HTR1
     private const int FileVersion = 3;
@@ -59,6 +71,7 @@ internal static class TraderAutomationService
     private static readonly Dictionary<string, List<TraderAutomationRule>> Rules = new Dictionary<string, List<TraderAutomationRule>>(StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> ProcessingDeposits = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> ManualRunNetworks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, TraderRunProgress> ManualRunProgress = new Dictionary<string, TraderRunProgress>(StringComparer.OrdinalIgnoreCase);
     private static readonly List<PendingBuyRun> PendingRuns = new List<PendingBuyRun>();
     private static string _path;
     private static bool _loaded;
@@ -79,12 +92,37 @@ internal static class TraderAutomationService
     public static NetworkRemoteResult QueryRules(EntityPlayer player, NetworkRemoteRequest request)
     {
         bool isAdmin = (bool)player && PlayerNetworkDirectory.IsNetworkAdministrator(player);
-        return new NetworkRemoteResult
+        NetworkRemoteResult result = new NetworkRemoteResult
         {
             RequestId = request?.RequestId ?? 0,
             Success = true,
             IsNetworkAdministrator = isAdmin,
             TraderRules = isAdmin ? GetRules(player) : new List<TraderAutomationRule>()
+        };
+        if (isAdmin) AttachRunProgress(result, PlayerNetworkDirectory.GetNetworkId(player));
+        return result;
+    }
+
+    private static void AttachRunProgress(NetworkRemoteResult result, string networkId)
+    {
+        if (result == null || string.IsNullOrEmpty(networkId)) return;
+        lock (Sync)
+        {
+            if (!ManualRunProgress.TryGetValue(networkId, out TraderRunProgress progress)) return;
+            result.TraderRunProgressAvailable = true;
+            result.TraderRunActive = progress.Active;
+            result.TraderRunCurrentRule = progress.CurrentRule;
+            result.TraderRunTotalRules = progress.TotalRules;
+            result.TraderRunMessage = progress.Message ?? string.Empty;
+        }
+    }
+
+    private static void SetRunProgress(string networkId, bool active, int currentRule, int totalRules, string message)
+    {
+        if (string.IsNullOrEmpty(networkId)) return;
+        lock (Sync) ManualRunProgress[networkId] = new TraderRunProgress
+        {
+            Active = active, CurrentRule = currentRule, TotalRules = totalRules, Message = message ?? string.Empty
         };
     }
 
@@ -245,18 +283,20 @@ internal static class TraderAutomationService
                     ? rules.Where(rule => rule.Enabled && rule.Kind == TraderAutomationRuleKind.AutoSell).Select(rule => rule.Clone()).ToList()
                     : new List<TraderAutomationRule>();
             if (sellRules.Count == 0) return;
-            Dictionary<string, int> remainingByRule = sellRules.ToDictionary(rule => rule.Id, rule => rule.MaximumCount);
+            Dictionary<string, long> remainingByRule = sellRules.ToDictionary(rule => rule.Id,
+                rule => rule.MaximumCount == 0 ? long.MaxValue : rule.MaximumCount);
             foreach (StorageAddition addition in additions)
             {
                 if (addition?.Value == null || addition.Count <= 0) continue;
                 TraderAutomationRule rule = sellRules.FirstOrDefault(candidate => Matches(candidate, addition.Value));
                 if (rule == null) continue;
-                if (!remainingByRule.TryGetValue(rule.Id, out int remaining) || remaining <= 0) continue;
+                if (!remainingByRule.TryGetValue(rule.Id, out long remaining) || remaining <= 0) continue;
                 List<StoredEntry> entries = NetworkStorage.GetEntries(player);
                 long matchingCount = entries.Where(entry => Matches(rule, entry.Value)).Sum(entry => entry.Count);
-                if (!Compare(matchingCount, rule.NetworkCountComparison, rule.MinimumNetworkCount)) continue;
+                if (rule.NetworkCountComparison != TraderRuleComparison.Ignore
+                    && !Compare(matchingCount, rule.NetworkCountComparison, rule.MinimumNetworkCount)) continue;
                 long available = NetworkStorage.GetCount(player, addition.Value);
-                int count = (int)Math.Min(Math.Min(Math.Min(addition.Count, available), remaining), int.MaxValue);
+                int count = (int)Math.Min(Math.Min(Math.Min((long)addition.Count, available), remaining), int.MaxValue);
                 if (count <= 0) continue;
                 NetworkRemoteResult result = TraderTransactionService.ExecuteVoidSell(player, null, new NetworkRemoteRequest
                 {
@@ -286,8 +326,8 @@ internal static class TraderAutomationService
         if (world == null || world.Players?.list == null) return;
         if (Time.realtimeSinceStartup >= _nextAutomationPoll)
         {
-            _nextAutomationPoll = Time.realtimeSinceStartup + 1f;
-            ProcessPendingRuns(world);
+            _nextAutomationPoll = Time.realtimeSinceStartup + 0.25f;
+            if (PendingRuns.Count > 0) ProcessPendingRuns(world);
         }
         if (Time.realtimeSinceStartup < _nextScheduleCheck) return;
         _nextScheduleCheck = Time.realtimeSinceStartup + 2f;
@@ -351,14 +391,30 @@ internal static class TraderAutomationService
                 && (string.IsNullOrEmpty(ruleId) || rule.Id == ruleId)).Select(rule => rule.Clone()).ToList();
         }
         if (rules.Count == 0) { error = "TraderRuleNotFound"; return false; }
+        lock (Sync)
+        {
+            if (ManualRunProgress.TryGetValue(networkId, out TraderRunProgress progress) && progress.Active)
+            { error = "TraderRuleRunInProgress"; return false; }
+            ManualRunNetworks.Add(networkId);
+        }
+        SetRunProgress(networkId, true, 1, rules.Count, "正在等待第 1 条规则执行");
         if (rules.All(rule => rule.Kind == TraderAutomationRuleKind.AutoSell))
         {
-            lock (Sync) ManualRunNetworks.Add(networkId);
-            try { foreach (TraderAutomationRule rule in rules) ExecuteSellRule(player, rule, "manual"); }
-            finally { lock (Sync) ManualRunNetworks.Remove(networkId); }
+            PendingRuns.Add(new PendingBuyRun
+            {
+                World = world, PlayerEntityId = player.entityId, NetworkId = networkId, SessionId = string.Empty, Rules = rules,
+                Reason = "manual", StartedAt = Time.realtimeSinceStartup, NextQueryAt = Time.realtimeSinceStartup + 0.05f,
+                OffersReady = true
+            });
             return true;
         }
-        return RunAutomaticBuys(world, player, rules, "manual", out error);
+        bool queued = RunAutomaticBuys(world, player, rules, "manual", out error);
+        if (!queued)
+        {
+            lock (Sync) ManualRunNetworks.Remove(networkId);
+            SetRunProgress(networkId, false, 0, rules.Count, "规则执行未能开始：" + error);
+        }
+        return queued;
     }
 
     private static bool RunAutomaticBuys(World world, EntityPlayer player, List<TraderAutomationRule> rules, string reason, out string error)
@@ -376,16 +432,27 @@ internal static class TraderAutomationService
         if (!opened.Success || string.IsNullOrEmpty(opened.TraderSessionId))
         {
             NetworkLog.Debug("Automatic trader purchase could not open market. player=" + player.entityId + "; reason=" + reason + "; error=" + opened.Error);
-            if (reason == "manual" && rules.Any(rule => rule.Kind == TraderAutomationRuleKind.AutoSell))
-                ExecuteAutomaticBuys(world, player, new PendingBuyRun { Rules = rules, Reason = reason, SessionId = string.Empty }, new List<TraderOffer>());
+            if (reason == "manual")
+            {
+                PendingRuns.Add(new PendingBuyRun
+                {
+                    World = world, PlayerEntityId = player.entityId, NetworkId = PlayerNetworkDirectory.GetNetworkId(player), SessionId = string.Empty,
+                    Rules = rules.Select(rule => rule.Clone()).ToList(), Reason = reason,
+                    StartedAt = Time.realtimeSinceStartup, NextQueryAt = Time.realtimeSinceStartup + 0.05f,
+                    OffersReady = true
+                });
+                SetRunProgress(PlayerNetworkDirectory.GetNetworkId(player), true, 1, rules.Count,
+                    "商人市场暂不可用，购入规则将跳过并继续处理");
+                return true;
+            }
             error = opened.Error;
             return false;
         }
         PendingRuns.Add(new PendingBuyRun
         {
-            World = world, PlayerEntityId = player.entityId, SessionId = opened.TraderSessionId,
+            World = world, PlayerEntityId = player.entityId, NetworkId = PlayerNetworkDirectory.GetNetworkId(player), SessionId = opened.TraderSessionId,
             Rules = rules.Select(rule => rule.Clone()).ToList(), Reason = reason,
-            StartedAt = Time.realtimeSinceStartup, NextQueryAt = Time.realtimeSinceStartup + 2f
+            StartedAt = Time.realtimeSinceStartup, NextQueryAt = Time.realtimeSinceStartup + 1f
         });
         NetworkLog.Debug("Automatic trader purchase waiting for discovered trader chunks to load. player=" + player.entityId + "; session=" + opened.TraderSessionId + "; reason=" + reason);
         return true;
@@ -395,50 +462,92 @@ internal static class TraderAutomationService
     {
         foreach (PendingBuyRun run in PendingRuns.ToArray())
         {
-            if (!ReferenceEquals(run.World, world)) { TraderMarketplaceService.ForceClose(run.SessionId); PendingRuns.Remove(run); continue; }
+            if (!ReferenceEquals(run.World, world)) { TraderMarketplaceService.ForceClose(run.SessionId); FinishManualRun(run, "规则执行中断：世界已切换"); PendingRuns.Remove(run); continue; }
             EntityPlayer player = world.GetEntity(run.PlayerEntityId) as EntityPlayer;
-            if (!(bool)player) { TraderMarketplaceService.ForceClose(run.SessionId); PendingRuns.Remove(run); continue; }
+            if (!(bool)player) { TraderMarketplaceService.ForceClose(run.SessionId); FinishManualRun(run, "规则执行中断：玩家已离线"); PendingRuns.Remove(run); continue; }
             if (Time.realtimeSinceStartup < run.NextQueryAt) continue;
-            NetworkRemoteResult query = TraderMarketplaceService.Query(world, player, new NetworkRemoteRequest
+            if (!run.OffersReady && !string.IsNullOrEmpty(run.SessionId))
             {
-                EntityId = player.entityId, RequestId = DateTime.UtcNow.Ticks, Operation = NetworkRequestOperation.TraderQueryMarket,
-                TraderSessionId = run.SessionId, TraderAutomation = true
-            });
-            if (!query.Success)
+                NetworkRemoteResult query = TraderMarketplaceService.Query(world, player, new NetworkRemoteRequest
+                {
+                    EntityId = player.entityId, RequestId = DateTime.UtcNow.Ticks, Operation = NetworkRequestOperation.TraderQueryMarket,
+                    TraderSessionId = run.SessionId, TraderAutomation = true
+                });
+                if (!query.Success)
+                {
+                    NetworkLog.Debug("Automatic trader market query failed. player=" + player.entityId + "; session=" + run.SessionId + "; error=" + query.Error);
+                    TraderMarketplaceService.Close(player, new NetworkRemoteRequest { RequestId = DateTime.UtcNow.Ticks, TraderSessionId = run.SessionId });
+                    FinishManualRun(run, "规则执行中断：商人库存读取失败");
+                    PendingRuns.Remove(run);
+                    continue;
+                }
+                int offerCount = query.TraderOffers?.Count ?? 0;
+                if (offerCount == run.LastOfferCount) run.StableOfferQueries++;
+                else { run.LastOfferCount = offerCount; run.StableOfferQueries = 0; }
+                float elapsed = Time.realtimeSinceStartup - run.StartedAt;
+                if (elapsed < 2f || offerCount == 0 && elapsed < 8f || offerCount > 0 && run.StableOfferQueries < 1)
+                {
+                    run.NextQueryAt = Time.realtimeSinceStartup + 1f;
+                    continue;
+                }
+                run.CurrentOffers = query.TraderOffers ?? new List<TraderOffer>();
+                run.OffersReady = true;
+            }
+
+            if (run.NextRuleIndex >= run.Rules.Count)
             {
-                NetworkLog.Debug("Automatic trader market query failed. player=" + player.entityId + "; session=" + run.SessionId + "; error=" + query.Error);
-                TraderMarketplaceService.Close(player, new NetworkRemoteRequest { RequestId = DateTime.UtcNow.Ticks, TraderSessionId = run.SessionId });
+                if (!string.IsNullOrEmpty(run.SessionId))
+                    TraderMarketplaceService.Close(player, new NetworkRemoteRequest { RequestId = DateTime.UtcNow.Ticks, TraderSessionId = run.SessionId });
+                FinishManualRun(run, "全部 " + run.Rules.Count + " 条规则处理完成；不满足条件的规则已跳过");
                 PendingRuns.Remove(run);
                 continue;
             }
-            int offerCount = query.TraderOffers?.Count ?? 0;
-            if (offerCount == run.LastOfferCount) run.StableOfferQueries++;
-            else { run.LastOfferCount = offerCount; run.StableOfferQueries = 0; }
-            float elapsed = Time.realtimeSinceStartup - run.StartedAt;
-            if (elapsed < 4f || offerCount == 0 && elapsed < 15f || offerCount > 0 && run.StableOfferQueries < 2)
+
+            TraderAutomationRule currentRule = run.Rules[run.NextRuleIndex];
+            int currentIndex = run.NextRuleIndex + 1;
+            if (run.Reason == "manual")
+                SetRunProgress(PlayerNetworkDirectory.GetNetworkId(player), true, currentIndex, run.Rules.Count,
+                    "正在处理第 " + currentIndex + "/" + run.Rules.Count + " 条规则（条件不足将自动跳过）");
+            try
             {
-                run.NextQueryAt = Time.realtimeSinceStartup + 1f;
-                continue;
+                if (currentRule.Kind == TraderAutomationRuleKind.AutoSell)
+                    ExecuteSellRule(player, currentRule, run.Reason);
+                else if (string.IsNullOrEmpty(run.SessionId))
+                    NetworkLog.Debug("Automatic trader buy rule skipped because market could not be opened. player=" + player.entityId + "; rule=" + currentRule.Id);
+                else
+                    ExecuteAutomaticBuys(world, player, new PendingBuyRun
+                    {
+                        Rules = new List<TraderAutomationRule> { currentRule }, Reason = run.Reason,
+                        SessionId = run.SessionId
+                    }, run.CurrentOffers, out run.CurrentOffers);
             }
-            try { ExecuteAutomaticBuys(world, player, run, query.TraderOffers ?? new List<TraderOffer>()); }
-            catch (Exception ex) { NetworkLog.Error("Automatic trader purchase failed safely. player=" + player.entityId + "; reason=" + run.Reason + "; exception=" + ex); }
-            finally
-            {
-                TraderMarketplaceService.Close(player, new NetworkRemoteRequest { RequestId = DateTime.UtcNow.Ticks, TraderSessionId = run.SessionId });
-                PendingRuns.Remove(run);
-            }
+            catch (Exception ex) { NetworkLog.Error("Automatic trader rule failed safely. player=" + player.entityId + "; rule=" + currentRule.Id + "; exception=" + ex); }
+            run.NextRuleIndex++;
+            run.NextQueryAt = Time.realtimeSinceStartup + 0.25f;
+            if (run.Reason == "manual" && run.NextRuleIndex < run.Rules.Count)
+                SetRunProgress(PlayerNetworkDirectory.GetNetworkId(player), true, run.NextRuleIndex + 1, run.Rules.Count,
+                    "正在等待规则 " + (run.NextRuleIndex + 1) + "/" + run.Rules.Count + " 执行");
         }
     }
 
-    private static void ExecuteAutomaticBuys(World world, EntityPlayer player, PendingBuyRun run, List<TraderOffer> offers)
+    private static void FinishManualRun(PendingBuyRun run, string message)
+    {
+        if (run?.Reason != "manual") return;
+        string networkId = run.NetworkId;
+        if (string.IsNullOrEmpty(networkId) && run.World?.GetEntity(run.PlayerEntityId) is EntityPlayer player && (bool)player)
+            networkId = PlayerNetworkDirectory.GetNetworkId(player);
+        if (string.IsNullOrEmpty(networkId)) return;
+        lock (Sync) ManualRunNetworks.Remove(networkId);
+        SetRunProgress(networkId, false, run.Rules?.Count ?? 0, run.Rules?.Count ?? 0, message);
+    }
+
+    private static void ExecuteAutomaticBuys(World world, EntityPlayer player, PendingBuyRun run, List<TraderOffer> offers, out List<TraderOffer> updatedOffers)
     {
         string networkId = PlayerNetworkDirectory.GetNetworkId(player);
-        bool manualRun = run.Reason == "manual" && !string.IsNullOrEmpty(networkId);
-        if (manualRun) lock (Sync) ManualRunNetworks.Add(networkId);
+        List<TraderOffer> currentOffers = offers;
         try
         {
             ItemValue currency = ItemClass.GetItem(TraderInfo.CurrencyItem, false);
-            List<TraderOffer> currentOffers = offers;
             foreach (TraderAutomationRule rule in run.Rules)
             {
                 if (rule.Kind == TraderAutomationRuleKind.AutoSell)
@@ -446,14 +555,18 @@ internal static class TraderAutomationService
                     ExecuteSellRule(player, rule, run.Reason);
                     continue;
                 }
-                if (currency == null || currency.IsEmpty()) break;
+                if (currency == null || currency.IsEmpty())
+                {
+                    NetworkLog.Debug("Automatic trader purchase skipped because currency is unavailable. rule=" + rule.Id);
+                    continue;
+                }
                 long currencyCount = NetworkStorage.GetCount(player, currency);
                 if (!Compare(currencyCount, rule.CurrencyCountComparison, rule.MinimumCurrencyCount))
                 {
                     NetworkLog.Debug("Automatic trader purchase skipped by currency threshold. rule=" + rule.Id + "; balance=" + currencyCount);
                     continue;
                 }
-                if (rule.Scope == TraderRuleScope.SingleItem)
+                if (rule.Scope == TraderRuleScope.SingleItem && rule.NetworkCountComparison != TraderRuleComparison.Ignore)
                 {
                     long matchingNetworkCount = NetworkStorage.GetEntries(player).Where(entry => Matches(rule, entry.Value)).Sum(entry => entry.Count);
                     if (!Compare(matchingNetworkCount, rule.NetworkCountComparison, rule.MinimumNetworkCount))
@@ -463,7 +576,11 @@ internal static class TraderAutomationService
                     }
                 }
                 long spendRemaining = rule.MaximumSpend > 0 ? Math.Min(rule.MaximumSpend, currencyCount) : currencyCount;
-                if (spendRemaining <= 0) continue;
+                if (spendRemaining <= 0)
+                {
+                    NetworkLog.Debug("Automatic trader purchase skipped because spendable currency is zero. rule=" + rule.Id);
+                    continue;
+                }
                 long maximumCount = AllowsUnlimitedMaximumCount(rule) ? long.MaxValue : rule.MaximumCount;
                 NetworkRemoteResult bought = TraderMarketplaceService.BuyAutomaticRule(
                     world, player, run.SessionId, rule, currentOffers, maximumCount,
@@ -480,7 +597,7 @@ internal static class TraderAutomationService
             }
         }
         catch (Exception ex) { NetworkLog.Error("Automatic trader purchase execution failed. player=" + player.entityId + "; reason=" + run.Reason + "; exception=" + ex); }
-        finally { if (manualRun) lock (Sync) ManualRunNetworks.Remove(networkId); }
+        finally { updatedOffers = currentOffers; }
     }
 
     private static void ExecuteSellRule(EntityPlayer player, TraderAutomationRule rule, string reason)
@@ -492,12 +609,17 @@ internal static class TraderAutomationService
         {
         List<StoredEntry> entries = NetworkStorage.GetEntries(player).Where(entry => Matches(rule, entry.Value)).ToList();
         long matchingCount = entries.Sum(entry => entry.Count);
-        if (!Compare(matchingCount, rule.NetworkCountComparison, rule.MinimumNetworkCount)) return;
-        int remaining = rule.MaximumCount;
+        if (rule.NetworkCountComparison != TraderRuleComparison.Ignore
+            && !Compare(matchingCount, rule.NetworkCountComparison, rule.MinimumNetworkCount))
+        {
+            NetworkLog.Debug("Automatic trader sale skipped by network count threshold. rule=" + rule.Id + "; count=" + matchingCount);
+            return;
+        }
+        long remaining = rule.MaximumCount == 0 ? long.MaxValue : rule.MaximumCount;
         foreach (StoredEntry entry in entries)
         {
             if (remaining <= 0) break;
-            int count = (int)Math.Min(remaining, entry.Count);
+            int count = (int)Math.Min(Math.Min(remaining, entry.Count), int.MaxValue);
             if (count <= 0) continue;
             NetworkRemoteResult sold = TraderTransactionService.ExecuteVoidSell(player, null, new NetworkRemoteRequest
             {
@@ -515,7 +637,7 @@ internal static class TraderAutomationService
     }
 
     internal static bool AllowsUnlimitedMaximumCount(TraderAutomationRule rule)
-        => rule != null && rule.Kind == TraderAutomationRuleKind.AutoBuy;
+        => rule != null && (rule.Kind == TraderAutomationRuleKind.AutoBuy || rule.Kind == TraderAutomationRuleKind.AutoSell);
 
     internal static bool Matches(TraderAutomationRule rule, ItemValue value)
     {
@@ -554,6 +676,7 @@ internal static class TraderAutomationService
             TraderRuleComparison.Equal => value == threshold,
             TraderRuleComparison.LessOrEqual => value <= threshold,
             TraderRuleComparison.Less => value < threshold,
+            TraderRuleComparison.Ignore => true,
             _ => false
         };
 

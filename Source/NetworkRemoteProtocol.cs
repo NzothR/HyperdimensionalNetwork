@@ -86,6 +86,11 @@ internal sealed class NetworkRemoteResult
     public string TraderSessionId = string.Empty;
     public List<TraderOffer> TraderOffers = new List<TraderOffer>();
     public List<TraderAutomationRule> TraderRules = new List<TraderAutomationRule>();
+    public bool TraderRunProgressAvailable;
+    public bool TraderRunActive;
+    public int TraderRunCurrentRule;
+    public int TraderRunTotalRules;
+    public string TraderRunMessage = string.Empty;
 }
 
 internal sealed class NetworkRemoteRequest

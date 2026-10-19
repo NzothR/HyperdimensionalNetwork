@@ -32,8 +32,39 @@ public sealed class XUiC_TraderMarketWindow : XUiController
     private string _sessionId = string.Empty;
     private bool _requestPending;
     private bool _closing;
+    private bool _hasOfferFingerprint;
+    private ulong _offerFingerprint;
     private static bool _loggedReturnWait;
     private float _nextRefreshAt;
+
+    private struct MarketOfferGroupKey : IEquatable<MarketOfferGroupKey>
+    {
+        public ItemValue Value;
+        public int BundleSize;
+        public int BundlePrice;
+
+        public bool Equals(MarketOfferGroupKey other)
+            => BundleSize == other.BundleSize && BundlePrice == other.BundlePrice
+                && Value != null && other.Value != null && Value.Equals(other.Value);
+
+        public override bool Equals(object obj) => obj is MarketOfferGroupKey other && Equals(other);
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = Value?.type ?? 0;
+                hash = hash * 397 ^ (Value?.Quality ?? 0);
+                hash = hash * 397 ^ (Value?.Seed ?? 0);
+                hash = hash * 397 ^ (Value?.UseTimes.GetHashCode() ?? 0);
+                hash = hash * 397 ^ (Value?.Meta ?? 0);
+                hash = hash * 397 ^ (Value?.SelectedAmmoTypeIndex ?? 0);
+                hash = hash * 397 ^ (Value?.Activated == true ? 1 : 0);
+                hash = hash * 397 ^ BundleSize;
+                return hash * 397 ^ BundlePrice;
+            }
+        }
+    }
 
     private sealed class MarketOfferGroup
     {
@@ -114,7 +145,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         base.Update(_dt);
         if (_closing || _requestPending || string.IsNullOrEmpty(_sessionId)
             || Time.realtimeSinceStartup < _nextRefreshAt) return;
-        _nextRefreshAt = Time.realtimeSinceStartup + 1f;
+        _nextRefreshAt = Time.realtimeSinceStartup + 2.5f;
         _requestPending = true;
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
         if (!(bool)player || !TraderMarketClient.Query(player, _sessionId, OnMarketRefreshed))
@@ -329,7 +360,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         }
         _sessionId = result.TraderSessionId;
         ApplyResult(result);
-        _nextRefreshAt = Time.realtimeSinceStartup + 0.25f;
+        _nextRefreshAt = Time.realtimeSinceStartup + 2.5f;
         NetworkLog.Debug("Trader market session opened in category list UI. session=" + _sessionId
             + "; offers=" + _offers.Count);
     }
@@ -344,25 +375,37 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             NetworkLog.Debug("Trader market refresh failed. session=" + _sessionId + "; error=" + result.Error);
             return;
         }
+        ulong fingerprint = ComputeOfferFingerprint(result.TraderOffers);
+        if (_hasOfferFingerprint && fingerprint == _offerFingerprint)
+        {
+            _nextRefreshAt = Time.realtimeSinceStartup + 2.5f;
+            return;
+        }
         ApplyResult(result);
     }
 
     private void ApplyResult(NetworkRemoteResult result)
     {
+        float startedAt = Time.realtimeSinceStartup;
         ItemValue selectedValue = _selected?.Value;
         int selectedPrice = _selected?.BundlePrice ?? -1;
         int selectedBundle = _selected?.BundleSize ?? -1;
+        _offerFingerprint = ComputeOfferFingerprint(result.TraderOffers);
+        _hasOfferFingerprint = true;
         _offers.Clear();
         _offerGroups.Clear();
+        Dictionary<MarketOfferGroupKey, MarketOfferGroup> groupsByKey = new Dictionary<MarketOfferGroupKey, MarketOfferGroup>();
         if (result.TraderOffers != null)
         {
             foreach (TraderOffer source in result.TraderOffers.Where(offer => offer?.Value != null && offer.Count > 0)
                 .OrderBy(offer => offer.TraderEntityId).ThenBy(offer => offer.InventoryIndex))
             {
                 ItemValue sourceKey = NetworkStorage.NormalizeKey(source.Value);
-                MarketOfferGroup group = _offerGroups.FirstOrDefault(entry => entry.Display.BundlePrice == source.BundlePrice
-                    && entry.Display.BundleSize == source.BundleSize && entry.Key.Equals(sourceKey));
-                if (group == null)
+                MarketOfferGroupKey key = new MarketOfferGroupKey
+                {
+                    Value = sourceKey, BundleSize = source.BundleSize, BundlePrice = source.BundlePrice
+                };
+                if (!groupsByKey.TryGetValue(key, out MarketOfferGroup group))
                 {
                     group = new MarketOfferGroup { Key = sourceKey, Display = new TraderOffer
                     {
@@ -370,6 +413,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
                         BundlePrice = source.BundlePrice, TraderEntityId = source.TraderEntityId,
                         InventoryIndex = source.InventoryIndex
                     } };
+                    groupsByKey.Add(key, group);
                     _offerGroups.Add(group);
                 }
                 group.Sources.Add(source);
@@ -422,11 +466,39 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         ApplyFilter();
         if (_offers.Count == 0) SetStatus(Localization.Get("HyperdimensionalNetworkTraderMarketNoOffers"));
         else SetStatus(Localization.Get("HyperdimensionalNetworkTraderMarketOfferCount") + " " + _offers.Count);
+        NetworkLog.Debug("Trader market projection applied. sourceOffers=" + (result.TraderOffers?.Count ?? 0)
+            + "; groupedOffers=" + _offers.Count + "; elapsedMs="
+            + ((Time.realtimeSinceStartup - startedAt) * 1000f).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
     }
 
     private static bool SameMarketItem(ItemValue left, ItemValue right)
         => left != null && right != null
             && NetworkStorage.NormalizeKey(left).Equals(NetworkStorage.NormalizeKey(right));
+
+    private static ulong ComputeOfferFingerprint(List<TraderOffer> offers)
+    {
+        unchecked
+        {
+            ulong hash = 14695981039346656037UL;
+            if (offers == null) return hash;
+            AddFingerprint(ref hash, offers.Count);
+            foreach (TraderOffer offer in offers)
+            {
+                ItemValue value = offer?.Value;
+                AddFingerprint(ref hash, value?.type ?? 0); AddFingerprint(ref hash, value?.Quality ?? 0); AddFingerprint(ref hash, value?.Seed ?? 0);
+                AddFingerprint(ref hash, value?.UseTimes.GetHashCode() ?? 0); AddFingerprint(ref hash, value?.Meta ?? 0);
+                AddFingerprint(ref hash, value?.SelectedAmmoTypeIndex ?? 0); AddFingerprint(ref hash, value?.Activated == true ? 1 : 0);
+                AddFingerprint(ref hash, offer?.Count ?? 0); AddFingerprint(ref hash, offer?.BundleSize ?? 0); AddFingerprint(ref hash, offer?.BundlePrice ?? 0);
+                AddFingerprint(ref hash, offer?.TraderEntityId ?? 0); AddFingerprint(ref hash, offer?.InventoryIndex ?? -1);
+            }
+            return hash;
+        }
+    }
+
+    private static void AddFingerprint(ref ulong hash, int value)
+    {
+        unchecked { hash ^= (uint)value; hash *= 1099511628211UL; }
+    }
 
     private void ApplyFilter()
     {
