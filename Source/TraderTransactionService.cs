@@ -51,11 +51,14 @@ internal static class TraderTransactionService
         _voidSaleMode = false;
     }
 
-    public static bool SellFromSlot(EntityPlayerLocal player, XUiC_ItemStack slot, bool networkSource, Action<NetworkRemoteResult> completed)
+    public static bool SellFromSlot(EntityPlayerLocal player, XUiC_ItemStack slot, bool networkSource, int count,
+        Action<NetworkRemoteResult> completed)
     {
-        if (!(bool)player || slot == null || slot.ItemStack == null || slot.ItemStack.IsEmpty()) return false;
+        if (!(bool)player || slot == null || slot.ItemStack == null || slot.ItemStack.IsEmpty()
+            || count <= 0 || count > slot.ItemStack.count) return false;
         if (NetworkRemoteClient.IsMutationPending) return true;
         ItemStack stack = slot.ItemStack.Clone();
+        stack.count = count;
         XUiC_ItemStack.StackLocationTypes location = networkSource
             ? XUiC_ItemStack.StackLocationTypes.ToolBelt
             : slot.StackLocation;
@@ -131,6 +134,9 @@ internal static class TraderTransactionService
         }
         if (!sourceDebited) return Failure(request, request.TraderNetworkSource ? "NetworkSaleSourceChanged" : "PlayerInventoryUpdateFailed");
 
+        MemoryStream sourceBag = updatedBag;
+        MemoryStream sourceToolbelt = updatedToolbelt;
+
         ItemValue currency = ItemClass.GetItem(TraderInfo.CurrencyItem, false);
         bool creditedToPlayer = request.TraderPersonalPayout
             && TryCreditPersonalPayout(player, playerData, currency, price, out updatedBag, out updatedToolbelt);
@@ -163,8 +169,8 @@ internal static class TraderTransactionService
             Success = true,
             Amount = price,
             Value = currency.Clone(),
-            BagData = creditedToPlayer && updatedBag != null ? updatedBag.ToArray() : null,
-            InventoryData = creditedToPlayer && updatedToolbelt != null ? updatedToolbelt.ToArray() : null
+            BagData = (creditedToPlayer ? updatedBag : sourceBag)?.ToArray(),
+            InventoryData = (creditedToPlayer ? updatedToolbelt : sourceToolbelt)?.ToArray()
         };
     }
 
@@ -301,7 +307,7 @@ internal static class TraderTransactionService
         return restored;
     }
 
-    private static int GetVirtualSellPrice(EntityPlayer player, ItemValue value, int count, ItemClass itemClass)
+    internal static int GetVirtualSellPrice(EntityPlayer player, ItemValue value, int count, ItemClass itemClass)
     {
         int bundleSize;
         float economicValue;

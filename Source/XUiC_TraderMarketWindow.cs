@@ -10,6 +10,9 @@ public sealed class XUiC_TraderMarketWindow : XUiController
     private static bool _buyToBackpack;
     private readonly List<TraderOffer> _offers = new List<TraderOffer>();
     private readonly List<XUiC_TraderOfferSlot> _slots = new List<XUiC_TraderOfferSlot>();
+    private readonly XUiController[] _buyButtons = new XUiController[25];
+    private readonly XUiController[] _priceLabels = new XUiController[25];
+    private readonly XUiController[] _buyLabels = new XUiController[25];
     private XUiC_Paging _pager;
     private XUiController _status;
     private string _sessionId = string.Empty;
@@ -23,8 +26,15 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         XUiC_ItemStack[] itemSlots = GetChildrenByType<XUiC_ItemStack>();
         foreach (XUiC_TraderOfferSlot slot in itemSlots.OfType<XUiC_TraderOfferSlot>())
         {
-            slot.Bind(this);
             _slots.Add(slot);
+        }
+        for (int i = 0; i < _buyButtons.Length; i++)
+        {
+            int index = i;
+            _buyButtons[i] = GetChildById("btnTraderOfferBuy" + i);
+            _priceLabels[i] = GetChildById("traderOfferPrice" + i);
+            _buyLabels[i] = GetChildById("traderOfferBuyLabel" + i);
+            if (_buyButtons[i] != null) _buyButtons[i].OnPress += (sender, button) => BuyAt(index);
         }
         _pager = GetChildByType<XUiC_Paging>();
         if (_pager != null) _pager.OnPageChanged += RefreshSlots;
@@ -33,6 +43,9 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         BindPress("btnTraderMarketOutput", OnOutputPressed);
         SetStatus(Localization.Get("HyperdimensionalNetworkTraderMarketLoading"));
         NetworkLog.Debug("Trader market UI initialized. slots=" + _slots.Count + "; pager=" + (_pager != null));
+        if (_slots.Count != _buyButtons.Length)
+            NetworkLog.Error("Trader market grid differs from its 5x5 layout. slots=" + _slots.Count
+                + "; expected=" + _buyButtons.Length);
     }
 
     public override void OnOpen()
@@ -159,8 +172,33 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         for (int i = 0; i < _slots.Count; i++)
         {
             int index = first + i;
-            _slots[i].SetOffer(index >= 0 && index < _offers.Count ? _offers[index] : null);
+            TraderOffer offer = index >= 0 && index < _offers.Count ? _offers[index] : null;
+            _slots[i].SetOffer(offer);
+            if (i < _buyButtons.Length)
+            {
+                SetVisible(_buyButtons[i], offer != null);
+                SetVisible(_priceLabels[i], offer != null);
+                SetVisible(_buyLabels[i], offer != null);
+                if (_priceLabels[i]?.ViewComponent is XUiV_Label label)
+                {
+                    string text = offer == null ? string.Empty : offer.BundlePrice + " / " + offer.BundleSize;
+                    if (label.Text != text) { label.Text = text; _priceLabels[i].IsDirty = true; }
+                }
+            }
         }
+    }
+
+    private void BuyAt(int slotIndex)
+    {
+        int index = (_pager?.CurrentPageNumber ?? 0) * _slots.Count + slotIndex;
+        if (index >= 0 && index < _offers.Count)
+            Buy(_offers[index], _offers[index].BundleSize);
+    }
+
+    private static void SetVisible(XUiController controller, bool visible)
+    {
+        if (controller?.ViewComponent != null && controller.ViewComponent.IsVisible != visible)
+            controller.ViewComponent.IsVisible = visible;
     }
 
     private void OnClosePressed(XUiController sender, int mouseButton)

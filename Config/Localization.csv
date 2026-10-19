@@ -9,9 +9,10 @@ HyperdimensionalNetworkManualRestock,Restock existing stacks,补充已有堆叠
 HyperdimensionalNetworkSettings,Network settings,网络设置
 HyperdimensionalNetworkSettingsTitle,Network Settings,网络设置
 HyperdimensionalNetworkSettingsHint,Personal settings apply only to you. Network feature switches are administrator-only.,个人设置只影响你自己。网络功能开关仅管理员可见和设置。
-HyperdimensionalNetworkTraderSellMode,Toggle network sale buttons,切换网络出售按钮
+HyperdimensionalNetworkTraderSellMode,Manual sale mode,手动出售模式
 HyperdimensionalNetworkTraderSellItem,Sell this network stack,出售此网络物品堆
-HyperdimensionalNetworkTraderSellModeOn,Sale mode enabled. Sell buttons are shown on sellable network items.,已开启出售模式。可出售的网络物品旁将显示出售按钮。
+HyperdimensionalNetworkTraderSellAction,Sell,出售
+HyperdimensionalNetworkTraderSellModeOn,Sale mode enabled. Select an item in the network or backpack to sell it.,已开启出售模式。选中网络或背包物品后可出售。
 HyperdimensionalNetworkTraderSellModeOff,Virtual trader sale mode disabled.,已关闭虚空商人出售模式。
 HyperdimensionalNetworkTraderSaleComplete,Virtual trader sale complete. Proceeds deposited to network:,虚空商人出售完成，收益已存入网络：
 HyperdimensionalNetworkTraderSaleFailed,Sale failed,出售失败
@@ -81,7 +82,7 @@ HyperdimensionalNetworkSettingHotbarOnly,Toolbelt only,仅快捷栏
 HyperdimensionalNetworkSettingReplenishmentEnabled,Enable replenishment,启用补货功能
 HyperdimensionalNetworkSettingAmmoBankEnabled,Enable ammo bank,启用弹药银行
 HyperdimensionalNetworkSettingRetainSearch,Retain search on close,保留搜索内容
-HyperdimensionalNetworkSettingManualSale,Show manual sale buttons,显示手动出售按钮
+HyperdimensionalNetworkSettingManualSale,Enable manual sale,启用手动出售
 HyperdimensionalNetworkSettingsReady,Settings saved. Cooldown,设置已保存。冷却时间
 HyperdimensionalNetworkSettingsLoading,Loading settings...,正在读取设置……
 HyperdimensionalNetworkSettingsUnavailable,Could not load settings,无法读取设置

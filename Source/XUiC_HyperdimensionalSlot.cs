@@ -25,35 +25,6 @@ public sealed class XUiC_HyperdimensionalSlot : XUiC_ItemStack
         if (!TryHandleMousePut()) base.Update(_dt);
     }
 
-    internal void Sell()
-    {
-        EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
-        if (!(bool)player || !TraderTransactionService.VoidSaleMode || ItemStack == null || ItemStack.IsEmpty()) return;
-        if (NetworkRemoteClient.IsMutationPending) return;
-        int itemType = ItemStack.itemValue.type;
-        int itemCount = ItemStack.count;
-        bool started = TraderTransactionService.SellFromSlot(player, this, networkSource: true, result =>
-        {
-            if (!result.Success)
-            {
-                GameManager.ShowTooltip(player, Localization.Get("HyperdimensionalNetworkTraderSaleFailed") + ": " + result.Error, false, false, 0f);
-                NetworkLog.Debug("Virtual trader sale rejected. player=" + player.entityId + "; requestId=" + result.RequestId + "; error=" + result.Error);
-                return;
-            }
-            if (result.BagData != null || result.InventoryData != null)
-            {
-                if (!NetworkInventorySync.Apply(player, result))
-                    NetworkLog.Error("Network item sale committed but the player's payout inventory snapshot could not be applied. player=" + player.entityId + "; requestId=" + result.RequestId);
-                xui.GetChildByType<XUiC_Backpack>()?.RefreshBackpackSlots();
-            }
-            _grid?.Reload();
-            GameManager.ShowTooltip(player, Localization.Get("HyperdimensionalNetworkTraderSaleComplete") + " " + result.Amount, false, false, 0f);
-            NetworkLog.Debug("Virtual trader sale feedback displayed. player=" + player.entityId + "; requestId=" + result.RequestId + "; item=" + itemType + "; count=" + itemCount + "; proceeds=" + result.Amount);
-        });
-        if (!started) return;
-        if (NetworkRemoteClient.IsRemoteClient) NetworkLog.Debug("Remote virtual trader sale requested. player=" + player.entityId + "; item=" + itemType + "; count=" + itemCount);
-    }
-
     public override void SwapItem() { if (!Put(false)) Take(false); }
     public override void HandleDropOne() { if (!Put(true)) Take(true); }
 
