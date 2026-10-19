@@ -48,6 +48,9 @@ internal static class TraderMarketplaceService
             List<TraderArea> areas = world.TraderAreas;
             if (areas != null)
             {
+                DiscoverNearbyTrader(player, areas);
+                NetworkLog.Debug("Trader discovery scan. player=" + player.entityId + "; journalPOIs="
+                    + (player.QuestJournal?.TraderPOIs?.Count ?? 0) + "; worldAreas=" + areas.Count);
                 GameManager manager = GameManager.Instance;
                 for (int i = 0; i < areas.Count && session.Areas.Count < MaximumAreasPerSession; i++)
                 {
@@ -459,6 +462,36 @@ internal static class TraderMarketplaceService
         foreach (UnityEngine.Vector2 poi in discovered)
             if (poi.x >= minX && poi.x <= maxX && poi.y >= minZ && poi.y <= maxZ) return true;
         return false;
+    }
+
+    internal static void RecordTraderInteraction(World world, EntityPlayer player, EntityTrader trader)
+    {
+        if (!(bool)player || !IsValid(trader) || player.QuestJournal == null) return;
+        TraderArea area = trader.traderArea ?? world?.GetTraderAreaAt(new Vector3i(trader.position));
+        if (area == null) return;
+        Vector2 origin = new Vector2(area.Position.x, area.Position.z);
+        if (!player.QuestJournal.HasTraderPOI(origin))
+        {
+            player.QuestJournal.AddTraderPOI(origin, trader.NPCInfo.QuestFaction);
+            NetworkLog.Debug("Trader discovered by verified interaction. player=" + player.entityId + "; trader=" + trader.entityId
+                + "; area=" + area.Position);
+        }
+    }
+
+    private static void DiscoverNearbyTrader(EntityPlayer player, List<TraderArea> areas)
+    {
+        if (player.QuestJournal == null) return;
+        foreach (TraderArea area in areas)
+        {
+            if (area == null || IsDiscoveredTraderArea(player, area)) continue;
+            float dx = Mathf.Max(area.Position.x - player.position.x, 0f,
+                player.position.x - (area.Position.x + area.PrefabSize.x));
+            float dz = Mathf.Max(area.Position.z - player.position.z, 0f,
+                player.position.z - (area.Position.z + area.PrefabSize.z));
+            if (dx * dx + dz * dz > 30f * 30f) continue;
+            EntityTrader trader = area.GetTrader();
+            if (IsValid(trader)) RecordTraderInteraction(GameManager.Instance?.World, player, trader);
+        }
     }
 
     private static bool TryGetInventory(EntityPlayer player, PlayerDataFile playerData, out Bag bag, out ItemStackGrid toolbelt,

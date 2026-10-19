@@ -14,3 +14,15 @@ internal static class TraderMarketLockPatch
         return false;
     }
 }
+
+[HarmonyPatch(typeof(EntityTrader), "OnLockResponseServer")]
+internal static class TraderDiscoveryPatch
+{
+    private static void Postfix(EntityTrader __instance, int _lockingPlayerID, ushort _channel)
+    {
+        if (_channel != 0) return;
+        World world = GameManager.Instance?.World;
+        EntityPlayer player = world?.GetEntity(_lockingPlayerID) as EntityPlayer;
+        TraderMarketplaceService.RecordTraderInteraction(world, player, __instance);
+    }
+}
