@@ -9,6 +9,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
 {
     private const int PageSize = 12;
     private static bool _buyToBackpack;
+    private static int _pendingReturnPlayerId = -1;
     private readonly List<TraderOffer> _offers = new List<TraderOffer>();
     private readonly List<TraderOffer> _filtered = new List<TraderOffer>();
     private readonly XUiController[] _rows = new XUiController[PageSize];
@@ -67,7 +68,6 @@ public sealed class XUiC_TraderMarketWindow : XUiController
     public override void OnOpen()
     {
         base.OnOpen();
-        if (windowGroup != null) windowGroup.openWindowOnEsc = "hyperdimensionalNetwork";
         _closing = false;
         _requestPending = true;
         _sessionId = string.Empty;
@@ -114,6 +114,8 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         _requestPending = false;
         RefreshRows();
         base.OnClose();
+        if ((bool)player && GameManager.Instance?.World != null)
+            _pendingReturnPlayerId = player.entityId;
     }
 
     private void SelectAt(int row)
@@ -336,6 +338,26 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         manager.Open("hyperdimensionalNetwork", false);
         NetworkLog.Debug("Trader market closed by button; network window restored. player="
             + (xui?.playerUI?.entityPlayer?.entityId ?? -1));
+    }
+
+    internal static void ProcessPendingReturn(LocalPlayerUI playerUI)
+    {
+        if (_pendingReturnPlayerId < 0) return;
+        EntityPlayerLocal player = playerUI?.entityPlayer;
+        GUIWindowManager manager = playerUI?.windowManager;
+        if (!(bool)player || GameManager.Instance?.World == null)
+        {
+            _pendingReturnPlayerId = -1;
+            return;
+        }
+        if (player.entityId != _pendingReturnPlayerId || manager == null) return;
+        if (manager.IsWindowOpen("hyperdimensionalTraderMarket")) return;
+        _pendingReturnPlayerId = -1;
+        if (!manager.IsWindowOpen("hyperdimensionalNetwork"))
+        {
+            manager.Open("hyperdimensionalNetwork", false);
+            NetworkLog.Debug("Trader market close returned to the network window. player=" + player.entityId);
+        }
     }
 
     private void SetStatus(string value) => SetLabel(_status, value);
