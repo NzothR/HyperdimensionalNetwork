@@ -1,4 +1,6 @@
 {
   "DebugLog": false,
-  "AutoRestockCooldownMs": 1000
+  "AutoRestockCooldownMs": 1000,
+  "OpenNetworkKey": "O",
+  "DepositContainerKey": "D"
 }

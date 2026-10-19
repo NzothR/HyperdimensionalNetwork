@@ -11,16 +11,22 @@ internal static class ContainerDepositPatch
     public static void InitPostfix(XUiC_ContainerStandardControls __instance)
     {
         XUiController lootButton = __instance.GetChildById("btnHyperdimensionalLootAll");
-        if (lootButton != null) lootButton.OnPress += (sender, mouse) => DepositLoot(FindParent<XUiC_LootWindow>(__instance));
+        if (lootButton != null) lootButton.OnPress += (sender, mouse) => DepositLootFromWindow(FindParent<XUiC_LootWindow>(__instance));
         XUiController backpackButton = __instance.GetChildById("btnHyperdimensionalBackpackAll");
         if (backpackButton != null) backpackButton.OnPress += (sender, mouse) => DepositBackpack(FindParent<XUiC_BackpackWindow>(__instance));
     }
 
-    private static void DepositLoot(XUiC_LootWindow window)
+    internal static bool DepositLootFromWindow(XUiC_LootWindow window)
     {
         XUiC_LootContainer grid = window?.GetChildByType<XUiC_LootContainer>();
         EntityPlayer player = window?.xui?.playerUI?.entityPlayer;
-        if (NetworkRemoteClient.IsRemoteClient && grid?.localTileEntity != null && (bool)player)
+        if (grid == null || !(bool)player) return false;
+        if (NetworkRemoteClient.IsRemoteClient && grid.localTileEntity == null)
+        {
+            NetworkLog.Debug("Remote quick deposit skipped because the active loot window has no network-authoritative tile entity.");
+            return false;
+        }
+        if (NetworkRemoteClient.IsRemoteClient && grid.localTileEntity != null)
         {
             bool queued = NetworkRemoteClient.DepositLootAll(player, grid.localTileEntity.ToWorldPos(), result =>
             {
@@ -37,12 +43,13 @@ internal static class ContainerDepositPatch
                 if (failedControls?.MoveAllDone != null) failedControls.MoveAllDone(true, false);
                 NetworkLog.Error("Remote loot deposit could not be queued; container was left unchanged.");
             }
-            return;
+            return queued;
         }
         bool moved = DepositGrid(window?.xui, grid, null);
         XUiC_ContainerStandardControls controls = window?.GetChildByType<XUiC_ContainerStandardControls>();
         if (controls?.MoveAllDone != null) controls.MoveAllDone(true, moved);
         NetworkLog.Debug("Quick deposit from container completed. moved=" + moved);
+        return moved;
     }
 
     private static void DepositBackpack(XUiC_BackpackWindow window)

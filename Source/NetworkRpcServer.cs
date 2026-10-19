@@ -284,6 +284,7 @@ internal static class NetworkRpcServer
         else if (request.SourceLocation == XUiC_ItemStack.StackLocationTypes.ToolBelt)
             ApplyPlayerInventorySnapshot(player, playerData.inventoryData, toolbelt: true);
 
+        NetworkStackCompatibility.RestoreExtendedCount(cursor);
         int updatedCount = cursor.count - request.Count;
         ItemValue value = cursor.itemValue.Clone();
         if (!NetworkStorage.AddStack(player, new ItemStack(value.Clone(), request.Count)))
@@ -364,6 +365,7 @@ internal static class NetworkRpcServer
 
         List<StorageAddition> additions = new List<StorageAddition>();
         List<KeyValuePair<int, ItemStack>> originalStacks = new List<KeyValuePair<int, ItemStack>>();
+        NetworkStackCompatibility.RestoreExtendedCounts(NetworkStackCompatibility.GetSlots(storage.ItemGrid));
         for (int i = 0; i < storage.ItemGrid.Length; i++)
         {
             ItemStack stack = storage.ItemGrid[i];
@@ -626,6 +628,7 @@ internal static class NetworkRpcServer
             reader.SetBaseStream(input);
             if (reader.ReadByte() != 1) throw new InvalidDataException("Unsupported toolbelt snapshot version.");
             ItemStackGrid grid = ItemStackGrid.Read(reader, StreamModeRead.Persistency);
+            NetworkStackCompatibility.RestoreExtendedCounts(NetworkStackCompatibility.GetSlots(grid));
             reader.ReadByte();
             if (input.Position != input.Length) throw new InvalidDataException("Unexpected trailing toolbelt snapshot data.");
             for (int i = 0; i < grid.Length; i++)
@@ -663,8 +666,20 @@ internal static class NetworkRpcServer
 
     private static void CapturePlayerInventory(EntityPlayer player, PlayerDataFile playerData, out byte[] bagData, out byte[] inventoryData)
     {
-        MemoryStream bag = StreamUtils.ToBlob(writer => player.bag.Write(writer, StreamModeWrite.Persistency));
-        MemoryStream inventory = StreamUtils.ToBlob(writer => player.inventory.Write(writer, StreamModeWrite.Persistency));
+        List<ItemValue> bagMetadata = NetworkStackCompatibility.PrepareForWrite(NetworkStackCompatibility.GetSlots(player.bag));
+        List<ItemValue> inventoryMetadata = NetworkStackCompatibility.PrepareForWrite(NetworkStackCompatibility.GetSlots(player.inventory.ItemGrid));
+        MemoryStream bag;
+        MemoryStream inventory;
+        try
+        {
+            bag = StreamUtils.ToBlob(writer => player.bag.Write(writer, StreamModeWrite.Persistency));
+            inventory = StreamUtils.ToBlob(writer => player.inventory.Write(writer, StreamModeWrite.Persistency));
+        }
+        finally
+        {
+            NetworkStackCompatibility.ClearWriteMetadata(bagMetadata);
+            NetworkStackCompatibility.ClearWriteMetadata(inventoryMetadata);
+        }
         playerData.bagData = bag;
         playerData.inventoryData = inventory;
         playerData.bModifiedSinceLastSave = true;
@@ -712,7 +727,13 @@ internal static class NetworkRpcServer
 
     private static bool CommitInventoryDeposit(EntityPlayer player, PlayerDataFile playerData, IEnumerable<StorageAddition> additions, MemoryStream updated, bool toolbelt)
     {
-        if (!NetworkStorage.AddBatch(player, additions)) return false;
+        List<StorageAddition> batch = additions?.ToList() ?? new List<StorageAddition>();
+        if (!NetworkStorage.AddBatch(player, batch))
+        {
+            NetworkLog.Debug("Network inventory deposit did not commit. player=" + player.entityId + "; toolbelt=" + toolbelt
+                + "; variants=" + batch.Count + "; total=" + batch.Sum(item => item?.Count ?? 0));
+            return false;
+        }
         try
         {
             ApplyPlayerInventorySnapshot(player, updated, toolbelt);
@@ -723,7 +744,7 @@ internal static class NetworkRpcServer
         }
         catch (Exception ex)
         {
-            if (!NetworkStorage.RemoveBatch(player, additions))
+            if (!NetworkStorage.RemoveBatch(player, batch))
                 NetworkLog.Error("Could not compensate network inventory after a live player inventory update failed. player=" + player.entityId + "; toolbelt=" + toolbelt + "; exception=" + ex);
             try { ApplyPlayerInventorySnapshot(player, toolbelt ? playerData.inventoryData : playerData.bagData, toolbelt); }
             catch (Exception restoreException) { NetworkLog.Error("Could not restore the server-side player inventory snapshot after a failed deposit. player=" + player.entityId + "; toolbelt=" + toolbelt + "; exception=" + restoreException); }
@@ -740,10 +761,14 @@ internal static class NetworkRpcServer
         {
             int selectedSlot = player.inventory.holdingItemIdx;
             StreamUtils.FromBlob(input, reader => player.inventory.ReadInto(reader, StreamModeRead.Persistency));
+            NetworkStackCompatibility.RestoreExtendedCounts(NetworkStackCompatibility.GetSlots(player.inventory.ItemGrid));
             if (selectedSlot >= 0 && selectedSlot < player.inventory.Length) player.inventory.SetSelectedSlot(selectedSlot);
         }
         else
+        {
             StreamUtils.FromBlob(input, reader => player.bag.ReadInto(reader, StreamModeRead.Persistency));
+            NetworkStackCompatibility.RestoreExtendedCounts(NetworkStackCompatibility.GetSlots(player.bag));
+        }
     }
 
     private static NetworkRemoteResult ReturnWithdrawal(EntityPlayer player, PlayerDataFile playerData, NetworkRemoteRequest request)
@@ -813,8 +838,14 @@ internal static class NetworkRpcServer
         catch (Exception ex) { NetworkLog.Error("Could not read the requesting player's backpack snapshot. " + ex); return false; }
         if (bag == null || slot >= bag.SlotCount || bag.LockedSlots != null && slot < bag.LockedSlots.Length && bag.LockedSlots[slot]) return false;
         source = bag.ItemGrid[slot];
-        if (source == null || source.IsEmpty() || source.count < count
-            || !NetworkStorage.NormalizeKey(source.itemValue).Equals(NetworkStorage.NormalizeKey(expected))) return false;
+        bool matches = source != null && !source.IsEmpty()
+            && NetworkStorage.NormalizeKey(source.itemValue).Equals(NetworkStorage.NormalizeKey(expected));
+        if (!matches || source.count < count)
+        {
+            NetworkLog.Debug("Rejected backpack deposit snapshot. slot=" + slot + "; requestedItem=" + expected.type + "; requestedCount=" + count
+                + "; snapshotItem=" + (source?.itemValue?.type ?? 0) + "; snapshotCount=" + (source?.count ?? 0) + "; itemMatches=" + matches);
+            return false;
+        }
         ItemStack remainder = source.Clone();
         remainder.count -= count;
         bag.ItemGrid.SetItem(slot, remainder.count > 0 ? remainder : ItemStack.Empty.Clone());
@@ -838,13 +869,20 @@ internal static class NetworkRpcServer
                 byte version = reader.ReadByte();
                 if (version != 1) return false;
                 grid = ItemStackGrid.Read(reader, StreamModeRead.Persistency);
+                NetworkStackCompatibility.RestoreExtendedCounts(NetworkStackCompatibility.GetSlots(grid));
                 selectedSlot = reader.ReadByte();
                 if (input.Position != input.Length) return false;
             }
             if (slot >= grid.Length) return false;
             source = grid[slot];
-            if (source == null || source.IsEmpty() || source.count < count
-                || !NetworkStorage.NormalizeKey(source.itemValue).Equals(NetworkStorage.NormalizeKey(expected))) return false;
+            bool matches = source != null && !source.IsEmpty()
+                && NetworkStorage.NormalizeKey(source.itemValue).Equals(NetworkStorage.NormalizeKey(expected));
+            if (!matches || source.count < count)
+            {
+                NetworkLog.Debug("Rejected toolbelt deposit snapshot. slot=" + slot + "; requestedItem=" + expected.type + "; requestedCount=" + count
+                    + "; snapshotItem=" + (source?.itemValue?.type ?? 0) + "; snapshotCount=" + (source?.count ?? 0) + "; itemMatches=" + matches);
+                return false;
+            }
             ItemStack remainder = source.Clone();
             remainder.count -= count;
             grid.SetItem(slot, remainder.count > 0 ? remainder : ItemStack.Empty.Clone());
@@ -854,7 +892,9 @@ internal static class NetworkRpcServer
                 writer.SetBaseStream(output);
                 BinaryWriter binary = writer;
                 binary.Write((byte)1);
-                grid.Write(writer, StreamModeWrite.Persistency);
+                List<ItemValue> writeMetadata = NetworkStackCompatibility.PrepareForWrite(NetworkStackCompatibility.GetSlots(grid));
+                try { grid.Write(writer, StreamModeWrite.Persistency); }
+                finally { NetworkStackCompatibility.ClearWriteMetadata(writeMetadata); }
                 binary.Write(selectedSlot);
                 writer.Flush();
                 updated = new MemoryStream(output.ToArray(), writable: false);
@@ -877,12 +917,15 @@ internal static class NetworkRpcServer
         {
             bag = Bag.Read(reader, XUiC_ItemStack.StackLocationTypes.Backpack, StreamModeRead.Persistency, null);
         });
+        if (bag != null) NetworkStackCompatibility.RestoreExtendedCounts(NetworkStackCompatibility.GetSlots(bag));
         return bag;
     }
 
     internal static MemoryStream WriteBag(Bag bag)
     {
-        return StreamUtils.ToBlob(writer => bag.Write(writer, StreamModeWrite.Persistency));
+        List<ItemValue> writeMetadata = NetworkStackCompatibility.PrepareForWrite(NetworkStackCompatibility.GetSlots(bag));
+        try { return StreamUtils.ToBlob(writer => bag.Write(writer, StreamModeWrite.Persistency)); }
+        finally { NetworkStackCompatibility.ClearWriteMetadata(writeMetadata); }
     }
 
     private static bool PlayerHoldsLootLock(int playerEntityId, TEFeatureStorage storage)

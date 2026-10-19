@@ -324,35 +324,35 @@
           <rect name="managementCandidateList" pos="500,-94" width="440" height="390" on_scroll="true">
           <sprite depth="2" name="candidateRowLine0" pos="0,-42" width="440" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
           <label depth="3" name="managementCandidateName0" pos="4,0" width="300" height="38" font_size="16" color="220,235,242,255" visible="false" />
-          <button depth="4" name="btnManagementInvite0" pos="312,1" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <button depth="4" name="btnManagementInvite0" pos="312,1" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" disabledcolor="70,75,80,255" sound="[paging_click]" on_scroll="true" visible="false" />
           <label depth="5" name="managementInviteLabel0" pos="312,2" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" visible="false" />
           <sprite depth="2" name="candidateRowLine1" pos="0,-90" width="440" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
           <label depth="3" name="managementCandidateName1" pos="4,-48" width="300" height="38" font_size="16" color="220,235,242,255" visible="false" />
-          <button depth="4" name="btnManagementInvite1" pos="312,-47" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <button depth="4" name="btnManagementInvite1" pos="312,-47" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" disabledcolor="70,75,80,255" sound="[paging_click]" on_scroll="true" visible="false" />
           <label depth="5" name="managementInviteLabel1" pos="312,-46" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" visible="false" />
           <sprite depth="2" name="candidateRowLine2" pos="0,-138" width="440" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
           <label depth="3" name="managementCandidateName2" pos="4,-96" width="300" height="38" font_size="16" color="220,235,242,255" visible="false" />
-          <button depth="4" name="btnManagementInvite2" pos="312,-95" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <button depth="4" name="btnManagementInvite2" pos="312,-95" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" disabledcolor="70,75,80,255" sound="[paging_click]" on_scroll="true" visible="false" />
           <label depth="5" name="managementInviteLabel2" pos="312,-94" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" visible="false" />
           <sprite depth="2" name="candidateRowLine3" pos="0,-186" width="440" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
           <label depth="3" name="managementCandidateName3" pos="4,-144" width="300" height="38" font_size="16" color="220,235,242,255" visible="false" />
-          <button depth="4" name="btnManagementInvite3" pos="312,-143" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <button depth="4" name="btnManagementInvite3" pos="312,-143" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" disabledcolor="70,75,80,255" sound="[paging_click]" on_scroll="true" visible="false" />
           <label depth="5" name="managementInviteLabel3" pos="312,-142" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" visible="false" />
           <sprite depth="2" name="candidateRowLine4" pos="0,-234" width="440" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
           <label depth="3" name="managementCandidateName4" pos="4,-192" width="300" height="38" font_size="16" color="220,235,242,255" visible="false" />
-          <button depth="4" name="btnManagementInvite4" pos="312,-191" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <button depth="4" name="btnManagementInvite4" pos="312,-191" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" disabledcolor="70,75,80,255" sound="[paging_click]" on_scroll="true" visible="false" />
           <label depth="5" name="managementInviteLabel4" pos="312,-190" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" visible="false" />
           <sprite depth="2" name="candidateRowLine5" pos="0,-282" width="440" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
           <label depth="3" name="managementCandidateName5" pos="4,-240" width="300" height="38" font_size="16" color="220,235,242,255" visible="false" />
-          <button depth="4" name="btnManagementInvite5" pos="312,-239" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <button depth="4" name="btnManagementInvite5" pos="312,-239" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" disabledcolor="70,75,80,255" sound="[paging_click]" on_scroll="true" visible="false" />
           <label depth="5" name="managementInviteLabel5" pos="312,-238" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" visible="false" />
           <sprite depth="2" name="candidateRowLine6" pos="0,-330" width="440" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
           <label depth="3" name="managementCandidateName6" pos="4,-288" width="300" height="38" font_size="16" color="220,235,242,255" visible="false" />
-          <button depth="4" name="btnManagementInvite6" pos="312,-287" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <button depth="4" name="btnManagementInvite6" pos="312,-287" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" disabledcolor="70,75,80,255" sound="[paging_click]" on_scroll="true" visible="false" />
           <label depth="5" name="managementInviteLabel6" pos="312,-286" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" visible="false" />
           <sprite depth="2" name="candidateRowLine7" pos="0,-378" width="440" height="1" sprite="menu_empty" color="35,75,96,180" visible="false" />
           <label depth="3" name="managementCandidateName7" pos="4,-336" width="300" height="38" font_size="16" color="220,235,242,255" visible="false" />
-          <button depth="4" name="btnManagementInvite7" pos="312,-335" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" sound="[paging_click]" on_scroll="true" visible="false" />
+          <button depth="4" name="btnManagementInvite7" pos="312,-335" width="120" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="35,88,69,245" hovercolor="48,135,94,255" disabledcolor="70,75,80,255" sound="[paging_click]" on_scroll="true" visible="false" />
           <label depth="5" name="managementInviteLabel7" pos="312,-334" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkManagementInviteShort" visible="false" />
           </rect>
           <label depth="4" name="managementMemberPage" pos="175,-490" width="100" height="27" font_size="16" justify="center" text="1 / 1" />

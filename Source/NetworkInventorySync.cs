@@ -15,12 +15,14 @@ internal static class NetworkInventorySync
             {
                 using (MemoryStream bagSnapshot = new MemoryStream(result.BagData, writable: false))
                     StreamUtils.FromBlob(bagSnapshot, reader => player.bag.ReadInto(reader, StreamModeRead.Persistency));
+                NetworkStackCompatibility.RestoreExtendedCounts(NetworkStackCompatibility.GetSlots(player.bag));
             }
             if (result.InventoryData != null)
             {
                 int selectedSlot = player.inventory.holdingItemIdx;
                 using (MemoryStream inventorySnapshot = new MemoryStream(result.InventoryData, writable: false))
                     StreamUtils.FromBlob(inventorySnapshot, reader => player.inventory.ReadInto(reader, StreamModeRead.Persistency));
+                NetworkStackCompatibility.RestoreExtendedCounts(NetworkStackCompatibility.GetSlots(player.inventory.ItemGrid));
                 if (selectedSlot >= 0 && selectedSlot < player.inventory.Length) player.inventory.SetSelectedSlot(selectedSlot);
                 player.inventory.CallOnToolbeltChangedInternal();
             }

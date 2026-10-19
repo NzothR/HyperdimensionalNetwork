@@ -616,6 +616,10 @@ internal static class NetworkStorage
 
     private static void ApplyOne(Dictionary<ItemValue, long> target, ItemValue key, long delta)
     {
+        ItemValue originalKey = key;
+        key = NormalizeKey(key);
+        if (!originalKey.Equals(key) && target.TryGetValue(key, out long existingCount))
+            NetworkLog.Debug("Merged equivalent storage entry while applying item history. item=" + key.type + "; existing=" + existingCount + "; delta=" + delta);
         long current = target.TryGetValue(key, out long old) ? old : 0;
         long next = delta >= 0 ? SafeAdd(current, delta) : Math.Max(0, current + delta);
         if (next == 0) target.Remove(key);
@@ -628,6 +632,11 @@ internal static class NetworkStorage
     internal static ItemValue NormalizeKey(ItemValue value)
     {
         ItemValue key = value.Clone();
+        // YiWanStack writes this temporary count marker into ItemValue so its own
+        // ItemStack.Read patch can reconstruct counts above UInt16.MaxValue. It is
+        // transport metadata, not part of the item's identity. Older journal
+        // records can therefore be canonicalized here and merged on reload.
+        key.RemoveMetaData("YiWanStackCount");
         // The game creates a random Seed for newly constructed values. For stackable definitions
         // that seed does not distinguish inventory stacks, so canonicalize it to keep repeated
         // deposits and stress runs in the same storage variant.
