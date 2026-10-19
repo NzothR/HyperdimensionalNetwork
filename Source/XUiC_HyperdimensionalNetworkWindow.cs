@@ -67,6 +67,9 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         _settingsStatus = GetChildById("restockSettingsStatus");
         BindPress("btnHyperdimensionalCraftingChain", OnCraftingChainPressed);
         BindPress("btnHyperdimensionalTraderSell", OnTraderSellPressed);
+        BindPress("btnHyperdimensionalTraderPayout", OnTraderPayoutPressed);
+        BindPress("btnHyperdimensionalTraderBuy", OnTraderMarketPressed);
+        BindPress("btnHyperdimensionalTraderRules", OnTraderRulesPressed);
         BindPress("btnHyperdimensionalRestock", OnManualRestockPressed);
         BindPress("btnHyperdimensionalSettings", OnSettingsPressed);
         BindPress("btnRestockSettingsClose", OnCloseSettingsPressed);
@@ -91,6 +94,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         _settings = null;
         SetVisible(_manualRestockButton, false);
         HideNetworkAdminSettings();
+        TraderTransactionService.LoadPersonalPayoutMode(xui?.playerUI?.entityPlayer);
         LoadRestockSettings();
         _grid?.Reload();
         RefreshPager();
@@ -142,6 +146,33 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
         if ((bool)player)
             GameManager.ShowTooltip(player, Localization.Get(enabled ? "HyperdimensionalNetworkTraderSellModeOn" : "HyperdimensionalNetworkTraderSellModeOff"), false, false, 0f);
+    }
+
+    private void OnTraderPayoutPressed(XUiController sender, int mouseButton)
+    {
+        EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
+        bool personal = TraderTransactionService.TogglePersonalPayoutMode(player);
+        if ((bool)player)
+            GameManager.ShowTooltip(player, Localization.Get(personal ? "HyperdimensionalNetworkTraderPayoutPersonal" : "HyperdimensionalNetworkTraderPayoutNetwork"), false, false, 0f);
+    }
+
+    private void OnTraderMarketPressed(XUiController sender, int mouseButton)
+    {
+        GUIWindowManager windowManager = xui?.playerUI?.windowManager;
+        if (windowManager == null || windowManager.IsWindowOpen("hyperdimensionalTraderMarket")) return;
+        NetworkLog.Debug("Trader market window requested by player=" + (xui?.playerUI?.entityPlayer?.entityId ?? -1));
+        windowManager.Open("hyperdimensionalTraderMarket", _bModal: true);
+        if (!windowManager.IsWindowOpen("hyperdimensionalTraderMarket"))
+            NetworkLog.Error("Trader market window group failed to open.");
+    }
+
+    private void OnTraderRulesPressed(XUiController sender, int mouseButton)
+    {
+        var windowManager = xui?.playerUI?.windowManager;
+        if (windowManager == null || windowManager.IsWindowOpen("hyperdimensionalTraderRules")) return;
+        windowManager.Open("hyperdimensionalTraderRules", _bModal: true);
+        if (!windowManager.IsWindowOpen("hyperdimensionalTraderRules"))
+            NetworkLog.Debug("Trader automation rules window could not be opened by the network toolbar.");
     }
 
     private void OnCraftingChainPressed(XUiController sender, int mouseButton)

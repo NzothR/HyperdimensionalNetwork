@@ -15,6 +15,62 @@ HyperdimensionalNetworkTraderSellModeOn,Sale mode enabled. Sell buttons are show
 HyperdimensionalNetworkTraderSellModeOff,Virtual trader sale mode disabled.,已关闭虚空商人出售模式。
 HyperdimensionalNetworkTraderSaleComplete,Virtual trader sale complete. Proceeds deposited to network:,虚空商人出售完成，收益已存入网络：
 HyperdimensionalNetworkTraderSaleFailed,Sale failed,出售失败
+HyperdimensionalNetworkTraderMarket,Aggregate discovered trader stock,聚合已发现的商人库存
+HyperdimensionalNetworkTraderMarketTitle,Trader Market,商人市场
+HyperdimensionalNetworkTraderMarketLoading,Scanning accessible traders…,正在扫描可访问的商人…
+HyperdimensionalNetworkTraderMarketOpenFailed,Could not open the trader market,无法打开商人市场
+HyperdimensionalNetworkTraderMarketRefreshFailed,Trader stock refresh failed,商人库存刷新失败
+HyperdimensionalNetworkTraderMarketNoOffers,No available trader stock was found,没有找到可用的商人库存
+HyperdimensionalNetworkTraderMarketOfferCount,Available offers:,可用商品：
+HyperdimensionalNetworkTraderMarketPurchasing,Completing purchase…,正在完成购买…
+HyperdimensionalNetworkTraderMarketBuyFailed,Purchase failed,购买失败
+HyperdimensionalNetworkTraderMarketPurchaseComplete,Purchased item count:,已购入物品数量：
+HyperdimensionalNetworkTraderOfferBuy,Buy one bundle,购买一组
+HyperdimensionalNetworkTraderBuyOutputToggle,Toggle purchased item destination,切换购入物品存放位置
+HyperdimensionalNetworkTraderBuyToBackpack,Purchased trader items will go to your backpack when they fit.,商人购入物品优先进入背包，背包放不下时存入网络。
+HyperdimensionalNetworkTraderBuyToNetwork,Purchased trader items will go to the network.,商人购入物品存入网络。
+HyperdimensionalNetworkTraderRules,Automatic buy/sell rules,自动买卖规则
+HyperdimensionalNetworkTraderPayoutToggle,Toggle virtual sale payout target,切换出售收益目标
+HyperdimensionalNetworkTraderPayoutPersonal,Virtual sale proceeds will go to your backpack when space allows; overflow goes to the network.,虚空出售收益优先进入背包，空间不足时改存入网络。
+HyperdimensionalNetworkTraderPayoutNetwork,Virtual sale proceeds will go to the shared network.,虚空出售收益存入共享网络。
+HyperdimensionalNetworkTraderRulesTitle,Automatic Trader Rules,自动商人规则
+HyperdimensionalNetworkTraderRulesHint,Rules are shared by this network and managed by its administrator.,规则由本网络共享并由网络管理员管理。
+HyperdimensionalNetworkTraderRulesLoading,Loading network trader rules…,正在加载网络商人规则…
+HyperdimensionalNetworkTraderRulesPermissionDenied,Only this network's administrator can manage trader rules.,仅本网络管理员可以管理商人规则。
+HyperdimensionalNetworkTraderRulesCreate,Create a rule,创建规则
+HyperdimensionalNetworkTraderRuleKindAutoSell,Automatic sale,自动出售
+HyperdimensionalNetworkTraderRuleKindAutoBuy,Automatic purchase,自动购买
+HyperdimensionalNetworkTraderRuleQualityAny,Any quality,任意品质
+HyperdimensionalNetworkTraderRuleQualityExact,Quality equals,品质等于
+HyperdimensionalNetworkTraderRuleQualityGreater,Quality greater than,品质大于
+HyperdimensionalNetworkTraderRuleQualityGreaterOrEqual,Quality at least,品质大于等于
+HyperdimensionalNetworkTraderRuleQualityLess,Quality less than,品质小于
+HyperdimensionalNetworkTraderRuleQualityLessOrEqual,Quality at most,品质小于等于
+HyperdimensionalNetworkTraderRuleScheduleOff,Schedule: off,计划：关闭
+HyperdimensionalNetworkTraderRuleScheduleOn,Schedule: daily time and interval,计划：按游戏时间和间隔
+HyperdimensionalNetworkTraderRuleItemType,Item type ID (0 = any),物品类型 ID（0=任意）
+HyperdimensionalNetworkTraderRuleMaximumCount,Maximum item count,单次最大物品数
+HyperdimensionalNetworkTraderRuleMinimumNetworkCount,Network count threshold,网络数量阈值
+HyperdimensionalNetworkTraderRuleMinimumCurrencyCount,Network ducals threshold,网络公爵币阈值
+HyperdimensionalNetworkTraderRuleQualityValue,Quality level (1–6),品质等级（1–6）
+HyperdimensionalNetworkTraderRuleMaximumSpend,Maximum spend (0 = no limit),单次最高花费（0=不限）
+HyperdimensionalNetworkTraderRuleHour,Game hour,游戏小时
+HyperdimensionalNetworkTraderRuleInterval,Interval in days,间隔游戏日
+HyperdimensionalNetworkTraderRuleNetworkCondition,Network item count condition,网络物品数量条件
+HyperdimensionalNetworkTraderRuleCurrencyCondition,Network ducals condition,网络公爵币条件
+HyperdimensionalNetworkTraderRuleAdd,Add rule,添加规则
+HyperdimensionalNetworkTraderRulesList,Configured rules (ordered),已配置规则（按顺序）
+HyperdimensionalNetworkTraderRulesNone,No rules configured,尚未配置规则
+HyperdimensionalNetworkTraderRuleAnyItem,All items,所有物品
+HyperdimensionalNetworkTraderRulesSaveFailed,Rule could not be saved,规则保存失败
+HyperdimensionalNetworkTraderRulesSaved,Rule saved,规则已保存
+HyperdimensionalNetworkTraderRulesDeleted,Rule deleted,规则已删除
+HyperdimensionalNetworkTraderRulesRunRequested,Automatic purchase run completed,已执行自动购买规则
+HyperdimensionalNetworkTraderRuleToggle,Enable / disable,启用/停用
+HyperdimensionalNetworkTraderRuleRun,Run all now,立即执行全部
+HyperdimensionalNetworkTraderRuleUp,Move up,上移
+HyperdimensionalNetworkTraderRuleDown,Move down,下移
+HyperdimensionalNetworkTraderRuleDelete,Delete,删除
 HyperdimensionalNetworkSettingAutoRestock,Automatic restock,自动补货
 HyperdimensionalNetworkSettingAutoRestockTarget,Restock range,补货范围
 HyperdimensionalNetworkSettingOn,On,开启

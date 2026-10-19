@@ -29,7 +29,26 @@ internal enum NetworkRequestOperation : byte
     AutomaticRestock = 18,
     AmmoBankReload = 19,
     AmmoBankRefund = 20,
-    TraderVoidSell = 21
+    TraderVoidSell = 21,
+    TraderOpenMarket = 22,
+    TraderQueryMarket = 23,
+    TraderCloseMarket = 24,
+    TraderBuyItem = 25,
+    TraderQueryRules = 26,
+    TraderSaveRule = 27,
+    TraderDeleteRule = 28,
+    TraderMoveRule = 29,
+    TraderRunRules = 30
+}
+
+internal sealed class TraderOffer
+{
+    public ItemValue Value;
+    public int Count;
+    public int BundleSize;
+    public int BundlePrice;
+    public int TraderEntityId;
+    public int InventoryIndex;
 }
 
 internal enum NetworkConsumptionSource : byte
@@ -63,6 +82,9 @@ internal sealed class NetworkRemoteResult
     public bool ReplenishmentEnabled = true;
     public bool AmmoBankEnabled = true;
     public bool RetainSearchOnClose = true;
+    public string TraderSessionId = string.Empty;
+    public List<TraderOffer> TraderOffers = new List<TraderOffer>();
+    public List<TraderAutomationRule> TraderRules = new List<TraderAutomationRule>();
 }
 
 internal sealed class NetworkRemoteRequest
@@ -86,6 +108,15 @@ internal sealed class NetworkRemoteRequest
     public RestockSettingKey RestockSetting;
     public int RestockSettingValue;
     public bool TraderNetworkSource;
+    public bool TraderPersonalPayout;
+    public bool TraderBuyToBackpack;
+    public bool TraderAutomation;
+    public TraderAutomationRule TraderRule;
+    public string TraderRuleId = string.Empty;
+    public int TraderRuleMove;
+    public string TraderSessionId = string.Empty;
+    public int TraderEntityId;
+    public int TraderInventoryIndex;
     public List<int> RestockToolbeltSlots = new List<int>();
     public List<int> RestockBackpackSlots = new List<int>();
 }
@@ -390,6 +421,58 @@ internal static class NetworkRemoteClient
         return Send(player, NewRequest(player, NetworkRequestOperation.QueryRestockSettings), false, false, false, callback);
     }
 
+    public static bool OpenTraderMarket(EntityPlayerLocal player, Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player) return false;
+        return Send(player, NewRequest(player, NetworkRequestOperation.TraderOpenMarket), false, false, false, callback);
+    }
+
+    public static bool QueryTraderMarket(EntityPlayerLocal player, string sessionId, Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player || string.IsNullOrEmpty(sessionId)) return false;
+        NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.TraderQueryMarket);
+        request.TraderSessionId = sessionId;
+        return Send(player, request, false, false, false, callback);
+    }
+
+    public static bool CloseTraderMarket(EntityPlayerLocal player, string sessionId, Action<NetworkRemoteResult> callback = null)
+    {
+        if (!IsRemoteClient || !(bool)player || string.IsNullOrEmpty(sessionId)) return false;
+        NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.TraderCloseMarket);
+        request.TraderSessionId = sessionId;
+        return Send(player, request, false, false, false, callback);
+    }
+
+    public static bool BuyTraderItem(EntityPlayerLocal player, string sessionId, TraderOffer offer, int count, bool toBackpack, Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player || string.IsNullOrEmpty(sessionId) || offer?.Value == null || count <= 0) return false;
+        NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.TraderBuyItem);
+        request.TraderSessionId = sessionId;
+        request.TraderEntityId = offer.TraderEntityId;
+        request.TraderInventoryIndex = offer.InventoryIndex;
+        request.Value = offer.Value.Clone();
+        request.Count = count;
+        request.TraderBuyToBackpack = toBackpack;
+        return Send(player, request, true, true, false, callback);
+    }
+
+    public static bool QueryTraderRules(EntityPlayerLocal player, Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player) return false;
+        return Send(player, NewRequest(player, NetworkRequestOperation.TraderQueryRules), false, false, false, callback);
+    }
+
+    public static bool MutateTraderRules(EntityPlayerLocal player, NetworkRequestOperation operation, TraderAutomationRule rule,
+        string ruleId, int move, Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player || (byte)operation < (byte)NetworkRequestOperation.TraderSaveRule || (byte)operation > (byte)NetworkRequestOperation.TraderRunRules) return false;
+        NetworkRemoteRequest request = NewRequest(player, operation);
+        request.TraderRule = rule?.Clone();
+        request.TraderRuleId = ruleId ?? string.Empty;
+        request.TraderRuleMove = move;
+        return Send(player, request, false, false, false, callback);
+    }
+
     public static bool SetRestockSetting(EntityPlayerLocal player, RestockSettingKey setting, int value, Action<NetworkRemoteResult> callback)
     {
         if (!IsRemoteClient || !(bool)player || RestockSettingCatalog.Get(setting) == null) return false;
@@ -419,7 +502,7 @@ internal static class NetworkRemoteClient
         return Send(player, request, false, false, false, callback);
     }
 
-    public static bool RequestTraderVoidSell(EntityPlayerLocal player, ItemValue value, int count, bool networkSource,
+    public static bool RequestTraderVoidSell(EntityPlayerLocal player, ItemValue value, int count, bool networkSource, bool personalPayout,
         XUiC_ItemStack.StackLocationTypes sourceLocation, int slot, Action<NetworkRemoteResult> callback)
     {
         if (!IsRemoteClient || !(bool)player || value == null || value.type <= 0 || count <= 0 || slot < 0) return false;
@@ -427,10 +510,11 @@ internal static class NetworkRemoteClient
         request.Value = value.Clone();
         request.Count = count;
         request.TraderNetworkSource = networkSource;
+        request.TraderPersonalPayout = personalPayout;
         request.SourceLocation = sourceLocation;
         request.Slot = slot;
-        return Send(player, request, sourceLocation == XUiC_ItemStack.StackLocationTypes.ToolBelt && !networkSource,
-            sourceLocation == XUiC_ItemStack.StackLocationTypes.Backpack && !networkSource, false, callback);
+        return Send(player, request, personalPayout || sourceLocation == XUiC_ItemStack.StackLocationTypes.ToolBelt && !networkSource,
+            personalPayout || sourceLocation == XUiC_ItemStack.StackLocationTypes.Backpack && !networkSource, false, callback);
     }
 
     public static bool ReturnCraftingChainAuthorization(EntityPlayerLocal player, long originalRequestId,
@@ -792,7 +876,10 @@ internal static class NetworkRemoteClient
         {
             bool mutation = request.Operation != NetworkRequestOperation.QueryPage
                 && request.Operation != NetworkRequestOperation.QueryMatching
-                && request.Operation != NetworkRequestOperation.QueryRestockSettings;
+                && request.Operation != NetworkRequestOperation.QueryRestockSettings
+                && request.Operation != NetworkRequestOperation.TraderQueryMarket
+                && request.Operation != NetworkRequestOperation.TraderCloseMarket
+                && request.Operation != NetworkRequestOperation.TraderQueryRules;
             if (mutation && _activeMutationRequestId != 0)
             {
                 NetworkLog.Debug("Remote mutation not queued because another inventory transaction is awaiting confirmation. operation=" + request.Operation + "; activeRequestId=" + _activeMutationRequestId);

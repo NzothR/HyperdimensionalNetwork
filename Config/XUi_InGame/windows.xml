@@ -1,5 +1,64 @@
 <configs>
   <append xpath="/windows">
+    <window name="windowHyperdimensionalTraderRules" width="720" height="660" panel="Center" cursor_area="true" controller="HyperdimensionalNetwork.XUiC_TraderRulesWindow,HyperdimensionalNetwork">
+      <rect pos="0,0" name="content">
+        <sprite depth="1" name="traderRulesFrame" pos="0,0" width="720" height="660" sprite="menu_empty2px" type="sliced" fillcenter="false" color="48,125,160,255" />
+        <rect name="traderRulesHeader" depth="2" height="44">
+          <sprite depth="2" name="traderRulesHeaderBackground" sprite="ui_game_panel_header" />
+          <sprite depth="3" name="traderRulesIcon" style="icon32px" pos="4,-5" sprite="hdn_trader_rules" atlas="SymbolAtlas" />
+          <label depth="3" name="traderRulesTitle" pos="44,-5" width="620" height="32" font_size="27" text_key="HyperdimensionalNetworkTraderRulesTitle" color="180,235,245,255" />
+          <button depth="4" name="btnTraderRulesClose" pos="690,-22" style="icon30px, press, hover" sprite="ui_game_symbol_x" tooltip_key="xuiClose" pivot="center" sound="[paging_click]" />
+        </rect>
+        <label depth="4" name="traderRulesStatus" pos="20,-52" width="680" height="30" font_size="17" justify="center" text_key="HyperdimensionalNetworkTraderRulesHint" />
+        <label depth="4" name="traderRulesFormTitle" pos="24,-92" width="660" height="30" font_size="22" text_key="HyperdimensionalNetworkTraderRulesCreate" />
+        <button depth="4" name="btnTraderRuleCycleKind" pos="24,-128" width="210" height="40" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
+        <label depth="5" name="traderRuleKindLabel" pos="28,-134" width="202" height="30" font_size="18" justify="center" text_key="HyperdimensionalNetworkTraderRuleKindAutoSell" />
+        <button depth="4" name="btnTraderRuleCycleQuality" pos="245,-128" width="210" height="40" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
+        <label depth="5" name="traderRuleQualityModeLabel" pos="249,-134" width="202" height="30" font_size="18" justify="center" text_key="HyperdimensionalNetworkTraderRuleQualityAny" />
+        <button depth="4" name="btnTraderRuleCycleSchedule" pos="466,-128" width="220" height="40" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
+        <label depth="5" name="traderRuleScheduleLabel" pos="470,-134" width="212" height="30" font_size="18" justify="center" text_key="HyperdimensionalNetworkTraderRuleScheduleOff" />
+        <label depth="4" name="traderRuleItemTypeLabel" pos="24,-183" width="205" height="28" font_size="16" text_key="HyperdimensionalNetworkTraderRuleItemType" />
+        <textfield depth="4" name="traderRuleItemType" pos="24,-192" width="205" height="32" text="0" />
+        <label depth="4" name="traderRuleMaximumCountLabel" pos="245,-183" width="205" height="28" font_size="16" text_key="HyperdimensionalNetworkTraderRuleMaximumCount" />
+        <textfield depth="4" name="traderRuleMaximumCount" pos="245,-192" width="205" height="32" text="1" />
+        <label depth="4" name="traderRuleMinimumNetworkCountLabel" pos="466,-183" width="220" height="28" font_size="16" text_key="HyperdimensionalNetworkTraderRuleMinimumNetworkCount" />
+        <textfield depth="4" name="traderRuleMinimumNetworkCount" pos="466,-192" width="220" height="32" text="0" />
+        <label depth="4" name="traderRuleQualityLabel" pos="24,-239" width="125" height="28" font_size="15" text_key="HyperdimensionalNetworkTraderRuleQualityValue" />
+        <textfield depth="4" name="traderRuleQuality" pos="24,-248" width="125" height="32" text="1" />
+        <label depth="4" name="traderRuleMaximumSpendLabel" pos="160,-239" width="130" height="28" font_size="15" text_key="HyperdimensionalNetworkTraderRuleMaximumSpend" />
+        <textfield depth="4" name="traderRuleMaximumSpend" pos="160,-248" width="130" height="32" text="0" />
+        <label depth="4" name="traderRuleMinimumCurrencyCountLabel" pos="300,-239" width="130" height="28" font_size="15" text_key="HyperdimensionalNetworkTraderRuleMinimumCurrencyCount" />
+        <textfield depth="4" name="traderRuleMinimumCurrencyCount" pos="300,-248" width="130" height="32" text="0" />
+        <label depth="4" name="traderRuleHourLabel" pos="440,-239" width="100" height="28" font_size="15" text_key="HyperdimensionalNetworkTraderRuleHour" />
+        <textfield depth="4" name="traderRuleHour" pos="440,-248" width="90" height="32" text="5" />
+        <label depth="4" name="traderRuleIntervalLabel" pos="550,-239" width="136" height="28" font_size="15" text_key="HyperdimensionalNetworkTraderRuleInterval" />
+        <textfield depth="4" name="traderRuleInterval" pos="550,-248" width="136" height="32" text="1" />
+        <button depth="4" name="btnTraderRuleNetworkComparison" pos="24,-298" width="205" height="38" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
+        <label depth="5" name="traderRuleNetworkComparisonLabel" pos="27,-304" width="199" height="28" font_size="15" justify="center" text_key="HyperdimensionalNetworkTraderRuleNetworkCondition" />
+        <button depth="4" name="btnTraderRuleCurrencyComparison" pos="245,-298" width="205" height="38" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
+        <label depth="5" name="traderRuleCurrencyComparisonLabel" pos="248,-304" width="199" height="28" font_size="15" justify="center" text_key="HyperdimensionalNetworkTraderRuleCurrencyCondition" />
+        <button depth="4" name="btnTraderRuleCycleSchedule" pos="466,-298" width="220" height="38" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
+        <label depth="5" name="traderRuleScheduleLabel" pos="470,-304" width="212" height="28" font_size="15" justify="center" text_key="HyperdimensionalNetworkTraderRuleScheduleOff" />
+        <button depth="4" name="btnTraderRuleAdd" pos="24,-350" width="662" height="40" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
+        <label depth="5" name="traderRuleAddLabel" pos="30,-356" width="650" height="28" font_size="19" justify="center" text_key="HyperdimensionalNetworkTraderRuleAdd" />
+        <label depth="4" name="traderRulesListTitle" pos="24,-414" width="660" height="30" font_size="22" text_key="HyperdimensionalNetworkTraderRulesList" />
+        <button depth="4" name="btnTraderRulePrevious" pos="24,-452" width="52" height="38" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
+        <label depth="5" name="traderRulePreviousLabel" pos="27,-458" width="46" height="28" font_size="23" justify="center" text="‹" />
+        <label depth="4" name="traderRulesSelected" pos="84,-452" width="550" height="38" font_size="17" justify="center" text_key="HyperdimensionalNetworkTraderRulesNone" />
+        <button depth="4" name="btnTraderRuleNext" pos="642,-452" width="44" height="38" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
+        <label depth="5" name="traderRuleNextLabel" pos="645,-458" width="38" height="28" font_size="23" justify="center" text="›" />
+        <button depth="4" name="btnTraderRuleToggle" pos="24,-505" width="126" height="42" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
+        <label depth="5" name="traderRuleToggleLabel" pos="27,-511" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkTraderRuleToggle" />
+        <button depth="4" name="btnTraderRuleRun" pos="158,-505" width="126" height="42" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
+        <label depth="5" name="traderRuleRunLabel" pos="161,-511" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkTraderRuleRun" />
+        <button depth="4" name="btnTraderRuleUp" pos="292,-505" width="126" height="42" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
+        <label depth="5" name="traderRuleUpLabel" pos="295,-511" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkTraderRuleUp" />
+        <button depth="4" name="btnTraderRuleDown" pos="426,-505" width="126" height="42" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
+        <label depth="5" name="traderRuleDownLabel" pos="429,-511" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkTraderRuleDown" />
+        <button depth="4" name="btnTraderRuleDelete" pos="560,-505" width="126" height="42" style="press, hover" sprite="menu_empty3px" sound="[paging_click]" />
+        <label depth="5" name="traderRuleDeleteLabel" pos="563,-511" width="120" height="30" font_size="15" justify="center" text_key="HyperdimensionalNetworkTraderRuleDelete" />
+      </rect>
+    </window>
     <window name="windowHyperdimensionalNetwork" width="629" height="805" panel="Left" anchor_side="bottomright" normal_color="[iconColor]" cursor_area="true" controller="HyperdimensionalNetwork.XUiC_HyperdimensionalNetworkWindow,HyperdimensionalNetwork">
       <rect pos="0,0" name="content">
         <panel name="header" height="43" depth="0" disableautobackground="true">
@@ -14,8 +73,11 @@
           <button depth="4" name="btnHyperdimensionalRestock" pos="65,-22" style="icon30px, press, hover" sprite="hdn_manual_restock" atlas="SymbolAtlas" tooltip_key="HyperdimensionalNetworkManualRestock" pivot="center" sound="[paging_click]" />
           <button depth="4" name="btnHyperdimensionalSettings" pos="105,-22" style="icon30px, press, hover" sprite="hdn_settings" atlas="SymbolAtlas" tooltip_key="HyperdimensionalNetworkSettings" pivot="center" sound="[paging_click]" />
           <button depth="4" name="btnHyperdimensionalTraderSell" pos="145,-22" style="icon30px, press, hover" sprite="ui_game_symbol_coin" tooltip_key="HyperdimensionalNetworkTraderSellMode" pivot="center" sound="[paging_click]" />
-          <panel name="searchInputControls" pos="184,0" width="220" disableautobackground="true">
-            <textfield depth="5" pos="0,-7" width="220" height="30" name="searchInput" focus_on_open="true" search_field="true" close_group_on_tab="true" clear_button="true" />
+          <button depth="4" name="btnHyperdimensionalTraderBuy" pos="185,-22" style="icon30px, press, hover" sprite="hdn_trader_buy" atlas="SymbolAtlas" tooltip_key="HyperdimensionalNetworkTraderMarket" pivot="center" sound="[paging_click]" />
+          <button depth="4" name="btnHyperdimensionalTraderRules" pos="225,-22" style="icon30px, press, hover" sprite="hdn_trader_rules" atlas="SymbolAtlas" tooltip_key="HyperdimensionalNetworkTraderRules" pivot="center" sound="[paging_click]" />
+          <button depth="4" name="btnHyperdimensionalTraderPayout" pos="265,-22" style="icon30px, press, hover" sprite="ui_game_symbol_backpack" tooltip_key="HyperdimensionalNetworkTraderPayoutToggle" pivot="center" sound="[paging_click]" />
+          <panel name="searchInputControls" pos="304,0" width="100" disableautobackground="true">
+            <textfield depth="5" pos="0,-7" width="100" height="30" name="searchInput" focus_on_open="true" search_field="true" close_group_on_tab="true" clear_button="true" />
           </panel>
           <panel name="pagerControls" pos="404,0" width="118" height="43" disableautobackground="true">
             <pager name="pager" pos="7,-6" contents_parent="content" />
@@ -889,6 +951,28 @@
           <button depth="9" name="btnCraftingChainCancel" pos="766,-716" width="104" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="54,32,43,255" hovercolor="120,52,68,255" selectedcolor="145,65,82,255" disabledcolor="50,45,50,180" sound="[paging_click]" tooltip_key="xuiClose" />
           <label depth="10" name="craftingChainCancelLabel" pos="766,-720" width="104" height="27" font_size="19" justify="center" text_key="xuiClose" color="255,220,215,255" effect="Outline8" effect_color="0,0,0,255" effect_distance="1,1" />
         </rect>
+      </rect>
+    </window>
+    <window name="windowHyperdimensionalTraderMarket" width="805" height="650" panel="Center" cursor_area="true" controller="HyperdimensionalNetwork.XUiC_TraderMarketWindow,HyperdimensionalNetwork">
+      <rect name="traderMarketContent" depth="0">
+        <sprite depth="0" name="traderMarketBackground" pos="0,0" width="805" height="650" sprite="menu_empty" type="sliced" color="8,16,27,255" foregroundlayer="true" globalopacitymod="0" />
+        <sprite depth="1" name="traderMarketFrame" pos="0,0" width="805" height="650" sprite="menu_empty2px" type="sliced" fillcenter="false" color="48,125,160,255" />
+        <rect name="traderMarketHeader" depth="2" height="44">
+          <sprite depth="2" name="traderMarketHeaderBackground" sprite="ui_game_panel_header" />
+          <sprite depth="3" name="traderMarketIcon" style="icon32px" pos="4,-5" sprite="hdn_trader_buy" atlas="SymbolAtlas" />
+          <label depth="3" name="traderMarketTitle" pos="44,-5" width="700" height="32" font_size="28" text_key="HyperdimensionalNetworkTraderMarketTitle" color="180,235,245,255" effect="Outline8" effect_color="0,0,0,255" effect_distance="1,1" />
+          <button depth="4" name="btnTraderMarketOutput" pos="650,-22" style="icon30px, press, hover" sprite="ui_game_symbol_backpack" tooltip_key="HyperdimensionalNetworkTraderBuyOutputToggle" pivot="center" sound="[paging_click]" />
+          <button depth="4" name="btnTraderMarketClose" pos="774,-22" style="icon30px, press, hover" sprite="ui_game_symbol_x" tooltip_key="xuiClose" pivot="center" sound="[paging_click]" />
+        </rect>
+        <label depth="4" name="traderMarketStatus" pos="20,-51" width="765" height="28" font_size="17" justify="center" text_key="HyperdimensionalNetworkTraderMarketLoading" color="190,220,230,255" />
+        <grid depth="5" name="traderMarketOffers" rows="5" cols="5" pos="22,-83" width="760" height="470" cell_width="152" cell_height="94" repeat_content="true" controller="ItemStackGrid">
+          <item_stack name="0" controller="HyperdimensionalNetwork.XUiC_TraderOfferSlot,HyperdimensionalNetwork" width="152" height="94" prefix_id="true" show_favorites="false">
+            <label depth="15" name="traderOfferPrice" pos="63,-66" width="84" height="22" font_size="14" justify="center" color="255,220,140,255" />
+            <button depth="16" name="btnTraderOfferBuy" pos="100,-8" width="44" height="28" style="press, hover" sprite="menu_empty3px" defaultcolor="28,80,95,255" hovercolor="45,125,145,255" sound="[paging_click]" tooltip_key="HyperdimensionalNetworkTraderOfferBuy" />
+            <label depth="17" name="traderOfferBuyLabel" pos="100,-10" width="44" height="24" font_size="15" justify="center" text_key="HyperdimensionalNetworkTraderOfferBuy" color="220,245,250,255" />
+          </item_stack>
+        </grid>
+        <pager depth="6" name="traderMarketPager" pos="333,-568" contents_parent="traderMarketContent" />
       </rect>
     </window>
   </append>

@@ -60,7 +60,11 @@ public sealed class XUiC_HyperdimensionalSlot : XUiC_ItemStack
                 return;
             }
             if (result.BagData != null || result.InventoryData != null)
-                NetworkLog.Error("Network item sale unexpectedly returned player inventory data. player=" + player.entityId + "; requestId=" + result.RequestId);
+            {
+                if (!NetworkInventorySync.Apply(player, result))
+                    NetworkLog.Error("Network item sale committed but the player's payout inventory snapshot could not be applied. player=" + player.entityId + "; requestId=" + result.RequestId);
+                xui.GetChildByType<XUiC_Backpack>()?.RefreshBackpackSlots();
+            }
             _grid?.Reload();
             GameManager.ShowTooltip(player, Localization.Get("HyperdimensionalNetworkTraderSaleComplete") + " " + result.Amount, false, false, 0f);
             NetworkLog.Debug("Virtual trader sale feedback displayed. player=" + player.entityId + "; requestId=" + result.RequestId + "; item=" + itemType + "; count=" + itemCount + "; proceeds=" + result.Amount);

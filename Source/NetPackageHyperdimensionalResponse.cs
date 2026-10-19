@@ -59,6 +59,34 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         _result.ReplenishmentEnabled = reader.ReadBoolean();
         _result.AmmoBankEnabled = reader.ReadBoolean();
         _result.RetainSearchOnClose = reader.ReadBoolean();
+        _result.TraderSessionId = ReadBoundedString(reader, 64);
+        int traderOfferCount = reader.ReadInt32();
+        if (traderOfferCount < 0 || traderOfferCount > 2048) throw new InvalidDataException("Invalid trader offer count: " + traderOfferCount);
+        for (int i = 0; i < traderOfferCount; i++)
+        {
+            ItemValue value = new ItemValue();
+            value.Read(reader);
+            _result.TraderOffers.Add(new TraderOffer
+            {
+                Value = value,
+                Count = reader.ReadInt32(),
+                BundleSize = reader.ReadInt32(),
+                BundlePrice = reader.ReadInt32(),
+                TraderEntityId = reader.ReadInt32(),
+                InventoryIndex = reader.ReadInt32()
+            });
+        }
+        int ruleCount = reader.ReadInt32();
+        if (ruleCount < 0 || ruleCount > 2048) throw new InvalidDataException("Invalid trader rule count: " + ruleCount);
+        for (int i = 0; i < ruleCount; i++)
+            _result.TraderRules.Add(new TraderAutomationRule
+            {
+                Id = ReadBoundedString(reader, 64), Kind = (TraderAutomationRuleKind)reader.ReadByte(), Enabled = reader.ReadBoolean(),
+                ItemType = reader.ReadInt32(), QualityMode = (TraderQualityMatchMode)reader.ReadByte(), Quality = reader.ReadInt32(),
+                MaximumCount = reader.ReadInt32(), MinimumNetworkCount = reader.ReadInt32(), NetworkCountComparison = (TraderRuleComparison)reader.ReadByte(),
+                MinimumCurrencyCount = reader.ReadInt32(), CurrencyCountComparison = (TraderRuleComparison)reader.ReadByte(), MaximumSpend = reader.ReadInt32(),
+                Scheduled = reader.ReadBoolean(), ScheduledHour = reader.ReadInt32(), IntervalDays = reader.ReadInt32(), LastScheduledDay = reader.ReadInt32()
+            });
     }
 
     public override void write(PooledBinaryWriter writer)
@@ -100,6 +128,35 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         binary.Write(result.ReplenishmentEnabled);
         binary.Write(result.AmmoBankEnabled);
         binary.Write(result.RetainSearchOnClose);
+        binary.Write(result.TraderSessionId ?? string.Empty);
+        int offerCount = result.TraderOffers?.Count ?? 0;
+        if (offerCount > 2048) throw new InvalidDataException("Trader offer count exceeds the response limit: " + offerCount);
+        binary.Write(offerCount);
+        if (result.TraderOffers != null)
+            foreach (TraderOffer offer in result.TraderOffers)
+            {
+                if (offer?.Value == null || offer.Count <= 0 || offer.BundleSize <= 0 || offer.BundlePrice < 0
+                    || offer.TraderEntityId <= 0 || offer.InventoryIndex < 0)
+                    throw new InvalidDataException("Invalid trader offer in response.");
+                offer.Value.Write(writer);
+                binary.Write(offer.Count);
+                binary.Write(offer.BundleSize);
+                binary.Write(offer.BundlePrice);
+                binary.Write(offer.TraderEntityId);
+                binary.Write(offer.InventoryIndex);
+            }
+        int ruleCount = result.TraderRules?.Count ?? 0;
+        if (ruleCount > 2048) throw new InvalidDataException("Trader rule count exceeds the response limit: " + ruleCount);
+        binary.Write(ruleCount);
+        if (result.TraderRules != null)
+            foreach (TraderAutomationRule rule in result.TraderRules)
+            {
+                if (rule == null) throw new InvalidDataException("Invalid trader rule in response.");
+                binary.Write(rule.Id ?? string.Empty); binary.Write((byte)rule.Kind); binary.Write(rule.Enabled); binary.Write(rule.ItemType);
+                binary.Write((byte)rule.QualityMode); binary.Write(rule.Quality); binary.Write(rule.MaximumCount); binary.Write(rule.MinimumNetworkCount);
+                binary.Write((byte)rule.NetworkCountComparison); binary.Write(rule.MinimumCurrencyCount); binary.Write((byte)rule.CurrencyCountComparison);
+                binary.Write(rule.MaximumSpend); binary.Write(rule.Scheduled); binary.Write(rule.ScheduledHour); binary.Write(rule.IntervalDays); binary.Write(rule.LastScheduledDay);
+            }
     }
 
     public override void ProcessPackage(World world, GameManager callbacks)
@@ -119,7 +176,13 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         int entries = _result?.Entries?.Count ?? 0;
         if (entries > 4096) throw new InvalidDataException("Network response entry count exceeds the protocol limit: " + entries);
         int bytes = (_result?.BagData?.Length ?? 0) + (_result?.InventoryData?.Length ?? 0);
-        return 106 + entries * 512 + bytes + Encoding.UTF8.GetByteCount(_result?.Error ?? string.Empty) + Encoding.UTF8.GetByteCount(_result?.NetworkId ?? string.Empty);
+        int valueBytes = _result?.Value == null ? 0 : 512;
+        int offers = _result?.TraderOffers?.Count ?? 0;
+        if (offers > 2048) throw new InvalidDataException("Trader offer count exceeds the response limit: " + offers);
+        int rules = _result?.TraderRules?.Count ?? 0;
+        if (rules > 2048) throw new InvalidDataException("Trader rule count exceeds the response limit: " + rules);
+        return 116 + entries * 512 + offers * 640 + rules * 128 + bytes + valueBytes + Encoding.UTF8.GetByteCount(_result?.Error ?? string.Empty)
+            + Encoding.UTF8.GetByteCount(_result?.NetworkId ?? string.Empty) + Encoding.UTF8.GetByteCount(_result?.TraderSessionId ?? string.Empty);
     }
 
     private static string ReadBoundedString(BinaryReader reader, int maximumBytes)

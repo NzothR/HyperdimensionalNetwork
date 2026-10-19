@@ -55,8 +55,17 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         _request.RestockSetting = (RestockSettingKey)reader.ReadByte();
         _request.RestockSettingValue = reader.ReadInt32();
         _request.TraderNetworkSource = reader.ReadBoolean();
+        _request.TraderPersonalPayout = reader.ReadBoolean();
+        _request.TraderBuyToBackpack = reader.ReadBoolean();
+        _request.TraderAutomation = reader.ReadBoolean();
+        _request.TraderSessionId = ReadBoundedString(reader, 64);
+        _request.TraderEntityId = reader.ReadInt32();
+        _request.TraderInventoryIndex = reader.ReadInt32();
         ReadSlotList(reader, _request.RestockToolbeltSlots);
         ReadSlotList(reader, _request.RestockBackpackSlots);
+        _request.TraderRuleId = ReadBoundedString(reader, 64);
+        _request.TraderRuleMove = reader.ReadInt32();
+        if (reader.ReadBoolean()) _request.TraderRule = ReadTraderRule(reader);
     }
 
     public override void write(PooledBinaryWriter writer)
@@ -91,8 +100,18 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         binary.Write((byte)_request.RestockSetting);
         binary.Write(_request.RestockSettingValue);
         binary.Write(_request.TraderNetworkSource);
+        binary.Write(_request.TraderPersonalPayout);
+        binary.Write(_request.TraderBuyToBackpack);
+        binary.Write(_request.TraderAutomation);
+        binary.Write(_request.TraderSessionId ?? string.Empty);
+        binary.Write(_request.TraderEntityId);
+        binary.Write(_request.TraderInventoryIndex);
         WriteSlotList(binary, _request.RestockToolbeltSlots);
         WriteSlotList(binary, _request.RestockBackpackSlots);
+        binary.Write(_request.TraderRuleId ?? string.Empty);
+        binary.Write(_request.TraderRuleMove);
+        binary.Write(_request.TraderRule != null);
+        if (_request.TraderRule != null) WriteTraderRule(binary, _request.TraderRule);
     }
 
     public override void ProcessPackage(World world, GameManager callbacks)
@@ -114,9 +133,29 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         int valueBytes = _request?.Value == null ? 0 : 128;
         int requirementsBytes = (_request?.Requirements?.Count ?? 0) * 512;
         int slotBytes = ((_request?.RestockToolbeltSlots?.Count ?? 0) + (_request?.RestockBackpackSlots?.Count ?? 0)) * sizeof(int);
-        return 65 + Encoding.UTF8.GetByteCount(_request?.ExpectedNetworkId ?? string.Empty)
+        return 90 + Encoding.UTF8.GetByteCount(_request?.ExpectedNetworkId ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_request?.Category ?? string.Empty)
-            + Encoding.UTF8.GetByteCount(_request?.Search ?? string.Empty) + valueBytes + requirementsBytes + slotBytes;
+            + Encoding.UTF8.GetByteCount(_request?.Search ?? string.Empty)
+            + Encoding.UTF8.GetByteCount(_request?.TraderSessionId ?? string.Empty)
+            + Encoding.UTF8.GetByteCount(_request?.TraderRuleId ?? string.Empty) + (_request?.TraderRule == null ? 0 : 96) + valueBytes + requirementsBytes + slotBytes;
+    }
+
+    private static TraderAutomationRule ReadTraderRule(BinaryReader reader)
+        => new TraderAutomationRule
+        {
+            Id = ReadBoundedString(reader, 64), Kind = (TraderAutomationRuleKind)reader.ReadByte(), Enabled = reader.ReadBoolean(),
+            ItemType = reader.ReadInt32(), QualityMode = (TraderQualityMatchMode)reader.ReadByte(), Quality = reader.ReadInt32(),
+            MaximumCount = reader.ReadInt32(), MinimumNetworkCount = reader.ReadInt32(), NetworkCountComparison = (TraderRuleComparison)reader.ReadByte(),
+            MinimumCurrencyCount = reader.ReadInt32(), CurrencyCountComparison = (TraderRuleComparison)reader.ReadByte(), MaximumSpend = reader.ReadInt32(),
+            Scheduled = reader.ReadBoolean(), ScheduledHour = reader.ReadInt32(), IntervalDays = reader.ReadInt32(), LastScheduledDay = reader.ReadInt32()
+        };
+
+    private static void WriteTraderRule(BinaryWriter writer, TraderAutomationRule rule)
+    {
+        writer.Write(rule.Id ?? string.Empty); writer.Write((byte)rule.Kind); writer.Write(rule.Enabled); writer.Write(rule.ItemType);
+        writer.Write((byte)rule.QualityMode); writer.Write(rule.Quality); writer.Write(rule.MaximumCount); writer.Write(rule.MinimumNetworkCount);
+        writer.Write((byte)rule.NetworkCountComparison); writer.Write(rule.MinimumCurrencyCount); writer.Write((byte)rule.CurrencyCountComparison);
+        writer.Write(rule.MaximumSpend); writer.Write(rule.Scheduled); writer.Write(rule.ScheduledHour); writer.Write(rule.IntervalDays); writer.Write(rule.LastScheduledDay);
     }
 
     private static void ReadSlotList(BinaryReader reader, List<int> slots)

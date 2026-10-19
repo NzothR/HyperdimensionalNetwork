@@ -6,5 +6,11 @@
     <window_group name="hyperdimensionalCraftingChain">
       <window name="windowHyperdimensionalCraftingChain" />
     </window_group>
+    <window_group name="hyperdimensionalTraderMarket">
+      <window name="windowHyperdimensionalTraderMarket" />
+    </window_group>
+    <window_group name="hyperdimensionalTraderRules">
+      <window name="windowHyperdimensionalTraderRules" />
+    </window_group>
   </append>
 </configs>

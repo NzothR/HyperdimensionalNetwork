@@ -52,6 +52,14 @@ internal static class NetworkRpcServer
                     ? RestockSettingsResult(request, settings)
                     : Failure(request, error);
             }
+            else if (request.Operation == NetworkRequestOperation.TraderQueryMarket)
+            {
+                result = TraderMarketplaceService.Query(world, player, request);
+            }
+            else if (request.Operation == NetworkRequestOperation.TraderQueryRules)
+            {
+                result = TraderAutomationService.QueryRules(player, request);
+            }
             else
             {
                 result = ProcessMutation(world, player, sender, request);
@@ -175,6 +183,17 @@ internal static class NetworkRpcServer
                 return ReturnAmmoBankSupply(player, request);
             case NetworkRequestOperation.TraderVoidSell:
                 return TraderTransactionService.ExecuteVoidSell(player, sender?.latestPlayerData, request);
+            case NetworkRequestOperation.TraderOpenMarket:
+                return TraderMarketplaceService.Open(world, player, request);
+            case NetworkRequestOperation.TraderCloseMarket:
+                return TraderMarketplaceService.Close(player, request);
+            case NetworkRequestOperation.TraderBuyItem:
+                return TraderMarketplaceService.Buy(world, player, sender?.latestPlayerData, request);
+            case NetworkRequestOperation.TraderSaveRule:
+            case NetworkRequestOperation.TraderDeleteRule:
+            case NetworkRequestOperation.TraderMoveRule:
+            case NetworkRequestOperation.TraderRunRules:
+                return TraderAutomationService.ExecuteRuleRequest(world, player, request);
             default:
                 return Failure(request, "UnsupportedOperation");
         }
@@ -869,6 +888,10 @@ internal static class NetworkRpcServer
             || left.ConsumptionSource != right.ConsumptionSource
             || left.RestockSetting != right.RestockSetting || left.RestockSettingValue != right.RestockSettingValue
             || left.TraderNetworkSource != right.TraderNetworkSource
+            || left.TraderPersonalPayout != right.TraderPersonalPayout || left.TraderBuyToBackpack != right.TraderBuyToBackpack || left.TraderAutomation != right.TraderAutomation
+            || left.TraderRuleMove != right.TraderRuleMove || !string.Equals(left.TraderRuleId, right.TraderRuleId, StringComparison.Ordinal)
+            || left.TraderEntityId != right.TraderEntityId || left.TraderInventoryIndex != right.TraderInventoryIndex
+            || !string.Equals(left.TraderSessionId, right.TraderSessionId, StringComparison.Ordinal)
             || !string.Equals(left.ExpectedNetworkId, right.ExpectedNetworkId, StringComparison.OrdinalIgnoreCase)
             || !string.Equals(left.Category, right.Category, StringComparison.Ordinal)
             || !string.Equals(left.Search, right.Search, StringComparison.Ordinal)
@@ -879,8 +902,8 @@ internal static class NetworkRpcServer
             for (int i = 0; i < left.Requirements.Count; i++)
                 if (left.Requirements[i].count != right.Requirements[i].count
                     || !left.Requirements[i].itemValue.Equals(right.Requirements[i].itemValue)) return false;
-        if (left.Value == null || right.Value == null) return left.Value == right.Value;
-        return left.Value.Equals(right.Value);
+        if (left.Value == null || right.Value == null) return left.Value == right.Value && SameRule(left.TraderRule, right.TraderRule);
+        return left.Value.Equals(right.Value) && SameRule(left.TraderRule, right.TraderRule);
     }
 
     private static bool SameSlots(List<int> left, List<int> right)
@@ -913,8 +936,15 @@ internal static class NetworkRpcServer
             RestockSetting = request.RestockSetting,
             RestockSettingValue = request.RestockSettingValue,
             TraderNetworkSource = request.TraderNetworkSource,
+            TraderPersonalPayout = request.TraderPersonalPayout,
+            TraderBuyToBackpack = request.TraderBuyToBackpack,
+            TraderAutomation = request.TraderAutomation,
+            TraderSessionId = request.TraderSessionId,
+            TraderEntityId = request.TraderEntityId,
+            TraderInventoryIndex = request.TraderInventoryIndex,
             RestockToolbeltSlots = request.RestockToolbeltSlots?.ToList() ?? new List<int>(),
-            RestockBackpackSlots = request.RestockBackpackSlots?.ToList() ?? new List<int>()
+            RestockBackpackSlots = request.RestockBackpackSlots?.ToList() ?? new List<int>(),
+            TraderRule = request.TraderRule?.Clone(), TraderRuleId = request.TraderRuleId, TraderRuleMove = request.TraderRuleMove
         };
     }
 
@@ -943,8 +973,26 @@ internal static class NetworkRpcServer
             AutoRestockCooldownMs = result.AutoRestockCooldownMs,
             ReplenishmentEnabled = result.ReplenishmentEnabled,
             AmmoBankEnabled = result.AmmoBankEnabled,
-            RetainSearchOnClose = result.RetainSearchOnClose
+            RetainSearchOnClose = result.RetainSearchOnClose,
+            TraderSessionId = result.TraderSessionId,
+            TraderOffers = result.TraderOffers?.Select(offer => new TraderOffer
+            {
+                Value = offer.Value?.Clone(), Count = offer.Count, BundleSize = offer.BundleSize,
+                BundlePrice = offer.BundlePrice, TraderEntityId = offer.TraderEntityId, InventoryIndex = offer.InventoryIndex
+            }).ToList() ?? new List<TraderOffer>(),
+            TraderRules = result.TraderRules?.Select(rule => rule.Clone()).ToList() ?? new List<TraderAutomationRule>()
         };
+    }
+
+    private static bool SameRule(TraderAutomationRule left, TraderAutomationRule right)
+    {
+        if (left == null || right == null) return left == right;
+        return left.Id == right.Id && left.Kind == right.Kind && left.Enabled == right.Enabled && left.ItemType == right.ItemType
+            && left.QualityMode == right.QualityMode && left.Quality == right.Quality && left.MaximumCount == right.MaximumCount
+            && left.MinimumNetworkCount == right.MinimumNetworkCount && left.NetworkCountComparison == right.NetworkCountComparison
+            && left.MinimumCurrencyCount == right.MinimumCurrencyCount && left.CurrencyCountComparison == right.CurrencyCountComparison
+            && left.MaximumSpend == right.MaximumSpend && left.Scheduled == right.Scheduled && left.ScheduledHour == right.ScheduledHour
+            && left.IntervalDays == right.IntervalDays && left.LastScheduledDay == right.LastScheduledDay;
     }
 
     private static NetworkRemoteResult Failure(NetworkRemoteRequest request, string error)

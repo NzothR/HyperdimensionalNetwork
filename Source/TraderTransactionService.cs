@@ -8,8 +8,31 @@ namespace HyperdimensionalNetwork;
 internal static class TraderTransactionService
 {
     private static bool _voidSaleMode;
+    private static bool _personalPayoutMode;
 
     public static bool VoidSaleMode => _voidSaleMode;
+    public static bool PersonalPayoutMode => _personalPayoutMode;
+
+    public static void LoadPersonalPayoutMode(EntityPlayerLocal player)
+    {
+        string key = PersonalPayoutPreferenceKey(player);
+        _personalPayoutMode = !string.IsNullOrEmpty(key) && PlayerPrefs.GetInt(key, 0) != 0;
+    }
+
+    public static bool TogglePersonalPayoutMode(EntityPlayerLocal player)
+    {
+        _personalPayoutMode = !_personalPayoutMode;
+        string key = PersonalPayoutPreferenceKey(player);
+        if (!string.IsNullOrEmpty(key)) { PlayerPrefs.SetInt(key, _personalPayoutMode ? 1 : 0); PlayerPrefs.Save(); }
+        NetworkLog.Debug("Virtual trader payout target changed. personalInventory=" + _personalPayoutMode);
+        return _personalPayoutMode;
+    }
+
+    private static string PersonalPayoutPreferenceKey(EntityPlayerLocal player)
+    {
+        string playerId = PlayerNetworkDirectory.GetStablePlayerId(player);
+        return string.IsNullOrEmpty(playerId) ? null : "HyperdimensionalNetwork.TraderPersonalPayout." + playerId;
+    }
 
     public static bool CanSell(ItemValue value)
     {
@@ -39,7 +62,7 @@ internal static class TraderTransactionService
         int slotNumber = slot.SlotNumber;
         if (!networkSource && location != XUiC_ItemStack.StackLocationTypes.Backpack && location != XUiC_ItemStack.StackLocationTypes.ToolBelt) return false;
         if (NetworkRemoteClient.IsRemoteClient)
-            return NetworkRemoteClient.RequestTraderVoidSell(player, stack.itemValue, stack.count, networkSource, location, slotNumber, completed);
+            return NetworkRemoteClient.RequestTraderVoidSell(player, stack.itemValue, stack.count, networkSource, _personalPayoutMode, location, slotNumber, completed);
 
         NetworkRemoteRequest request = new NetworkRemoteRequest
         {
@@ -50,7 +73,8 @@ internal static class TraderTransactionService
             Count = stack.count,
             SourceLocation = location,
             Slot = slotNumber,
-            TraderNetworkSource = networkSource
+            TraderNetworkSource = networkSource,
+            TraderPersonalPayout = _personalPayoutMode
         };
         NetworkRemoteResult result = ExecuteVoidSell(player, null, request);
         completed?.Invoke(result);
@@ -65,8 +89,11 @@ internal static class TraderTransactionService
         ItemValue value = request.Value.Clone();
         ItemClass itemClass = value.ItemClass;
         if (itemClass == null || !IsSellable(value, itemClass)) return Failure(request, "ItemNotSellable");
+        EntityPlayer pricePlayer = request.TraderAutomation
+            ? TraderAutomationService.ResolveOnlineAdministrator(GameManager.Instance?.World, PlayerNetworkDirectory.GetNetworkId(player))
+            : player;
         int price;
-        try { price = GetVirtualSellPrice(player, value, request.Count, itemClass); }
+        try { price = GetVirtualSellPrice(pricePlayer, value, request.Count, itemClass); }
         catch (Exception ex)
         {
             NetworkLog.Error("Could not calculate virtual trader sale price. player=" + player.entityId + "; requestId=" + request.RequestId + "; item=" + value.type + "; exception=" + ex);
@@ -105,7 +132,11 @@ internal static class TraderTransactionService
         if (!sourceDebited) return Failure(request, request.TraderNetworkSource ? "NetworkSaleSourceChanged" : "PlayerInventoryUpdateFailed");
 
         ItemValue currency = ItemClass.GetItem(TraderInfo.CurrencyItem, false);
-        if (currency == null || currency.IsEmpty() || !NetworkStorage.AddStack(player, new ItemStack(currency.Clone(), price)))
+        bool creditedToPlayer = request.TraderPersonalPayout
+            && TryCreditPersonalPayout(player, playerData, currency, price, out updatedBag, out updatedToolbelt);
+        bool creditedToNetwork = !creditedToPlayer && currency != null && !currency.IsEmpty()
+            && NetworkStorage.AddStack(player, new ItemStack(currency.Clone(), price));
+        if (!creditedToPlayer && !creditedToNetwork)
         {
             bool restored = request.TraderNetworkSource
                 ? NetworkStorage.AddStack(player, new ItemStack(value, request.Count))
@@ -117,7 +148,8 @@ internal static class TraderTransactionService
 
         try
         {
-            player.Progression?.AddLevelExp(Math.Max(price, 1), "_xpFromSelling", (Progression.XPTypes)4, true, true, -1, null);
+            if (!request.TraderAutomation)
+                player.Progression?.AddLevelExp(Math.Max(price, 1), "_xpFromSelling", (Progression.XPTypes)4, true, true, -1, null);
         }
         catch (Exception ex)
         {
@@ -131,9 +163,36 @@ internal static class TraderTransactionService
             Success = true,
             Amount = price,
             Value = currency.Clone(),
-            BagData = request.TraderNetworkSource ? null : updatedBag?.ToArray(),
-            InventoryData = request.TraderNetworkSource ? null : updatedToolbelt?.ToArray()
+            BagData = creditedToPlayer && updatedBag != null ? updatedBag.ToArray() : null,
+            InventoryData = creditedToPlayer && updatedToolbelt != null ? updatedToolbelt.ToArray() : null
         };
+    }
+
+    private static bool TryCreditPersonalPayout(EntityPlayer player, PlayerDataFile playerData, ItemValue currency, int amount,
+        out MemoryStream updatedBag, out MemoryStream updatedToolbelt)
+    {
+        updatedBag = null;
+        updatedToolbelt = null;
+        if (currency == null || currency.IsEmpty() || !TryGetPlayerInventory(player, playerData, out Bag bag,
+                out ItemStackGrid toolbelt, out byte selectedSlot, out MemoryStream originalBag, out MemoryStream originalToolbelt)) return false;
+        if (!bag.AddItem(new ItemStack(currency.Clone(), amount)))
+        {
+            NetworkLog.Debug("Virtual trader proceeds fell back to the network because the player's backpack could not fit the full payout. player=" + player.entityId + "; amount=" + amount);
+            return false;
+        }
+        MemoryStream candidateBag = NetworkRpcServer.WriteBag(bag);
+        MemoryStream candidateToolbelt = WriteToolbelt(toolbelt, selectedSlot);
+        if (!ApplySnapshots(player, playerData, candidateBag, candidateToolbelt))
+        {
+            if (!RestoreSnapshots(player, playerData, originalBag, originalToolbelt))
+                NetworkLog.Error("Virtual trader personal payout could not restore the original player inventory before network fallback. player=" + player.entityId);
+            NetworkLog.Error("Virtual trader personal payout inventory update failed; attempting shared network credit. player=" + player.entityId + "; amount=" + amount);
+            return false;
+        }
+        updatedBag = candidateBag;
+        updatedToolbelt = candidateToolbelt;
+        NetworkLog.Debug("Virtual trader proceeds credited to player backpack. player=" + player.entityId + "; amount=" + amount);
+        return true;
     }
 
     private static bool TryGetPlayerInventory(EntityPlayer player, PlayerDataFile playerData, out Bag bag,
@@ -284,8 +343,8 @@ internal static class TraderTransactionService
         else price = economicValue * TraderInfo.SellMarkdown;
 
         price += price * EffectManager.GetValue(PassiveEffects.BarteringSelling, null, 0f, player, null, itemClass.ItemTags);
-        float configured = price * (float)(count / bundleSize) * SandboxOptionManager.GetFloat(SandboxOptions.SandboxOptions.TraderSellPrices);
-        return Mathf.CeilToInt((int)configured);
+        int basePrice = (int)(price * (float)(count / bundleSize));
+        return Mathf.CeilToInt(basePrice * SandboxOptionManager.GetFloat(SandboxOptions.SandboxOptions.TraderSellPrices));
     }
 
     private static bool IsSellable(ItemValue value, ItemClass itemClass)
