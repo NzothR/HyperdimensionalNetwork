@@ -84,6 +84,18 @@ internal static class PlayerNetworkDirectory
         }
     }
 
+    internal static List<PlayerNetworkRecord> GetNetworksSnapshot()
+    {
+        List<PlayerNetworkRecord> snapshot = new List<PlayerNetworkRecord>();
+        lock (Sync)
+        {
+            if (!EnsureLoaded()) return snapshot;
+            foreach (PlayerNetworkRecord record in Networks.Values) snapshot.Add(Clone(record));
+        }
+        snapshot.Sort((left, right) => StringComparer.OrdinalIgnoreCase.Compare(left.NetworkId, right.NetworkId));
+        return snapshot;
+    }
+
     internal static long GetMembershipRevision()
     {
         lock (Sync) return EnsureLoaded() ? Math.Max(1, _directoryRevision) : 0;
@@ -242,6 +254,37 @@ internal static class PlayerNetworkDirectory
             if (Save()) return true;
             Networks[networkId] = oldRecord;
             _directoryRevision--;
+            error = "NetworkDirectorySaveFailed";
+            return false;
+        }
+    }
+
+    internal static bool TrySetAdministratorByServer(string targetPlayerId, string networkId,
+        out string previousAdminPlayerId, out string error)
+    {
+        previousAdminPlayerId = string.Empty;
+        error = string.Empty;
+        lock (Sync)
+        {
+            if (!EnsureLoaded()) { error = "NetworkDirectoryUnavailable"; return false; }
+            if (string.IsNullOrWhiteSpace(targetPlayerId) || string.IsNullOrWhiteSpace(networkId)
+                || !Networks.TryGetValue(networkId, out PlayerNetworkRecord oldRecord)
+                || !oldRecord.Members.Contains(targetPlayerId)
+                || !PlayerToNetwork.TryGetValue(targetPlayerId, out string mappedNetworkId)
+                || !string.Equals(mappedNetworkId, networkId, StringComparison.OrdinalIgnoreCase))
+            { error = "MemberUnavailable"; return false; }
+
+            previousAdminPlayerId = oldRecord.AdminPlayerId;
+            if (string.Equals(previousAdminPlayerId, targetPlayerId, StringComparison.Ordinal)) return true;
+            PlayerNetworkRecord updated = Clone(oldRecord);
+            updated.AdminPlayerId = targetPlayerId;
+            updated.MembershipRevision++;
+            Networks[networkId] = updated;
+            _directoryRevision++;
+            if (Save()) return true;
+            Networks[networkId] = oldRecord;
+            _directoryRevision--;
+            previousAdminPlayerId = string.Empty;
             error = "NetworkDirectorySaveFailed";
             return false;
         }

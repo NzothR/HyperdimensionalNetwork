@@ -313,6 +313,33 @@ internal static class NetworkStorage
         }
     }
 
+    internal static bool TryClearNetworkInventory(string networkId, out int clearedVariants, out string error)
+    {
+        clearedVariants = 0;
+        error = string.Empty;
+        if (string.IsNullOrWhiteSpace(networkId)) { error = "InvalidNetworkId"; return false; }
+        if (!NetworkSaveDataDirectory.TryGetDirectory(out string directory)) { error = "NetworkStorageUnavailable"; return false; }
+        string path = Path.Combine(directory, networkId + ".hwn");
+        lock (Sync)
+        {
+            if (UnsafePaths.Contains(path)) { error = "NetworkStorageUnsafe"; return false; }
+            Dictionary<ItemValue, long> storage = GetStorageForPath(path);
+            if (UnsafePaths.Contains(path)) { error = "NetworkStorageUnsafe"; return false; }
+            Dictionary<ItemValue, long> removals = new Dictionary<ItemValue, long>(ItemValueComparer.Instance);
+            foreach (KeyValuePair<ItemValue, long> entry in storage)
+                if (entry.Value > 0) removals[entry.Key.Clone()] = -entry.Value;
+            if (removals.Count == 0) return true;
+            if (!AppendTransaction(path, removals)) { error = "NetworkStorageClearWriteFailed"; return false; }
+            Apply(storage, removals);
+            foreach (ItemValue key in removals.Keys) Unindex(path, key);
+            BumpRevision(path);
+            clearedVariants = removals.Count;
+            NetworkLog.Debug("Network inventory cleared by server maintenance. network=" + networkId
+                + "; variants=" + clearedVariants + "; revision=" + Revisions[path]);
+            return true;
+        }
+    }
+
     internal static bool TryTransferBatch(string sourceNetworkId, string targetNetworkId,
         IEnumerable<StorageAddition> items, out string error)
     {

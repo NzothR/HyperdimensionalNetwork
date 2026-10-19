@@ -414,6 +414,13 @@ internal static class TraderMarketplaceService
         lock (Sync) return Sessions.ContainsKey(playerEntityId);
     }
 
+    internal static bool HasSessionForNetwork(string networkId)
+    {
+        if (string.IsNullOrWhiteSpace(networkId)) return false;
+        lock (Sync) return Sessions.Values.Any(session =>
+            string.Equals(session.NetworkId, networkId, StringComparison.OrdinalIgnoreCase));
+    }
+
     internal static bool CloseForMembershipChange(int playerEntityId)
     {
         lock (Sync)

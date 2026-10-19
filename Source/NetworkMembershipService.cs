@@ -11,6 +11,7 @@ internal static class NetworkMembershipService
 
     private sealed class Invitation
     {
+        public string InviteId;
         public string InviterPlayerId;
         public string InviterName;
         public string TargetNetworkId;
@@ -53,6 +54,69 @@ internal static class NetworkMembershipService
             if (count <= 1) InternalNetworkScopes.Remove(networkId);
             else InternalNetworkScopes[networkId] = count - 1;
         }
+    }
+
+    private sealed class NetworkMaintenanceLease : IDisposable
+    {
+        private List<string> _networkIds;
+
+        public NetworkMaintenanceLease(List<string> networkIds) => _networkIds = networkIds;
+
+        public void Dispose()
+        {
+            List<string> networkIds = _networkIds;
+            _networkIds = null;
+            if (networkIds == null) return;
+            lock (Sync)
+                foreach (string networkId in networkIds) BlockedNetworks.Remove(networkId);
+        }
+    }
+
+    internal static bool TryAcquireNetworkMaintenance(IEnumerable<string> networkIds, out IDisposable lease)
+    {
+        lease = null;
+        List<string> requested = (networkIds ?? Enumerable.Empty<string>())
+            .Where(id => !string.IsNullOrWhiteSpace(id)).Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase).ToList();
+        if (requested.Count == 0) return false;
+        HashSet<string> requestedSet = new HashSet<string>(requested, StringComparer.OrdinalIgnoreCase);
+        lock (Sync)
+        {
+            if (requested.Any(BlockedNetworks.Contains)
+                || Transitions.Values.Any(transition => requestedSet.Contains(transition.SourceNetworkId)
+                    || requestedSet.Contains(transition.TargetNetworkId))) return false;
+            foreach (string networkId in requested) BlockedNetworks.Add(networkId);
+            lease = new NetworkMaintenanceLease(requested);
+            return true;
+        }
+    }
+
+    internal static bool SetAdministratorFromServer(World world, string targetPlayerId, out string networkId,
+        out string previousAdminPlayerId, out string error)
+    {
+        networkId = PlayerNetworkDirectory.GetNetworkIdForPlayerId(targetPlayerId);
+        previousAdminPlayerId = string.Empty;
+        error = string.Empty;
+        if (string.IsNullOrWhiteSpace(networkId) || !PlayerNetworkDirectory.TryGetNetwork(networkId, out _))
+        { error = "PlayerNetworkUnavailable"; return false; }
+        if (TraderMarketplaceService.HasSessionForNetwork(networkId))
+        { error = "TraderMarketBusy"; return false; }
+        if (TraderAutomationService.IsNetworkExecutionActive(networkId))
+        { error = "TraderRuleRunInProgress"; return false; }
+        if (!TryAcquireNetworkMaintenance(new[] { networkId }, out IDisposable lease))
+        { error = "MembershipBusy"; return false; }
+        using (lease)
+        {
+            if (!PlayerNetworkDirectory.TrySetAdministratorByServer(targetPlayerId, networkId, out previousAdminPlayerId, out error))
+                return false;
+            if (!string.Equals(previousAdminPlayerId, targetPlayerId, StringComparison.Ordinal))
+                BroadcastChanged(world, networkId, networkId, targetPlayerId);
+        }
+        if (!string.Equals(previousAdminPlayerId, targetPlayerId, StringComparison.Ordinal))
+            NetworkLog.Info("Server administrator changed network role. network=" + networkId
+                + "; previousAdmin=" + PlayerNetworkDirectory.Summarize(previousAdminPlayerId)
+                + "; newAdmin=" + PlayerNetworkDirectory.Summarize(targetPlayerId));
+        return true;
     }
 
     internal static IDisposable EnterInternalNetworkScope(string networkId)
@@ -208,6 +272,16 @@ internal static class NetworkMembershipService
         int onlineMemberCount = allMembers.Count(member => member.IsOnline);
         int memberOffset = Math.Min(Math.Max(0, request.Page), Math.Max(0, allMembers.Count - RowsPerPage));
         int candidateOffset = Math.Min(Math.Max(0, request.MembershipCandidatePage), Math.Max(0, allCandidates.Count - RowsPerPage));
+        Invitation pendingInvitation = null;
+        string playerId = PlayerNetworkDirectory.GetStablePlayerId(player);
+        lock (Sync)
+        {
+            if (Invitations.TryGetValue(playerId ?? string.Empty, out Invitation found))
+            {
+                if (found.ExpiresAt > Time.realtimeSinceStartup) pendingInvitation = found;
+                else Invitations.Remove(playerId ?? string.Empty);
+            }
+        }
         return new NetworkRemoteResult
         {
             RequestId = request.RequestId,
@@ -221,7 +295,13 @@ internal static class NetworkMembershipService
             NetworkMembers = allMembers.Skip(memberOffset).Take(RowsPerPage).ToList(),
             MembershipCandidates = allCandidates.Skip(candidateOffset).Take(RowsPerPage).ToList(),
             Amount = allCandidates.Count,
-            MembershipSourceNetworkId = networkId
+            MembershipSourceNetworkId = networkId,
+            MembershipTargetNetworkId = pendingInvitation?.TargetNetworkId ?? string.Empty,
+            MembershipOperationId = pendingInvitation?.InviteId ?? string.Empty,
+            MembershipInviterName = pendingInvitation?.InviterName ?? string.Empty,
+            MembershipWillMerge = pendingInvitation != null
+                && string.Equals(network.AdminPlayerId, playerId, StringComparison.Ordinal)
+                && network.Members.Count == 1
         };
     }
 
@@ -306,6 +386,7 @@ internal static class NetworkMembershipService
         if (string.IsNullOrEmpty(actorId) || string.IsNullOrEmpty(networkId) || string.IsNullOrEmpty(request.MembershipTargetPlayerId)) return Failure(request, "InvalidInviteTarget");
         if (!PlayerNetworkDirectory.TryGetNetwork(networkId, out PlayerNetworkRecord network) || !network.Members.Contains(actorId)) return Failure(request, "PermissionDenied");
         if (network.Members.Count >= 4096) return Failure(request, "NetworkMemberLimit");
+        lock (Sync) if (BlockedNetworks.Contains(networkId)) return Failure(request, "MembershipBusy");
         EntityPlayer target = FindOnlinePlayer(world, request.MembershipTargetPlayerId);
         if (!(bool)target) return Failure(request, "PlayerOffline");
         string targetNetworkId = PlayerNetworkDirectory.GetNetworkId(target);
@@ -314,17 +395,24 @@ internal static class NetworkMembershipService
         if (string.Equals(targetNetworkId, networkId, StringComparison.OrdinalIgnoreCase)) return Failure(request, "AlreadyNetworkMember");
         if (string.Equals(targetNetwork.AdminPlayerId, request.MembershipTargetPlayerId, StringComparison.Ordinal)
             && targetNetwork.Members.Count > 1) return Failure(request, "AdministratorHasMembers");
+        Invitation invitation = new Invitation
+        {
+            InviteId = Guid.NewGuid().ToString("N"),
+            InviterPlayerId = actorId,
+            InviterName = SafeName(player),
+            TargetNetworkId = networkId,
+            ExpiresAt = Time.realtimeSinceStartup + InvitationLifetimeSeconds
+        };
         lock (Sync)
         {
-            if (Invitations.ContainsKey(request.MembershipTargetPlayerId)) return Failure(request, "InvitePending");
-            if (PlayerTransitions.ContainsKey(request.MembershipTargetPlayerId)) return Failure(request, "MembershipBusy");
-            Invitations[request.MembershipTargetPlayerId] = new Invitation
+            if (Invitations.TryGetValue(request.MembershipTargetPlayerId, out Invitation existingInvite))
             {
-                InviterPlayerId = actorId,
-                InviterName = SafeName(player),
-                TargetNetworkId = networkId,
-                ExpiresAt = Time.realtimeSinceStartup + InvitationLifetimeSeconds
-            };
+                if (existingInvite.ExpiresAt <= Time.realtimeSinceStartup) Invitations.Remove(request.MembershipTargetPlayerId);
+                else return Failure(request, "InvitePending");
+            }
+            if (PlayerTransitions.ContainsKey(request.MembershipTargetPlayerId)) return Failure(request, "MembershipBusy");
+            if (BlockedNetworks.Contains(networkId)) return Failure(request, "MembershipBusy");
+            Invitations[request.MembershipTargetPlayerId] = invitation;
         }
         NetworkLog.Debug("Network invite created. inviter=" + PlayerNetworkDirectory.Summarize(actorId) + "; target="
             + PlayerNetworkDirectory.Summarize(request.MembershipTargetPlayerId) + "; network=" + networkId);
@@ -332,13 +420,14 @@ internal static class NetworkMembershipService
         {
             Success = true,
             MembershipNotice = NetworkMembershipNotice.Invite,
+            MembershipOperationId = invitation.InviteId,
             MembershipTargetPlayerId = request.MembershipTargetPlayerId,
             MembershipSourceNetworkId = networkId,
             MembershipInviterName = SafeName(player),
             MembershipWillMerge = string.Equals(targetNetwork.AdminPlayerId, request.MembershipTargetPlayerId, StringComparison.Ordinal)
                 && targetNetwork.Members.Count == 1
         });
-        return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, MembershipTargetPlayerId = request.MembershipTargetPlayerId };
+        return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, MembershipTargetPlayerId = request.MembershipTargetPlayerId, MembershipOperationId = invitation.InviteId };
     }
 
     private static NetworkRemoteResult AcceptInvite(World world, EntityPlayer player, NetworkRemoteRequest request)
@@ -349,10 +438,14 @@ internal static class NetworkMembershipService
         {
             if (string.IsNullOrEmpty(playerId) || !Invitations.TryGetValue(playerId, out invitation)) return Failure(request, "InviteUnavailable");
             if (invitation.ExpiresAt <= Time.realtimeSinceStartup) { Invitations.Remove(playerId); return Failure(request, "InviteExpired"); }
+            if (!string.IsNullOrEmpty(request.MembershipOperationId)
+                && !string.Equals(invitation.InviteId, request.MembershipOperationId, StringComparison.Ordinal))
+                return Failure(request, "InviteUnavailable");
         }
         string sourceNetworkId = PlayerNetworkDirectory.GetNetworkId(player);
         lock (Sync)
-            if (BlockedNetworks.Contains(invitation.TargetNetworkId) || PlayerTransitions.ContainsKey(invitation.InviterPlayerId))
+            if (BlockedNetworks.Contains(invitation.TargetNetworkId) || BlockedNetworks.Contains(sourceNetworkId ?? string.Empty)
+                || PlayerTransitions.ContainsKey(invitation.InviterPlayerId))
             {
                 Invitations.Remove(playerId);
                 return Failure(request, "MembershipBusy");
@@ -381,8 +474,30 @@ internal static class NetworkMembershipService
     {
         string playerId = PlayerNetworkDirectory.GetStablePlayerId(player);
         bool removed;
-        lock (Sync) removed = !string.IsNullOrEmpty(playerId) && Invitations.Remove(playerId);
-        return new NetworkRemoteResult { RequestId = request.RequestId, Success = removed, Error = removed ? string.Empty : "InviteUnavailable" };
+        bool expired = false;
+        lock (Sync)
+        {
+            removed = false;
+            if (!string.IsNullOrEmpty(playerId) && Invitations.TryGetValue(playerId, out Invitation invitation))
+            {
+                if (invitation.ExpiresAt <= Time.realtimeSinceStartup)
+                {
+                    Invitations.Remove(playerId);
+                    expired = true;
+                }
+                else if (string.IsNullOrEmpty(request.MembershipOperationId)
+                    || string.Equals(invitation.InviteId, request.MembershipOperationId, StringComparison.Ordinal))
+                    removed = Invitations.Remove(playerId);
+            }
+        }
+        NetworkLog.Debug("Network invitation response processed. recipient=" + PlayerNetworkDirectory.Summarize(playerId)
+            + "; invite=" + (request?.MembershipOperationId ?? string.Empty) + "; declined=" + removed + "; expired=" + expired);
+        return new NetworkRemoteResult
+        {
+            RequestId = request.RequestId,
+            Success = removed,
+            Error = removed ? string.Empty : expired ? "InviteExpired" : "InviteUnavailable"
+        };
     }
 
     private static NetworkRemoteResult Leave(World world, EntityPlayer player, NetworkRemoteRequest request)
@@ -390,6 +505,7 @@ internal static class NetworkMembershipService
         string playerId = PlayerNetworkDirectory.GetStablePlayerId(player);
         string sourceNetworkId = PlayerNetworkDirectory.GetNetworkId(player);
         if (string.IsNullOrEmpty(playerId) || string.IsNullOrEmpty(sourceNetworkId) || PlayerNetworkDirectory.IsNetworkAdministrator(player)) return Failure(request, "AdministratorCannotLeave");
+        lock (Sync) if (BlockedNetworks.Contains(sourceNetworkId)) return Failure(request, "MembershipBusy");
         return StartTransition(world, player, playerId, TransitionKind.Leave, sourceNetworkId, string.Empty, request.RequestId);
     }
 
@@ -399,6 +515,7 @@ internal static class NetworkMembershipService
         string networkId = PlayerNetworkDirectory.GetNetworkId(actor);
         string targetId = request.MembershipTargetPlayerId;
         if (string.IsNullOrEmpty(actorId) || string.IsNullOrEmpty(networkId) || !PlayerNetworkDirectory.IsNetworkAdministrator(actor)) return Failure(request, "PermissionDenied");
+        lock (Sync) if (BlockedNetworks.Contains(networkId)) return Failure(request, "MembershipBusy");
         if (string.IsNullOrEmpty(targetId) || string.Equals(actorId, targetId, StringComparison.Ordinal)) return Failure(request, "CannotKickSelf");
         if (!PlayerNetworkDirectory.TryGetNetwork(networkId, out PlayerNetworkRecord record) || !record.Members.Contains(targetId)
             || string.Equals(record.AdminPlayerId, targetId, StringComparison.Ordinal)) return Failure(request, "MemberUnavailable");
@@ -423,6 +540,7 @@ internal static class NetworkMembershipService
         string actorId = PlayerNetworkDirectory.GetStablePlayerId(actor);
         string networkId = PlayerNetworkDirectory.GetNetworkId(actor);
         string targetId = request.MembershipTargetPlayerId;
+        lock (Sync) if (BlockedNetworks.Contains(networkId ?? string.Empty)) return Failure(request, "MembershipBusy");
         if (!PlayerNetworkDirectory.TryTransferAdministrator(actorId, targetId, networkId, out string error)) return Failure(request, error);
         BroadcastChanged(world, networkId, networkId, targetId);
         SendToPlayer(world, actorId, new NetworkRemoteResult

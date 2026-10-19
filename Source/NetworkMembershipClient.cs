@@ -165,14 +165,14 @@ internal static class NetworkMembershipClient
                     {
                         _inviteDialogOpen = false;
                         _activeInviteNetworkId = string.Empty;
-                        SendRequest(player, NetworkRequestOperation.MembershipAcceptInvite, string.Empty, string.Empty,
+                        SendRequest(player, NetworkRequestOperation.MembershipAcceptInvite, string.Empty, invite.MembershipOperationId,
                             ShowTransitionResult);
                     });
                     dialog.buttons[2].DefaultCancel("HyperdimensionalNetworkInviteDecline", () =>
                     {
                         _inviteDialogOpen = false;
                         _activeInviteNetworkId = string.Empty;
-                        SendRequest(player, NetworkRequestOperation.MembershipDeclineInvite, string.Empty, string.Empty, null);
+                        SendRequest(player, NetworkRequestOperation.MembershipDeclineInvite, string.Empty, invite.MembershipOperationId, null);
                     });
                 }, _openMainMenuOnClose: false, _modal: true, _buttonOnOutsideClick: 2, _buttonOnExternalClose: 2);
             _inviteDialogOpen = true;

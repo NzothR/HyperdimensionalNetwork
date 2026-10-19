@@ -192,6 +192,12 @@ internal static class TraderAutomationService
             || PendingRuns.Any(run => string.Equals(run.NetworkId, networkId, StringComparison.OrdinalIgnoreCase))
             || ManualRunProgress.TryGetValue(networkId, out TraderRunProgress progress) && progress.Active;
 
+    internal static bool IsNetworkExecutionActive(string networkId)
+    {
+        if (string.IsNullOrWhiteSpace(networkId)) return false;
+        lock (Sync) return IsNetworkExecutionActiveUnsafe(networkId);
+    }
+
     private static void SetRunProgress(string networkId, bool active, int currentRule, int totalRules, string message, string ruleId = "")
     {
         if (string.IsNullOrEmpty(networkId)) return;
