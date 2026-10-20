@@ -25,6 +25,7 @@ public sealed class HyperdimensionalNetworkModApi : IModApi
         NetworkMembershipService.Update(world);
         TraderMarketplaceService.SweepDisconnected(world);
         TraderAutomationService.Update(world);
+        AutoScrapQueueService.Update(world);
     }
 
     private static void OnWorldShuttingDown(ref ModEvents.SWorldShuttingDownData data)
@@ -33,6 +34,7 @@ public sealed class HyperdimensionalNetworkModApi : IModApi
         NetworkMembershipService.OnWorldShuttingDown();
         NetworkMembershipClient.OnWorldShuttingDown();
         TraderMarketplaceService.OnWorldShuttingDown();
+        AutoScrapQueueService.OnWorldShuttingDown();
     }
 
     private static void OnShutdown(ref ModEvents.SGameShutdownData data)
@@ -41,6 +43,7 @@ public sealed class HyperdimensionalNetworkModApi : IModApi
         NetworkMembershipService.OnWorldShuttingDown();
         NetworkMembershipClient.OnWorldShuttingDown();
         TraderMarketplaceService.OnWorldShuttingDown();
+        AutoScrapQueueService.OnWorldShuttingDown();
         NetworkStorage.FlushAll();
     }
 }

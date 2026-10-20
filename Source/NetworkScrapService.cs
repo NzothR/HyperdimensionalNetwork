@@ -175,7 +175,7 @@ internal static class NetworkScrapService
     private static bool HasQueueSpace(XUiC_CraftingQueue queue)
         => queue.GetRecipesToCraft().Any(item => item != null && !item.HasRecipe());
 
-    private static bool HasAttachment(ItemValue value)
+    internal static bool HasAttachment(ItemValue value)
     {
         if (value.ModificationCount <= 0) return false;
         for (int i = 0; i < value.ModificationCount; i++)
@@ -188,7 +188,7 @@ internal static class NetworkScrapService
         return false;
     }
 
-    private static bool TryCreateScrapRecipe(EntityPlayer player, ItemStack source, out Recipe recipe, out int consumed)
+    internal static bool TryCreateScrapRecipe(EntityPlayer player, ItemStack source, out Recipe recipe, out int consumed)
     {
         recipe = null;
         consumed = 0;
@@ -212,7 +212,9 @@ internal static class NetworkScrapService
             itemValueType = output.Id,
             craftingTime = input.ScrapTimeOverride > 0f
                 ? input.ScrapTimeOverride
-                : EffectManager.GetValue(PassiveEffects.ScrappingTime, null, output.CraftComponentTime * outputUnits, player)
+                : (bool)player
+                    ? EffectManager.GetValue(PassiveEffects.ScrappingTime, null, output.CraftComponentTime * outputUnits, player)
+                    : output.CraftComponentTime * outputUnits
         };
         recipe.ingredients.Add(new ItemStack(source.itemValue.Clone(), consumed));
         recipe.IsScrap = true;

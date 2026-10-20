@@ -374,7 +374,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
                 continue;
             }
             SetVisible(_buyAccents[i], rule.Kind == TraderAutomationRuleKind.AutoBuy);
-            SetVisible(_sellAccents[i], rule.Kind == TraderAutomationRuleKind.AutoSell);
+            SetVisible(_sellAccents[i], rule.Kind is TraderAutomationRuleKind.AutoSell or TraderAutomationRuleKind.AutoScrap);
             int globalRuleIndex = _rulePage * RuleRows + i + 1;
             bool isActiveRule = _runActive && (_runRuleId.Length > 0
                 ? string.Equals(rule.Id, _runRuleId, StringComparison.Ordinal)
@@ -433,7 +433,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         string target = TargetName(rule);
         string timing = rule.Kind == TraderAutomationRuleKind.AutoBuy && rule.Scheduled
             ? rule.ScheduledHour.ToString("00", CultureInfo.InvariantCulture) + ":00 / " + rule.IntervalDays + "日"
-            : rule.Kind == TraderAutomationRuleKind.AutoSell ? AutoSellSourceName(rule.AutoSellSource)
+            : rule.Kind is TraderAutomationRuleKind.AutoSell or TraderAutomationRuleKind.AutoScrap ? AutoSellSourceName(rule.AutoSellSource)
             : rule.Kind == TraderAutomationRuleKind.AutoBuy ? "手动" : "物品变动时";
         return (rule.Enabled ? "" : "○ ") + target + "  ·  " + timing + "  ·  " + KindName(rule.Kind)
             + "  ·  " + (rule.Personal ? "个人" : "网络");
@@ -445,6 +445,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         TraderAutomationRuleKind.AutoSell => "自动售出",
         TraderAutomationRuleKind.AutoDeposit => "自动存入",
         TraderAutomationRuleKind.AutoTrash => "自动销毁",
+        TraderAutomationRuleKind.AutoScrap => "自动分解",
         _ => "未知规则"
     };
 
@@ -467,7 +468,8 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private static string FullDescription(TraderAutomationRule rule)
     {
         return ShortDescription(rule) + "\n" + (rule.Scope == TraderRuleScope.Category ? "批量" : "单件")
-            + (rule.Kind == TraderAutomationRuleKind.AutoSell ? "  ·  售出来源：" + AutoSellSourceName(rule.AutoSellSource) : "")
+            + (rule.Kind is TraderAutomationRuleKind.AutoSell or TraderAutomationRuleKind.AutoScrap
+                ? "  ·  来源：" + AutoSellSourceName(rule.AutoSellSource) : "")
             + "  ·  " + QualityName(rule.QualityMode) + (rule.QualityMode == TraderQualityMatchMode.Any ? "" : " " + rule.Quality)
             + "  ·  最多 " + (rule.MaximumCount == 0 ? "不限" : rule.MaximumCount.ToString())
             + (rule.Kind is TraderAutomationRuleKind.AutoDeposit or TraderAutomationRuleKind.AutoTrash
@@ -542,11 +544,12 @@ public sealed class XUiC_TraderRulesWindow : XUiController
     private void CycleRuleKind(XUiController sender, int button)
     {
         if (_editing == null || _rules.Any(rule => rule.Id == _editing.Id)) return;
-        int next = ((int)_editing.Kind % 4) + 1;
-        if (!_isAdmin && next <= (int)TraderAutomationRuleKind.AutoBuy) next = (int)TraderAutomationRuleKind.AutoDeposit;
+        int next = ((int)_editing.Kind % 5) + 1;
+        if (!_isAdmin && next != (int)TraderAutomationRuleKind.AutoDeposit && next != (int)TraderAutomationRuleKind.AutoTrash)
+            next = (int)TraderAutomationRuleKind.AutoDeposit;
         _editing.Kind = (TraderAutomationRuleKind)next;
         _editing.Personal = _editing.Kind is TraderAutomationRuleKind.AutoDeposit or TraderAutomationRuleKind.AutoTrash;
-        if (_editing.Kind == TraderAutomationRuleKind.AutoSell)
+        if (_editing.Kind is TraderAutomationRuleKind.AutoSell or TraderAutomationRuleKind.AutoScrap)
         {
             _editing.MaximumCount = 0;
             SetInput(_maximumCount, 0);
@@ -556,7 +559,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
 
     private void CycleAutoSellSource(XUiController sender, int button)
     {
-        if (_editing == null || _editing.Kind != TraderAutomationRuleKind.AutoSell) return;
+        if (_editing == null || _editing.Kind is not (TraderAutomationRuleKind.AutoSell or TraderAutomationRuleKind.AutoScrap)) return;
         _editing.AutoSellSource = (TraderAutoSellSource)(((int)_editing.AutoSellSource + 1) % 3);
         NetworkLog.Debug("Automatic sale source changed in rule editor. rule=" + _editing.Id + "; source=" + _editing.AutoSellSource);
         RefreshEditor();
@@ -664,9 +667,10 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         SetText(_kindLabel, KindName(_editing.Kind));
         SetText(_scopeLabel, _editing.Scope == TraderRuleScope.SingleItem ? "单件商品" : "批量：分类 / 全部");
         SetText(_targetTitle, _editing.Scope == TraderRuleScope.SingleItem ? "点击选择商品" : "点击选择商人分类或全部");
-        SetText(_autoSellSourceLabel, AutoSellSourceButtonName(_editing.AutoSellSource));
-        SetVisible(GetChildById("btnRuleCycleAutoSellSource"), _editing.Kind == TraderAutomationRuleKind.AutoSell);
-        SetVisible(_autoSellSourceLabel, _editing.Kind == TraderAutomationRuleKind.AutoSell);
+        SetText(_autoSellSourceLabel, AutoSellSourceButtonName(_editing.AutoSellSource)
+            .Replace("售出来源", _editing.Kind == TraderAutomationRuleKind.AutoScrap ? "分解来源" : "售出来源"));
+        SetVisible(GetChildById("btnRuleCycleAutoSellSource"), _editing.Kind is TraderAutomationRuleKind.AutoSell or TraderAutomationRuleKind.AutoScrap);
+        SetVisible(_autoSellSourceLabel, _editing.Kind is TraderAutomationRuleKind.AutoSell or TraderAutomationRuleKind.AutoScrap);
         SetText(_targetLabel, TargetName(_editing));
         if (_targetLabel?.ViewComponent is XUiV_LabelBase targetLabel) targetLabel.Color = Color.white;
         SetIcon(_targetIcon, _editing);
@@ -679,7 +683,8 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         SetText(_qualityLabel, QualityName(_qualityMode));
         SetText(_scheduleLabel, buy ? (_scheduled ? "计划：开启" : "计划：关闭")
             : _editing.Kind == TraderAutomationRuleKind.AutoTrash ? (_editing.Personal ? "归属：个人库存" : "归属：共享网络")
-            : _editing.Kind == TraderAutomationRuleKind.AutoDeposit ? "个人背包变动时自动存入" : "入库时自动出售");
+            : _editing.Kind == TraderAutomationRuleKind.AutoDeposit ? "个人背包变动时自动存入"
+            : _editing.Kind == TraderAutomationRuleKind.AutoScrap ? "后台隐藏队列；网络无人在线时暂停" : "入库时自动出售");
         SetText(_networkComparisonLabel, "网络数量条件 " + ComparisonText(_networkComparison));
         if (_networkComparisonLabel?.ViewComponent != null)
             _networkComparisonLabel.ViewComponent.ToolTip = _networkComparison == TraderRuleComparison.Ignore
@@ -691,7 +696,10 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         SetText(_maximumCountTitle, unlimitedCount ? "单次最大物品数（0=不限）" : "单次最大物品数");
         string countHelp = unlimitedCount
             ? (buy ? "自动购入本次最多购买的物品总数。设为 0 时不限制数量，会持续购买直到商人售罄、公爵币不足，或其他规则条件阻止。"
-                : _editing.Kind == TraderAutomationRuleKind.AutoSell && _editing.AutoSellSource == TraderAutoSellSource.BackpackAndToolbelt
+                : _editing.Kind == TraderAutomationRuleKind.AutoScrap
+                    ? "自动分解每次最多处理的物品数。设为 0 时处理全部符合条件的物品；分解需要等待后台队列完成。"
+                : _editing.Kind is TraderAutomationRuleKind.AutoSell or TraderAutomationRuleKind.AutoScrap
+                    && _editing.AutoSellSource == TraderAutoSellSource.BackpackAndToolbelt
                     ? "自动出售每次最多出售的背包/快捷栏物品总数。设为 0 时会出售扫描到的全部符合条件物品。"
                     : "自动出售每次最多出售的物品总数。设为 0 时会出售来源中扫描到的全部符合条件物品。")
             : "本规则每次执行时最多处理的物品总数，必须大于 0。";
@@ -705,7 +713,8 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         SetVisible(GetChildById("ruleIntervalTitle"), buy && _scheduled);
         SetVisible(_maximumSpend, buy);
         SetVisible(_spendTitle, buy);
-        bool showNetworkThreshold = _editing.Kind == TraderAutomationRuleKind.AutoSell || buy && _editing.Scope == TraderRuleScope.SingleItem;
+        bool showNetworkThreshold = _editing.Kind is TraderAutomationRuleKind.AutoSell or TraderAutomationRuleKind.AutoScrap
+            || buy && _editing.Scope == TraderRuleScope.SingleItem;
         SetVisible(_minimumNetworkCount, showNetworkThreshold && _networkComparison != TraderRuleComparison.Ignore);
         SetVisible(GetChildById("ruleNetworkCountTitle"), showNetworkThreshold && _networkComparison != TraderRuleComparison.Ignore);
         SetVisible(GetChildById("btnTraderRuleNetworkComparison"), showNetworkThreshold);

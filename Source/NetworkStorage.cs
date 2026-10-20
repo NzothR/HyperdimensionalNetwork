@@ -236,8 +236,10 @@ internal static class NetworkStorage
             Apply(current, deltas);
             BumpRevision(path);
             NetworkLog.Debug("Network batch deposited. player=" + player.entityId + "; network=" + Path.GetFileNameWithoutExtension(path) + "; variants=" + deltas.Count + "; revision=" + Revisions[path]);
-            TraderAutomationService.OnNetworkDeposit(player, deltas.Select(entry => new StorageAddition { Value = entry.Key.Clone(), Count = entry.Value }));
-            TraderAutomationService.OnNetworkTrashDeposit(player, deltas.Select(entry => new StorageAddition { Value = entry.Key.Clone(), Count = entry.Value }));
+            List<StorageAddition> pendingAutomation = deltas.Select(entry => new StorageAddition
+                { Value = entry.Key.Clone(), Count = entry.Value }).ToList();
+            TraderAutomationService.OnNetworkDeposit(player, pendingAutomation);
+            TraderAutomationService.OnNetworkTrashDeposit(player, pendingAutomation);
             return true;
         }
     }

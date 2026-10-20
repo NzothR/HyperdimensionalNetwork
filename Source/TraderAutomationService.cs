@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace HyperdimensionalNetwork;
 
-internal enum TraderAutomationRuleKind : byte { AutoSell = 1, AutoBuy = 2, AutoDeposit = 3, AutoTrash = 4 }
+internal enum TraderAutomationRuleKind : byte { AutoSell = 1, AutoBuy = 2, AutoDeposit = 3, AutoTrash = 4, AutoScrap = 5 }
 internal enum TraderQualityMatchMode : byte { Any = 0, Exact = 1, Greater = 2, GreaterOrEqual = 3, Less = 4, LessOrEqual = 5 }
 internal enum TraderRuleComparison : byte { Greater = 0, GreaterOrEqual = 1, Equal = 2, LessOrEqual = 3, Less = 4, Ignore = 5 }
 internal enum TraderRuleScope : byte { SingleItem = 0, Category = 1 }
@@ -152,9 +152,12 @@ internal static class TraderAutomationService
             RequestId = request?.RequestId ?? 0,
             Success = true,
             IsNetworkAdministrator = isAdmin,
-            HasNetworkInventoryAutoSellRule = NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled)
-                && GetRules(player).Any(rule => rule.Enabled && rule.Kind == TraderAutomationRuleKind.AutoSell
-                    && IncludesPlayerInventory(rule.AutoSellSource)),
+            // Existing wire flag tells non-admin clients to watch inventory slots
+            // for network-level rules; it now covers automatic scrap as well.
+            HasNetworkInventoryAutoSellRule = GetRules(player).Any(rule => rule.Enabled
+                && (rule.Kind == TraderAutomationRuleKind.AutoSell && NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled)
+                    || rule.Kind == TraderAutomationRuleKind.AutoScrap)
+                && IncludesPlayerInventory(rule.AutoSellSource)),
             TraderRules = (isAdmin ? GetRules(player) : new List<TraderAutomationRule>())
                 .Concat(PersonalAutomationRuleService.GetRules(player)).ToList()
         };
@@ -279,7 +282,7 @@ internal static class TraderAutomationService
         }
         string networkId = PlayerNetworkDirectory.GetNetworkId(player);
         if (string.IsNullOrEmpty(networkId)) { error = "NetworkUnavailable"; return false; }
-        bool scanExisting = rule.Kind == TraderAutomationRuleKind.AutoSell && rule.Enabled
+        bool scanExisting = rule.Kind is (TraderAutomationRuleKind.AutoSell or TraderAutomationRuleKind.AutoScrap) && rule.Enabled
             && IncludesNetworkDeposits(rule.AutoSellSource);
         lock (Sync)
         {
@@ -315,6 +318,10 @@ internal static class TraderAutomationService
         }
         if (scanExisting)
         {
+            List<TraderAutomationRule> scrapRules = GetRules(player)
+                .Where(candidate => candidate.Enabled && candidate.Kind == TraderAutomationRuleKind.AutoScrap).ToList();
+            foreach (TraderAutomationRule scrapRule in scrapRules)
+                AutoScrapQueueService.ScanNetwork(player, scrapRule, "rule-save-scan");
             List<TraderAutomationRule> sellRules = GetRules(player)
                 .Where(candidate => candidate.Enabled && candidate.Kind == TraderAutomationRuleKind.AutoSell).ToList();
             foreach (TraderAutomationRule sellRule in sellRules) ExecuteSellRule(player, sellRule, "rule-save-scan");
@@ -376,6 +383,9 @@ internal static class TraderAutomationService
     public static void OnNetworkDeposit(EntityPlayer player, IEnumerable<StorageAddition> additions)
     {
         if (!(bool)player || additions == null) return;
+        if (!AutoScrapQueueService.HasOnlineMember(GameManager.Instance?.World, PlayerNetworkDirectory.GetNetworkId(player))) return;
+        List<StorageAddition> pending = additions.ToList();
+        AutoScrapQueueService.OnNetworkDeposit(player, pending);
         if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled)) return;
         string networkId = PlayerNetworkDirectory.GetNetworkId(player);
         if (string.IsNullOrEmpty(networkId)) return;
@@ -395,7 +405,7 @@ internal static class TraderAutomationService
             if (sellRules.Count == 0) return;
             Dictionary<string, long> remainingByRule = sellRules.ToDictionary(rule => rule.Id,
                 rule => rule.MaximumCount == 0 ? long.MaxValue : rule.MaximumCount);
-            foreach (StorageAddition addition in additions)
+            foreach (StorageAddition addition in pending)
             {
                 if (addition?.Value == null || addition.Count <= 0) continue;
                 TraderAutomationRule rule = sellRules.FirstOrDefault(candidate => Matches(candidate, addition.Value));
@@ -423,6 +433,7 @@ internal static class TraderAutomationService
                     NetworkLog.Debug("Automatic trader sale skipped after an incoming network deposit. player=" + player.entityId + "; rule=" + rule.Id + "; item=" + addition.Value.type + "; count=" + count + "; error=" + result.Error);
                 else
                 {
+                    addition.Count -= count;
                     remainingByRule[rule.Id] -= count;
                     NetworkLog.Debug("Automatic trader sale completed after an incoming network deposit. player=" + player.entityId + "; rule=" + rule.Id + "; item=" + addition.Value.type + "; count=" + count + "; proceeds=" + result.Amount);
                 }
@@ -435,6 +446,7 @@ internal static class TraderAutomationService
     internal static void OnNetworkTrashDeposit(EntityPlayer player, IEnumerable<StorageAddition> additions)
     {
         if (!(bool)player || additions == null || !NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TrashEnabled)) return;
+        if (!AutoScrapQueueService.HasOnlineMember(GameManager.Instance?.World, PlayerNetworkDirectory.GetNetworkId(player))) return;
         List<TraderAutomationRule> rules = GetRules(player)
             .Where(rule => rule.Enabled && rule.Kind == TraderAutomationRuleKind.AutoTrash && !rule.Personal).ToList();
         if (rules.Count == 0) return;
@@ -506,10 +518,13 @@ internal static class TraderAutomationService
                     }
                     else if (day > scheduledDay)
                     {
-                        // A missed daily window is skipped; restart the interval from today instead of catching up.
+                        // A sleeping network resumes one due run when a member returns;
+                        // missed days do not create a burst of purchases.
+                        due.Add(rule.Clone());
                         rule.LastScheduledDay = day;
                         changed = true;
-                        NetworkLog.Debug("Automatic trader schedule window was missed and skipped. player=" + player.entityId + "; rule=" + rule.Id + "; scheduledDay=" + scheduledDay + "; currentDay=" + day);
+                        NetworkLog.Debug("Automatic trader schedule resumed after a sleeping interval. player=" + player.entityId
+                            + "; rule=" + rule.Id + "; scheduledDay=" + scheduledDay + "; currentDay=" + day);
                     }
                 }
                 if (!changed) continue;
@@ -618,6 +633,7 @@ internal static class TraderAutomationService
         foreach (PendingBuyRun run in PendingRuns.ToArray())
         {
             if (NetworkMembershipService.IsNetworkFrozen(run.NetworkId)) continue;
+            if (!AutoScrapQueueService.HasOnlineMember(world, run.NetworkId)) continue;
             if (!ReferenceEquals(run.World, world)) { TraderMarketplaceService.ForceClose(run.SessionId); FinishManualRun(run, "规则执行中断：世界已切换"); PendingRuns.Remove(run); continue; }
             EntityPlayer player = world.GetEntity(run.PlayerEntityId) as EntityPlayer;
             if (!(bool)player) { TraderMarketplaceService.ForceClose(run.SessionId); FinishManualRun(run, "规则执行中断：玩家已离线"); PendingRuns.Remove(run); continue; }
@@ -677,6 +693,8 @@ internal static class TraderAutomationService
             {
                 if (currentRule.Kind == TraderAutomationRuleKind.AutoSell)
                     ExecuteSellRule(player, currentRule, run.Reason);
+                else if (currentRule.Kind == TraderAutomationRuleKind.AutoScrap)
+                    AutoScrapQueueService.ScanNetwork(player, currentRule, run.Reason);
                 else if (currentRule.Kind == TraderAutomationRuleKind.AutoTrash)
                     ExecuteGlobalTrashRule(player, currentRule, run.Reason);
                 else if (string.IsNullOrEmpty(run.SessionId))
@@ -720,6 +738,11 @@ internal static class TraderAutomationService
                 if (rule.Kind == TraderAutomationRuleKind.AutoSell)
                 {
                     ExecuteSellRule(player, rule, run.Reason);
+                    continue;
+                }
+                if (rule.Kind == TraderAutomationRuleKind.AutoScrap)
+                {
+                    AutoScrapQueueService.ScanNetwork(player, rule, run.Reason);
                     continue;
                 }
                 if (rule.Kind == TraderAutomationRuleKind.AutoTrash)
@@ -816,7 +839,8 @@ internal static class TraderAutomationService
 
     internal static bool AllowsUnlimitedMaximumCount(TraderAutomationRule rule)
         => rule != null && (rule.Kind == TraderAutomationRuleKind.AutoBuy || rule.Kind == TraderAutomationRuleKind.AutoSell
-            || rule.Kind == TraderAutomationRuleKind.AutoDeposit || rule.Kind == TraderAutomationRuleKind.AutoTrash);
+            || rule.Kind == TraderAutomationRuleKind.AutoDeposit || rule.Kind == TraderAutomationRuleKind.AutoTrash
+            || rule.Kind == TraderAutomationRuleKind.AutoScrap);
 
     internal static bool Matches(TraderAutomationRule rule, ItemValue value)
     {

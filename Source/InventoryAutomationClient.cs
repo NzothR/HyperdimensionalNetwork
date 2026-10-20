@@ -38,8 +38,9 @@ internal static class InventoryAutomationClient
         if (!(bool)player) return;
         if (_playerId != player.entityId) OnNetworkChanged(player);
         _hasInventoryRules = hasNetworkInventoryAutoSellRule || rules?.Any(rule => rule.Enabled &&
-            (rule.Personal && rule.Kind is TraderAutomationRuleKind.AutoDeposit or TraderAutomationRuleKind.AutoTrash
-                || rule.Kind == TraderAutomationRuleKind.AutoSell && TraderAutomationService.IncludesPlayerInventory(rule.AutoSellSource))) == true;
+            (rule.Personal && rule.Kind is (TraderAutomationRuleKind.AutoDeposit or TraderAutomationRuleKind.AutoTrash)
+                || rule.Kind is (TraderAutomationRuleKind.AutoSell or TraderAutomationRuleKind.AutoScrap)
+                    && TraderAutomationService.IncludesPlayerInventory(rule.AutoSellSource))) == true;
         _rulesLoaded = true;
         _nextQueryAt = Time.realtimeSinceStartup + 15f;
         if (!_hasInventoryRules) { Pending.Clear(); Queued.Clear(); }
@@ -81,6 +82,8 @@ internal static class InventoryAutomationClient
             })) _queryPending = false;
         }
         if (!_rulesLoaded || !_hasInventoryRules || _mutationPending || NetworkRemoteClient.IsMutationPending || Pending.Count == 0) return;
+        if (!NetworkRemoteClient.IsRemoteClient
+            && !AutoScrapQueueService.HasOnlineMember(GameManager.Instance?.World, PlayerNetworkDirectory.GetNetworkId(player))) return;
         Target target = Pending.Dequeue(); Queued.Remove(target.ToString());
         ItemStackGrid grid = target.Toolbelt ? player.inventory?.ItemGrid : player.bag?.ItemGrid;
         if (grid == null || target.Slot < 0 || target.Slot >= grid.Length) return;
@@ -115,6 +118,36 @@ internal static class InventoryAutomationClient
         RestockSettingsSnapshot settings = RestockSettingsService.Get(player);
         bool locked = !target.Toolbelt && player.bag?.LockedSlots != null && target.Slot < player.bag.LockedSlots.Length
             && player.bag.LockedSlots[target.Slot];
+        TraderAutomationRule scrap = !locked ? TraderAutomationService.GetRules(player).FirstOrDefault(rule => rule.Enabled
+            && rule.Kind == TraderAutomationRuleKind.AutoScrap
+            && TraderAutomationService.IncludesPlayerInventory(rule.AutoSellSource)
+            && TraderAutomationService.Matches(rule, stack.itemValue)
+            && TraderAutomationService.MatchesNetworkCountRequirement(player, rule)) : null;
+        if (scrap != null)
+        {
+            int maximum = scrap.MaximumCount == 0 ? stack.count : Math.Min(stack.count, scrap.MaximumCount);
+            int consumed = AutoScrapQueueService.GetPlayerConsumption(player, scrap, stack.itemValue, maximum);
+            if (consumed > 0)
+            {
+                ItemStackGrid grid = target.Toolbelt ? player.inventory.ItemGrid : player.bag.ItemGrid;
+                ItemStack remaining = stack.Clone(); remaining.count -= consumed;
+                bool queued = false;
+                try
+                {
+                    using (AutoRestockClient.SuppressInventoryEvents(player))
+                        grid.SetItem(target.Slot, remaining.count > 0 ? remaining : ItemStack.Empty.Clone());
+                    queued = AutoScrapQueueService.CommitPlayerConsumption(player, scrap, stack.itemValue, maximum, consumed);
+                }
+                catch (Exception ex) { NetworkLog.Error("Local automatic scrap inventory update failed. player=" + player.entityId + "; exception=" + ex); }
+                if (queued)
+                {
+                    AutoRestockClient.RefreshBaseline(player); AutoRestockClient.RefreshInventoryViews(player);
+                    return;
+                }
+                using (AutoRestockClient.SuppressInventoryEvents(player)) grid.SetItem(target.Slot, stack);
+                NetworkLog.Error("Local automatic scrap queue save failed; source restored. player=" + player.entityId + "; rule=" + scrap.Id);
+            }
+        }
         TraderAutomationRule sale = settings.TraderEnabled && !locked
             ? TraderAutomationService.GetRules(player).FirstOrDefault(rule => rule.Enabled
                 && rule.Kind == TraderAutomationRuleKind.AutoSell

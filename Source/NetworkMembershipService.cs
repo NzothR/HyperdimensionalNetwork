@@ -719,6 +719,9 @@ internal static class NetworkMembershipService
 
     private static void FinalizeMergedNetwork(World world, EntityPlayer player, Transition transition, List<StorageAddition> moved)
     {
+        if (!AutoScrapQueueService.MigrateNetwork(transition.SourceNetworkId, transition.TargetNetworkId))
+            NetworkLog.Error("Merged network automatic scrap jobs could not be migrated. source=" + transition.SourceNetworkId
+                + "; target=" + transition.TargetNetworkId);
         if (!NetworkStorage.RemoveEmptyNetworkStorage(transition.SourceNetworkId, out string storageError))
             NetworkLog.Error("Merged network storage cleanup was deferred. source=" + transition.SourceNetworkId + "; error=" + storageError);
         if (!NetworkFeatureSettingsService.RemoveNetwork(transition.SourceNetworkId, out string settingsError))
@@ -728,7 +731,10 @@ internal static class NetworkMembershipService
         if (moved != null && moved.Count > 0)
         {
             using (EnterInternalNetworkScope(transition.TargetNetworkId))
+            {
                 TraderAutomationService.OnNetworkDeposit(player, moved);
+                TraderAutomationService.OnNetworkTrashDeposit(player, moved);
+            }
         }
     }
 

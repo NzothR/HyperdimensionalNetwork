@@ -19,6 +19,48 @@ internal static class InventoryAutomationService
         bool locked = !toolbelt && IsLocked(original, request.Slot);
         RestockSettingsSnapshot settings = RestockSettingsService.Get(player);
         List<TraderAutomationRule> personal = PersonalAutomationRuleService.GetRules(player);
+        string networkId = PlayerNetworkDirectory.GetNetworkId(player);
+        if (!AutoScrapQueueService.HasOnlineMember(GameManager.Instance?.World, networkId))
+            return new NetworkRemoteResult { RequestId = request.RequestId, Success = true };
+        TraderAutomationRule scrap = !locked ? TraderAutomationService.GetRules(player).FirstOrDefault(rule => rule.Enabled
+            && rule.Kind == TraderAutomationRuleKind.AutoScrap
+            && TraderAutomationService.IncludesPlayerInventory(rule.AutoSellSource)
+            && TraderAutomationService.Matches(rule, request.Value)
+            && TraderAutomationService.MatchesNetworkCountRequirement(player, rule)) : null;
+        if (scrap != null)
+        {
+            int maximum = BoundedCount(request.Count, scrap.MaximumCount);
+            int consumed = AutoScrapQueueService.GetPlayerConsumption(player, scrap, request.Value, maximum);
+            if (consumed > 0)
+            {
+                MemoryStream candidate;
+                bool updated = toolbelt
+                    ? NetworkRpcServer.TryUpdateToolbelt(original, request.Slot, request.Value, consumed, out _, out candidate)
+                    : NetworkRpcServer.TryUpdateBag(original, request.Slot, request.Value, consumed, out _, out candidate);
+                if (!updated || candidate == null) return Failure(request, "AutomationSourceChanged");
+                try
+                {
+                    NetworkRpcServer.ApplyPlayerInventorySnapshot(player, candidate, toolbelt);
+                    if (toolbelt) playerData.inventoryData = candidate; else playerData.bagData = candidate;
+                    playerData.bModifiedSinceLastSave = true;
+                    if (!AutoScrapQueueService.CommitPlayerConsumption(player, scrap, request.Value, maximum, consumed))
+                        throw new IOException("Automatic scrap queue could not persist the inventory job.");
+                    return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Amount = consumed,
+                        BagData = toolbelt ? null : candidate.ToArray(), InventoryData = toolbelt ? candidate.ToArray() : null };
+                }
+                catch (Exception ex)
+                {
+                    NetworkLog.Error("Automatic scrap inventory transaction failed. player=" + player.entityId + "; rule=" + scrap.Id + "; exception=" + ex);
+                    try
+                    {
+                        NetworkRpcServer.ApplyPlayerInventorySnapshot(player, original, toolbelt);
+                        if (toolbelt) playerData.inventoryData = original; else playerData.bagData = original;
+                    }
+                    catch (Exception restore) { NetworkLog.Error("Automatic scrap inventory rollback failed. player=" + player.entityId + "; exception=" + restore); }
+                    return Failure(request, "AutomationScrapFailed");
+                }
+            }
+        }
         TraderAutomationRule sale = settings.TraderEnabled && NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled)
             && !locked ? TraderAutomationService.GetRules(player).FirstOrDefault(rule => rule.Enabled
                 && rule.Kind == TraderAutomationRuleKind.AutoSell
