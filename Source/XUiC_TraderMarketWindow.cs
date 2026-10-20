@@ -18,6 +18,10 @@ public sealed class XUiC_TraderMarketWindow : XUiController
     private readonly XUiController[] _icons = new XUiController[PageSize];
     private readonly XUiController[] _names = new XUiController[PageSize];
     private readonly XUiController[] _qualities = new XUiController[PageSize];
+    private readonly XUiController[] _qualityBarBackgrounds = new XUiController[PageSize];
+    private readonly XUiController[] _qualityBarRemoved = new XUiController[PageSize];
+    private readonly XUiController[] _qualityBars = new XUiController[PageSize];
+    private readonly XUiController[] _typeIcons = new XUiController[PageSize];
     private readonly XUiController[] _prices = new XUiController[PageSize];
     private readonly XUiController[] _rowButtons = new XUiController[PageSize];
     private XUiC_Paging _pager;
@@ -83,8 +87,12 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             _rows[i] = GetChildById("marketRow" + i);
             _rowButtons[i] = GetChildById("btnMarketRow" + i);
             _icons[i] = GetChildById("marketRowIcon" + i);
+            _typeIcons[i] = GetChildById("marketRowTypeIcon" + i);
             _names[i] = GetChildById("marketRowName" + i);
             _qualities[i] = GetChildById("marketRowQuality" + i);
+            _qualityBarBackgrounds[i] = GetChildById("marketRowQualityBarBackground" + i);
+            _qualityBarRemoved[i] = GetChildById("marketRowQualityBarRemoved" + i);
+            _qualityBars[i] = GetChildById("marketRowQualityBar" + i);
             _prices[i] = GetChildById("marketRowPrice" + i);
             if (_rowButtons[i] != null) _rowButtons[i].OnPress += (sender, button) => SelectAt(index);
             if (_rowButtons[i] != null) _rowButtons[i].OnScroll += OnMarketScroll;
@@ -107,8 +115,13 @@ public sealed class XUiC_TraderMarketWindow : XUiController
         BindPress("btnTraderMarketClose", OnClosePressed);
         BindPress("btnTraderMarketOutput", OnOutputPressed);
         NetworkLog.Debug("Trader market list initialized. rows=" + _rows.Count(row => row != null)
-            + "; pager=" + (_pager != null) + "; search=" + (_search != null));
-        if (_rows.Any(row => row == null) || _rowButtons.Any(button => button == null))
+            + "; pager=" + (_pager != null) + "; search=" + (_search != null)
+            + "; itemTypeIcons=" + _typeIcons.Count(icon => icon != null)
+            + "; qualityBars=" + _qualityBars.Count(bar => bar != null)
+            + "; qualityBarBackgrounds=" + _qualityBarBackgrounds.Count(bar => bar != null));
+        if (_rows.Any(row => row == null) || _rowButtons.Any(button => button == null)
+            || _typeIcons.Any(icon => icon == null) || _qualityBars.Any(bar => bar == null)
+            || _qualityBarBackgrounds.Any(bar => bar == null) || _qualityBarRemoved.Any(bar => bar == null))
             NetworkLog.Error("Trader market row controls are incomplete; expected " + PageSize + " selectable rows.");
     }
 
@@ -542,9 +555,34 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             if (offer == null) continue;
             if (_icons[i]?.ViewComponent is XUiV_Sprite icon)
                 icon.SpriteName = offer.Value.ItemClass?.GetIconName() ?? string.Empty;
+            ItemStack itemStack = new ItemStack(offer.Value, offer.Count);
+            if (_typeIcons[i]?.ViewComponent is XUiV_Sprite typeIcon)
+            {
+                typeIcon.SpriteName = XUiBindingHelper.GetItemTypeIconValue(xui, itemStack);
+                typeIcon.Color = XUiBindingHelper.GetItemTypeIconTintColor(xui, itemStack);
+                SetVisible(_typeIcons[i], !string.IsNullOrEmpty(typeIcon.SpriteName));
+            }
             SetLabel(_names[i], (offer.Value.ItemClass?.GetLocalizedItemName() ?? "?")
                 + (offer.Count > 1 ? " (" + offer.Count + ")" : string.Empty));
             SetLabel(_qualities[i], offer.Value.Quality > 0 ? offer.Value.Quality.ToString() : "-");
+            bool hasQualityBar = offer.Value.ItemClass?.ShowQualityBar == true;
+            SetVisible(_qualityBarBackgrounds[i], hasQualityBar);
+            SetVisible(_qualityBarRemoved[i], hasQualityBar);
+            SetVisible(_qualityBars[i], hasQualityBar);
+            if (hasQualityBar)
+            {
+                float maximumUseTimes = offer.Value.MaxUseTimesUI;
+                float durabilityFill = offer.Value.MaxUseTimes == 0 || maximumUseTimes <= 0f
+                    ? 1f : Mathf.Clamp01((offer.Value.MaxUseTimes - offer.Value.UseTimes) / maximumUseTimes);
+                if (float.IsNaN(durabilityFill) || float.IsInfinity(durabilityFill)) durabilityFill = 0f;
+                if (_qualityBarRemoved[i]?.ViewComponent is XUiV_Sprite removedBar)
+                    removedBar.Fill = Mathf.Clamp01(offer.Value.MaxDurabilityModifier);
+                if (_qualityBars[i]?.ViewComponent is XUiV_Sprite qualityBar)
+                {
+                    qualityBar.Color = QualityInfo.GetTierColor(offer.Value.Quality);
+                    qualityBar.Fill = durabilityFill;
+                }
+            }
             SetLabel(_prices[i], offer.BundlePrice.ToString());
             if (_rowButtons[i]?.ViewComponent is XUiV_Button button) button.Selected = ReferenceEquals(offer, _selected);
         }
