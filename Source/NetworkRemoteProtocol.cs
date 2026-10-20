@@ -869,6 +869,7 @@ internal static class NetworkRemoteClient
 
     public static void Update()
     {
+        using var profile = NetworkProfiler.Measure("Client.remoteSync");
         float now = Time.realtimeSinceStartup;
         if (now >= _nextMatchingFlush)
         {

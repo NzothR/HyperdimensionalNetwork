@@ -214,6 +214,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
 
     public override void Update(float _dt)
     {
+        using var profile = NetworkProfiler.Measure("UI.traderRules.update");
         base.Update(_dt);
         RetryPendingSpriteBindings();
         CompletePickerSearchIfReady();
@@ -360,6 +361,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
 
     private void RefreshList()
     {
+        using var profile = NetworkProfiler.Measure("UI.traderRules.list");
         for (int i = 0; i < RuleRows; i++)
         {
             int index = _rulePage * RuleRows + i;
@@ -975,6 +977,7 @@ public sealed class XUiC_TraderRulesWindow : XUiController
 
     private void RefreshPicker()
     {
+        using var profile = NetworkProfiler.Measure("UI.traderRules.picker");
         if (_pickerMode == PickerMode.None) return;
         bool itemMode = _pickerMode == PickerMode.TargetItem || _pickerMode == PickerMode.ExcludedItem;
         string search = _pickerSearch?.Text?.Trim() ?? string.Empty;

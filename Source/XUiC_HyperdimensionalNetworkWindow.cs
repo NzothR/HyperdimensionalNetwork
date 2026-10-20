@@ -175,6 +175,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
 
     public override void Update(float _dt)
     {
+        using var profile = NetworkProfiler.Measure("UI.networkWindow.update");
         base.Update(_dt);
         if (xui?.playerUI?.windowManager?.IsWindowOpen("hyperdimensionalNetwork") != true) return;
         if (_booksButton?.ViewComponent?.UiTransformIsHovered == true

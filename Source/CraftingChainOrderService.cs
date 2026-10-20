@@ -460,6 +460,7 @@ internal static class CraftingChainOrderService
 
     public static void Update(XUi xui)
     {
+        using var profile = NetworkProfiler.Measure("Client.craftingChain");
         EntityPlayerLocal player = xui?.playerUI?.entityPlayer;
         if (!TryGetLiveOrder(player, out Order order)) return;
         if (LastPumpFrameByPlayer.TryGetValue(player.entityId, out int lastFrame) && lastFrame == UnityEngine.Time.frameCount) return;

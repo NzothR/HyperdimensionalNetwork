@@ -143,6 +143,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
 
     public override void Update(float _dt)
     {
+        using var profile = NetworkProfiler.Measure("UI.traderMarket.update");
         base.Update(_dt);
         if (_closing || _requestPending || string.IsNullOrEmpty(_sessionId)
             || Time.realtimeSinceStartup < _nextRefreshAt) return;
@@ -509,6 +510,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
 
     private void ApplyFilter()
     {
+        using var profile = NetworkProfiler.Measure("UI.traderMarket.filter");
         _filtered.Clear();
         string search = _search?.Text?.Trim();
         foreach (TraderOffer offer in _offers)
@@ -531,6 +533,7 @@ public sealed class XUiC_TraderMarketWindow : XUiController
 
     private void RefreshRows()
     {
+        using var profile = NetworkProfiler.Measure("UI.traderMarket.rows");
         int first = (_pager?.CurrentPageNumber ?? 0) * PageSize;
         for (int i = 0; i < PageSize; i++)
         {

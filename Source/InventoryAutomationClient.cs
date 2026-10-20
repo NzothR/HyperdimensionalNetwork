@@ -68,6 +68,7 @@ internal static class InventoryAutomationClient
 
     internal static void Update(EntityPlayerLocal player)
     {
+        using var profile = NetworkProfiler.Measure("Client.inventoryRules");
         if (!(bool)player) return;
         if (_playerId != player.entityId) OnNetworkChanged(player);
         if (!_queryPending && Time.realtimeSinceStartup >= _nextQueryAt)

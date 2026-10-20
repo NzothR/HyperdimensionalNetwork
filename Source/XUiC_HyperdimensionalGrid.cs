@@ -62,6 +62,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
 
     public override void Update(float _dt)
     {
+        using var profile = NetworkProfiler.Measure("UI.networkGrid.update");
         if (ViewComponent != null && ViewComponent.IsVisible)
         {
             if (NetworkRemoteClient.IsRemoteClient)
@@ -82,6 +83,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
 
     public void Reload()
     {
+        using var profile = NetworkProfiler.Measure("UI.networkGrid.reload");
         EntityPlayer player = xui?.playerUI?.entityPlayer;
         if (!(bool)player) { NetworkLog.Debug("Grid reload skipped because player is unavailable."); return; }
         if (NetworkRemoteClient.IsRemoteClient)

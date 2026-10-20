@@ -79,6 +79,7 @@ internal static class AutoRestockClient
 
     public static void Update()
     {
+        using var profile = NetworkProfiler.Measure("Client.autoRestock");
         EntityPlayerLocal player = NetworkRemoteClient.GetLocalPlayer();
         if (!(bool)player) return;
         if (NetworkMembershipClient.IsPreparing) return;

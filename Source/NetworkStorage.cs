@@ -57,6 +57,7 @@ internal static class NetworkStorage
 
     public static List<StoredEntry> GetEntries(EntityPlayer player)
     {
+        using var profile = NetworkProfiler.Measure("Storage.getEntries");
         if (!(bool)player || PlayerNetworkDirectory.IsRemoteClient()) return new List<StoredEntry>();
         lock (Sync)
         {
@@ -73,6 +74,7 @@ internal static class NetworkStorage
 
     public static NetworkStoragePage GetPage(EntityPlayer player, string category, string search, int page, int pageSize)
     {
+        using var profile = NetworkProfiler.Measure("Storage.getPage");
         NetworkStoragePage result = new NetworkStoragePage { PageSize = Math.Max(1, Math.Min(128, pageSize)), Page = Math.Max(0, page) };
         if (!(bool)player || PlayerNetworkDirectory.IsRemoteClient()) return result;
         lock (Sync)
@@ -109,6 +111,7 @@ internal static class NetworkStorage
 
     public static long GetCount(EntityPlayer player, ItemValue value)
     {
+        using var profile = NetworkProfiler.Measure("Storage.getCount");
         if (!(bool)player || value == null) return 0;
         if (PlayerNetworkDirectory.IsRemoteClient()) return NetworkRemoteClient.GetExactCount(player, value);
         lock (Sync)
@@ -122,6 +125,7 @@ internal static class NetworkStorage
 
     public static long GetMatchingCount(EntityPlayer player, ItemValue requirement, bool includeModded = false)
     {
+        using var profile = NetworkProfiler.Measure("Storage.getMatchingCount");
         if (!(bool)player || requirement == null) return 0;
         if (PlayerNetworkDirectory.IsRemoteClient()) return NetworkRemoteClient.GetMatchingCount(player, requirement, includeModded);
         lock (Sync)
@@ -204,6 +208,7 @@ internal static class NetworkStorage
 
     public static bool AddBatch(EntityPlayer player, IEnumerable<StorageAddition> additions)
     {
+        using var profile = NetworkProfiler.Measure("Storage.addBatch");
         if (!(bool)player || additions == null || PlayerNetworkDirectory.IsRemoteClient()) return false;
         lock (Sync)
         {
@@ -433,6 +438,7 @@ internal static class NetworkStorage
 
     public static int Remove(EntityPlayer player, ItemValue value, int requested)
     {
+        using var profile = NetworkProfiler.Measure("Storage.remove");
         if (!(bool)player || value == null || requested <= 0 || PlayerNetworkDirectory.IsRemoteClient()) return 0;
         lock (Sync)
         {

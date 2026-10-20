@@ -23,11 +23,12 @@ public sealed class HyperdimensionalNetworkModApi : IModApi
 
     private static void OnGameUpdate(ref ModEvents.SGameUpdateData data)
     {
+        using var profile = NetworkProfiler.Measure("GameUpdate.total");
         World world = GameManager.Instance?.World;
-        NetworkMembershipService.Update(world);
-        TraderMarketplaceService.SweepDisconnected(world);
-        TraderAutomationService.Update(world);
-        AutoScrapQueueService.Update(world);
+        using (NetworkProfiler.Measure("GameUpdate.membership")) NetworkMembershipService.Update(world);
+        using (NetworkProfiler.Measure("GameUpdate.traderSessions")) TraderMarketplaceService.SweepDisconnected(world);
+        using (NetworkProfiler.Measure("GameUpdate.traderRules")) TraderAutomationService.Update(world);
+        using (NetworkProfiler.Measure("GameUpdate.scrapQueue")) AutoScrapQueueService.Update(world);
     }
 
     private static void OnWorldShuttingDown(ref ModEvents.SWorldShuttingDownData data)
