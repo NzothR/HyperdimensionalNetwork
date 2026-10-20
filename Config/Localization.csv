@@ -240,7 +240,9 @@ HyperdimensionalNetworkForgeFeedInvalidFill,Enter a target from 0 to 100000; 0 m
 HyperdimensionalNetworkForgeFeedSelect,Select at least one material,请至少选择一种材料
 HyperdimensionalNetworkForgeFeedWorking,Feeding nearby forges...,正在给附近锻造炉投料…
 HyperdimensionalNetworkForgeFeedBusy,Another inventory operation is in progress,另一项库存操作正在进行
-HyperdimensionalNetworkForgeFeedDone,Fed {0} items into nearby forges,已向附近锻造炉投入 {0} 件原料
+HyperdimensionalNetworkForgeFeedDone,Fed {0} smelting units into nearby forges,已向附近锻造炉投入 {0} 点熔炼材料
+HyperdimensionalNetworkForgeFeedShortage,Short on material; some selected forges were only partially filled: {0},材料不足，部分选中的锻造炉没有补满：{0}
+HyperdimensionalNetworkForgeFeedShortageMaterial,{0} short by {1} smelting units,{0}还差 {1} 点熔炼材料
 HyperdimensionalNetworkForgeFeedFailed,Forge feed failed:,锻造炉补料失败：
 HyperdimensionalNetworkForgeFeedPreviewFailed,Could not read nearby forges,无法读取附近锻造炉
 HyperdimensionalNetworkForgeFeedSyncFailed,Forge feed succeeded but backpack sync failed; reopen the backpack,炉子投料成功但背包同步失败，请重新打开背包

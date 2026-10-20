@@ -88,6 +88,7 @@ internal sealed class NetworkRemoteResult
 {
     public bool Success;
     public string Error = string.Empty;
+    public string Warning = string.Empty;
     public long RequestId;
     public long Revision;
     public string NetworkId = string.Empty;

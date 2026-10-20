@@ -381,8 +381,10 @@ public sealed class XUiC_ForgeFeedWindow : XUiController
         }
         if (result?.Success == true)
         {
-            SetText(_status, string.Format(Localization.Get("HyperdimensionalNetworkForgeFeedDone"), result.Amount));
-            NetworkLog.Debug("Forge feed confirmed. player=" + player?.entityId + "; moved=" + result.Amount + "; requestId=" + result.RequestId);
+            string done = string.Format(Localization.Get("HyperdimensionalNetworkForgeFeedDone"), result.Amount);
+            SetText(_status, string.IsNullOrWhiteSpace(result.Warning) ? done : done + "；" + FormatShortages(result.Warning));
+            NetworkLog.Debug("Forge feed confirmed. player=" + player?.entityId + "; meltUnits=" + result.Amount
+                + "; warning=" + result.Warning + "; requestId=" + result.RequestId);
         }
         else
         {
@@ -390,6 +392,23 @@ public sealed class XUiC_ForgeFeedWindow : XUiController
             NetworkLog.Debug("Forge feed rejected. player=" + player?.entityId + "; error=" + result?.Error);
         }
         Refresh();
+    }
+
+    private string FormatShortages(string warning)
+    {
+        List<string> parts = new List<string>();
+        foreach (string entry in warning.Split(';'))
+        {
+            string[] fields = entry.Split(':');
+            if (fields.Length != 4 || !long.TryParse(fields[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out long missing))
+                continue;
+            ForgeFeedMaterial material = _materials.FirstOrDefault(candidate =>
+                string.Equals(candidate.Category, fields[0], StringComparison.OrdinalIgnoreCase));
+            string name = material?.Name ?? fields[0];
+            parts.Add(string.Format(Localization.Get("HyperdimensionalNetworkForgeFeedShortageMaterial"), name, missing));
+        }
+        return parts.Count == 0 ? Localization.Get("HyperdimensionalNetworkForgeFeedShortage") :
+            string.Format(Localization.Get("HyperdimensionalNetworkForgeFeedShortage"), string.Join("、", parts));
     }
 
     private static void SetText(XUiController controller, string value)

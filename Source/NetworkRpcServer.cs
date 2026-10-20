@@ -1172,6 +1172,7 @@ internal static class NetworkRpcServer
         {
             Success = result.Success,
             Error = result.Error,
+            Warning = result.Warning,
             RequestId = result.RequestId,
             Revision = result.Revision,
             NetworkId = result.NetworkId,

@@ -28,6 +28,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
             RequestId = reader.ReadInt64(),
             Success = reader.ReadBoolean(),
             Error = ReadBoundedString(reader, 256),
+            Warning = ReadBoundedString(reader, 1024),
             Revision = reader.ReadInt64(),
             NetworkId = ReadBoundedString(reader, 128),
             TotalEntries = reader.ReadInt32(),
@@ -132,6 +133,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         binary.Write(result.RequestId);
         binary.Write(result.Success);
         binary.Write(result.Error ?? string.Empty);
+        binary.Write(result.Warning ?? string.Empty);
         binary.Write(result.Revision);
         binary.Write(result.NetworkId ?? string.Empty);
         binary.Write(result.TotalEntries);
@@ -251,6 +253,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
             + Encoding.UTF8.GetByteCount(rule?.ExcludedCategories ?? string.Empty)
             + Encoding.UTF8.GetByteCount(rule?.ExcludedItemTypes ?? string.Empty)) ?? 0;
         return 162 + entries * 512 + offers * 640 + rules * 136 + ruleTextBytes + bytes + valueBytes + Encoding.UTF8.GetByteCount(_result?.Error ?? string.Empty)
+            + Encoding.UTF8.GetByteCount(_result?.Warning ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_result?.NetworkId ?? string.Empty) + Encoding.UTF8.GetByteCount(_result?.TraderSessionId ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_result?.TraderRunMessage ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_result?.TraderRunRuleId ?? string.Empty)

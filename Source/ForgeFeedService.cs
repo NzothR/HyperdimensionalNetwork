@@ -210,59 +210,63 @@ internal static class ForgeFeedService
                 .GroupBy(entry => entry.Value.type).Select(group => group.Key + "x" + group.Sum(entry => entry.Count))));
         Dictionary<int, int> plannedByType = new Dictionary<int, int>();
         int fill = request.Count == 0 ? int.MaxValue : request.Count;
+        long totalMeltUnits = 0;
+        List<string> shortages = new List<string>();
         foreach (ForgeFeedMaterial material in materials)
         {
             if (!selected.Contains(material.Category)) continue;
+            int limit = Math.Min(fill, material.Cap);
+            List<ForgeFeedStation> eligible = forges.Where(forge => CanUse(player, forge.Workstation)
+                && forge.Workstation.MaterialNames.Any(name =>
+                    string.Equals(name, material.Category, StringComparison.OrdinalIgnoreCase))).ToList();
+            long requestedUnits = eligible.Sum(forge => Math.Max(0L, (long)limit - CurrentLevel(forge, material)));
+            long suppliedUnits = 0;
             foreach (ItemClass raw in material.RawItems)
+                if (available.TryGetValue(raw.Id, out int stock) && stock > 0)
+                    suppliedUnits += (long)stock * Math.Max(1, raw.GetWeight());
+            long fedUnits = 0;
+
+            // Fill one forge at a time in the same order shown in the window.
+            foreach (ForgeFeedStation forge in eligible)
             {
-                if (!available.TryGetValue(raw.Id, out int remaining) || remaining <= 0) continue;
-                int weight = Math.Max(1, raw.GetWeight());
-                while (remaining > 0)
+                int level = CurrentLevel(forge, material);
+                while (level < limit)
                 {
-                    ForgeFeedStation target = null;
-                    int targetSlot = -1;
-                    int targetLevel = int.MaxValue;
-                    int targetSpace = 0;
-                    foreach (ForgeFeedStation forge in forges)
+                    bool moved = false;
+                    foreach (ItemClass raw in material.RawItems)
                     {
-                        if (!CanUse(player, forge.Workstation) || !forge.Workstation.MaterialNames.Any(name =>
-                            string.Equals(name, material.Category, StringComparison.OrdinalIgnoreCase))) continue;
-                        int level = CurrentLevel(forge, material);
-                        int limit = Math.Min(fill, material.Cap);
-                        if ((long)level + weight > limit) continue;
+                        if (!available.TryGetValue(raw.Id, out int remaining) || remaining <= 0) continue;
+                        int weight = Math.Max(1, raw.GetWeight());
+                        int countToTake = Math.Min(remaining, (limit - level) / weight);
+                        if (countToTake <= 0) continue;
                         int slot = FindSlot(forge.PlannedInput, raw.Id, raw.MaxCount,
                             Math.Min(VisibleMeltSlots, forge.PlannedInput.Length - forge.Workstation.MaterialNames.Length));
                         if (slot < 0) continue;
                         ItemStack stack = forge.PlannedInput[slot];
-                        int space = Math.Min(raw.MaxCount - (stack == null || stack.IsEmpty() ? 0 : stack.count), (limit - level) / weight);
-                        if (space <= 0 || level >= targetLevel) continue;
-                        target = forge; targetSlot = slot; targetLevel = level; targetSpace = space;
+                        int space = raw.MaxCount - (stack == null || stack.IsEmpty() ? 0 : stack.count);
+                        int chunk = Math.Min(countToTake, space);
+                        if (chunk <= 0) continue;
+                        if (stack == null || stack.IsEmpty()) forge.PlannedInput[slot] = new ItemStack(new ItemValue(raw.Id), chunk);
+                        else stack.count += chunk;
+                        available[raw.Id] = remaining - chunk;
+                        plannedByType[raw.Id] = SaturatingAdd(plannedByType.TryGetValue(raw.Id, out int count) ? count : 0, chunk);
+                        int addedUnits = chunk * weight;
+                        level = Math.Min(int.MaxValue, level + addedUnits);
+                        fedUnits += addedUnits;
+                        totalMeltUnits += addedUnits;
+                        moved = true;
+                        break;
                     }
-                    if (target == null) break;
-                    List<int> otherLevels = forges.Where(forge => forge != target && CanUse(player, forge.Workstation)
-                            && forge.Workstation.MaterialNames.Any(name =>
-                                string.Equals(name, material.Category, StringComparison.OrdinalIgnoreCase))
-                            && FindSlot(forge.PlannedInput, raw.Id, raw.MaxCount,
-                                Math.Min(VisibleMeltSlots, forge.PlannedInput.Length - forge.Workstation.MaterialNames.Length)) >= 0)
-                        .Select(forge => CurrentLevel(forge, material)).Where(level => level >= targetLevel
-                            && (long)level + weight <= Math.Min(fill, material.Cap))
-                        .ToList();
-                    int nextLevel = otherLevels.Count == 0 ? int.MaxValue : otherLevels.Min();
-                    int chunk = Math.Min(remaining, targetSpace);
-                    if (nextLevel == targetLevel)
-                    {
-                        int equalCount = otherLevels.Count(level => level == targetLevel) + 1;
-                        chunk = Math.Min(chunk, (int)Math.Max(1L, ((long)remaining + equalCount - 1) / equalCount));
-                    }
-                    else if (nextLevel != int.MaxValue)
-                        chunk = Math.Min(chunk, Math.Max(1, (nextLevel - targetLevel + weight - 1) / weight));
-                    ItemStack existing = target.PlannedInput[targetSlot];
-                    if (existing == null || existing.IsEmpty()) target.PlannedInput[targetSlot] = new ItemStack(new ItemValue(raw.Id), chunk);
-                    else existing.count += chunk;
-                    remaining -= chunk;
-                    plannedByType[raw.Id] = SaturatingAdd(plannedByType.TryGetValue(raw.Id, out int count) ? count : 0, chunk);
+                    if (!moved) break;
                 }
-                available[raw.Id] = remaining;
+            }
+            if (fedUnits < requestedUnits && suppliedUnits < requestedUnits)
+            {
+                long missing = requestedUnits - fedUnits;
+                shortages.Add(material.Category + ":" + requestedUnits + ":" + fedUnits + ":" + missing);
+                NetworkLog.Debug("Forge feed material shortage. player=" + player.entityId + "; category=" + material.Category
+                    + "; requestedMeltUnits=" + requestedUnits + "; suppliedMeltUnits=" + suppliedUnits
+                    + "; fedMeltUnits=" + fedUnits + "; missingMeltUnits=" + missing);
             }
         }
         if (plannedByType.Count == 0) return Failure(request, "NoForgeFeedNeeded");
@@ -277,7 +281,7 @@ internal static class ForgeFeedService
                 + "; inputs=" + loads);
         }
         List<StorageAddition> networkRemovals = new List<StorageAddition>();
-        int total = 0;
+        int totalRawItems = 0;
         foreach (KeyValuePair<int, int> planned in plannedByType)
         {
             int remaining = planned.Value;
@@ -301,7 +305,7 @@ internal static class ForgeFeedService
                 networkRemovals.Add(new StorageAddition { Value = entry.Value.Clone(), Count = take });
             }
             if (remaining > 0) return Failure(request, "ForgeMaterialsChanged");
-            total += planned.Value;
+            totalRawItems += planned.Value;
         }
         List<ItemStack[]> originals = forges.Select(forge => ItemStack.Clone(forge.Workstation.Input)).ToList();
         List<bool> originalBurning = forges.Select(forge => forge.Workstation.isBurning).ToList();
@@ -330,9 +334,11 @@ internal static class ForgeFeedService
             }
             NetworkLog.Debug("Forge feed committed. player=" + player.entityId + "; forges=" + forges.Count
                 + "; selected=" + string.Join(";", forges.Select(forge => forge.Position))
-                + "; categories=" + request.Category + "; bagItems=" + (total - networkRemovals.Sum(item => (int)item.Count))
-                + "; networkItems=" + networkRemovals.Sum(item => (int)item.Count) + "; total=" + total);
-            return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Amount = total,
+                + "; categories=" + request.Category + "; bagItems=" + (totalRawItems - networkRemovals.Sum(item => (int)item.Count))
+                + "; networkItems=" + networkRemovals.Sum(item => (int)item.Count) + "; rawItems=" + totalRawItems
+                + "; meltUnits=" + totalMeltUnits);
+            return new NetworkRemoteResult { RequestId = request.RequestId, Success = true,
+                Amount = (int)Math.Min(int.MaxValue, totalMeltUnits), Warning = string.Join(";", shortages),
                 BagData = playerData == null ? null : updatedBag.ToArray() };
         }
         catch (Exception ex)
