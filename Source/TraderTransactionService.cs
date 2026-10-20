@@ -109,6 +109,10 @@ internal static class TraderTransactionService
         MemoryStream originalToolbelt = null;
         MemoryStream updatedBag = null;
         MemoryStream updatedToolbelt = null;
+        bool sourceBagChanged = !request.TraderNetworkSource
+            && request.SourceLocation == XUiC_ItemStack.StackLocationTypes.Backpack;
+        bool sourceToolbeltChanged = !request.TraderNetworkSource
+            && request.SourceLocation == XUiC_ItemStack.StackLocationTypes.ToolBelt;
         if (!request.TraderNetworkSource)
         {
             if (!TryGetPlayerInventory(player, playerData, out Bag bag, out ItemStackGrid toolbelt, out byte selectedSlot,
@@ -131,7 +135,8 @@ internal static class TraderTransactionService
         }
         else
         {
-            sourceDebited = ApplySnapshots(player, playerData, updatedBag, updatedToolbelt);
+            sourceDebited = ApplySnapshots(player, playerData, updatedBag, updatedToolbelt,
+                applyBag: sourceBagChanged, applyToolbelt: sourceToolbeltChanged);
         }
         if (!sourceDebited) return Failure(request, request.TraderNetworkSource ? "NetworkSaleSourceChanged" : "PlayerInventoryUpdateFailed");
 
@@ -148,7 +153,8 @@ internal static class TraderTransactionService
         {
             bool restored = request.TraderNetworkSource
                 ? NetworkStorage.AddStack(player, new ItemStack(value, request.Count))
-                : RestoreSnapshots(player, playerData, originalBag, originalToolbelt);
+                : RestoreSnapshots(player, playerData, originalBag, originalToolbelt,
+                    restoreBag: sourceBagChanged, restoreToolbelt: sourceToolbeltChanged);
             NetworkLog.Error("Virtual trader sale could not credit network proceeds; source compensation=" + restored
                 + "; player=" + player.entityId + "; requestId=" + request.RequestId + "; item=" + value.type + "; count=" + request.Count + "; price=" + price);
             return Failure(request, "SaleCreditFailed");
@@ -171,8 +177,8 @@ internal static class TraderTransactionService
             Success = true,
             Amount = price,
             Value = currency.Clone(),
-            BagData = (creditedToPlayer ? updatedBag : sourceBag)?.ToArray(),
-            InventoryData = (creditedToPlayer ? updatedToolbelt : sourceToolbelt)?.ToArray()
+            BagData = (creditedToPlayer || sourceBagChanged ? updatedBag ?? sourceBag : null)?.ToArray(),
+            InventoryData = (sourceToolbeltChanged ? updatedToolbelt ?? sourceToolbelt : null)?.ToArray()
         };
     }
 
@@ -190,9 +196,9 @@ internal static class TraderTransactionService
         }
         MemoryStream candidateBag = NetworkRpcServer.WriteBag(bag);
         MemoryStream candidateToolbelt = WriteToolbelt(toolbelt, selectedSlot);
-        if (!ApplySnapshots(player, playerData, candidateBag, candidateToolbelt))
+        if (!ApplySnapshots(player, playerData, candidateBag, candidateToolbelt, applyBag: true, applyToolbelt: false))
         {
-            if (!RestoreSnapshots(player, playerData, originalBag, originalToolbelt))
+            if (!RestoreSnapshots(player, playerData, originalBag, originalToolbelt, restoreBag: true, restoreToolbelt: false))
                 NetworkLog.Error("Virtual trader personal payout could not restore the original player inventory before network fallback. player=" + player.entityId);
             NetworkLog.Error("Virtual trader personal payout inventory update failed; attempting shared network credit. player=" + player.entityId + "; amount=" + amount);
             return false;
@@ -279,19 +285,22 @@ internal static class TraderTransactionService
         }
     }
 
-    private static bool ApplySnapshots(EntityPlayer player, PlayerDataFile playerData, MemoryStream bag, MemoryStream toolbelt)
+    private static bool ApplySnapshots(EntityPlayer player, PlayerDataFile playerData, MemoryStream bag, MemoryStream toolbelt,
+        bool applyBag, bool applyToolbelt)
     {
-        if (bag == null || toolbelt == null) return false;
+        if (applyBag && bag == null || applyToolbelt && toolbelt == null) return false;
         try
         {
-            NetworkRpcServer.ApplyPlayerInventorySnapshot(player, bag, toolbelt: false);
-            NetworkRpcServer.ApplyPlayerInventorySnapshot(player, toolbelt, toolbelt: true);
+            if (applyBag) NetworkRpcServer.ApplyPlayerInventorySnapshot(player, bag, toolbelt: false);
+            if (applyToolbelt) NetworkRpcServer.ApplyPlayerInventorySnapshot(player, toolbelt, toolbelt: true);
             if (playerData != null)
             {
-                playerData.bagData = bag;
-                playerData.inventoryData = toolbelt;
+                if (applyBag) playerData.bagData = bag;
+                if (applyToolbelt) playerData.inventoryData = toolbelt;
                 playerData.bModifiedSinceLastSave = true;
             }
+            NetworkLog.Debug("Virtual trader sale inventory snapshot applied. player=" + player.entityId
+                + "; bag=" + applyBag + "; toolbelt=" + applyToolbelt);
             return true;
         }
         catch (Exception ex)
@@ -301,10 +310,12 @@ internal static class TraderTransactionService
         }
     }
 
-    private static bool RestoreSnapshots(EntityPlayer player, PlayerDataFile playerData, MemoryStream bag, MemoryStream toolbelt)
+    private static bool RestoreSnapshots(EntityPlayer player, PlayerDataFile playerData, MemoryStream bag, MemoryStream toolbelt,
+        bool restoreBag, bool restoreToolbelt)
     {
-        if (bag == null || toolbelt == null) return false;
-        bool restored = ApplySnapshots(player, playerData, bag, toolbelt);
+        if (restoreBag && bag == null || restoreToolbelt && toolbelt == null) return false;
+        bool restored = ApplySnapshots(player, playerData, bag, toolbelt,
+            applyBag: restoreBag, applyToolbelt: restoreToolbelt);
         if (restored) NetworkLog.Debug("Player inventory was restored after virtual trader sale credit failed. player=" + player.entityId);
         return restored;
     }

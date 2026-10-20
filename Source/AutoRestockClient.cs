@@ -636,13 +636,14 @@ internal static class AutoRestockClient
         }
     }
 
-    public static void RefreshInventoryViews(EntityPlayerLocal player)
+    public static void RefreshInventoryViews(EntityPlayerLocal player, bool refreshToolbelt = true)
     {
         if (!(bool)player) return;
         player.playerUI?.xui?.GetChildByType<XUiC_Backpack>()?.RefreshBackpackSlots();
-        player.playerUI?.xui?.GetChildByType<XUiC_Toolbelt>()?.PlayerInventory_OnToolbeltItemsChanged();
+        if (refreshToolbelt)
+            player.playerUI?.xui?.GetChildByType<XUiC_Toolbelt>()?.PlayerInventory_OnToolbeltItemsChanged();
         player.playerUI?.xui?.GetChildByType<XUiC_HyperdimensionalGrid>()?.Reload();
-        NetworkLog.Debug("Player inventory views refreshed after restock. player=" + player.entityId);
+        NetworkLog.Debug("Player inventory views refreshed after restock. player=" + player.entityId + "; toolbelt=" + refreshToolbelt);
     }
 
     private static NetworkRemoteRequest NewLocalRequest(EntityPlayerLocal player, NetworkRequestOperation operation)

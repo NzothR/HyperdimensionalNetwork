@@ -106,7 +106,7 @@ internal static class InventoryAutomationClient
                 if (result.BagData != null || result.InventoryData != null)
                 {
                     NetworkInventorySync.Apply(player, result, suppressRestockEvents: true);
-                    AutoRestockClient.RefreshInventoryViews(player);
+                    AutoRestockClient.RefreshInventoryViews(player, refreshToolbelt: target.Toolbelt);
                 }
             });
             if (!sent) { _mutationPending = false; QueueSlot(target.Toolbelt, target.Slot); }
@@ -142,7 +142,7 @@ internal static class InventoryAutomationClient
                 catch (Exception ex) { NetworkLog.Error("Local automatic scrap inventory update failed. player=" + player.entityId + "; exception=" + ex); }
                 if (queued)
                 {
-                    AutoRestockClient.RefreshBaseline(player); AutoRestockClient.RefreshInventoryViews(player);
+                    AutoRestockClient.RefreshBaseline(player); AutoRestockClient.RefreshInventoryViews(player, refreshToolbelt: target.Toolbelt);
                     return;
                 }
                 using (AutoRestockClient.SuppressInventoryEvents(player)) grid.SetItem(target.Slot, stack);
@@ -168,7 +168,7 @@ internal static class InventoryAutomationClient
             if (sold.Success)
             {
                 AutoRestockClient.RefreshBaseline(player);
-                AutoRestockClient.RefreshInventoryViews(player);
+                AutoRestockClient.RefreshInventoryViews(player, refreshToolbelt: target.Toolbelt);
                 NetworkLog.Debug("Automatic trader sale completed from player inventory. player=" + player.entityId
                     + "; rule=" + sale.Id + "; source=" + target + "; item=" + stack.itemValue.type
                     + "; count=" + count + "; proceeds=" + sold.Amount);
