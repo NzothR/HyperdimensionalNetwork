@@ -701,16 +701,20 @@ internal static class NetworkRemoteClient
             or NetworkRequestOperation.TrashTake or NetworkRequestOperation.TrashClose)) return false;
         NetworkRemoteRequest request = NewRequest(player, operation);
         request.Slot = slot; request.Value = value?.Clone(); request.Count = count; request.SourceLocation = sourceLocation;
-        return Send(player, request, false, false, operation is NetworkRequestOperation.TrashPut or NetworkRequestOperation.TrashTake, callback);
+        return Send(player, request,
+            operation == NetworkRequestOperation.TrashPut && sourceLocation == XUiC_ItemStack.StackLocationTypes.ToolBelt,
+            operation == NetworkRequestOperation.TrashPut && sourceLocation == XUiC_ItemStack.StackLocationTypes.Backpack,
+            operation is NetworkRequestOperation.TrashPut or NetworkRequestOperation.TrashTake, callback);
     }
 
     internal static bool RequestBookNetwork(EntityPlayerLocal player, NetworkRequestOperation operation, ItemValue value,
-        Action<NetworkRemoteResult> callback)
+        int count, Action<NetworkRemoteResult> callback)
     {
-        if (!IsRemoteClient || !(bool)player || value == null || operation is not (NetworkRequestOperation.BookConsumeNetwork
+        if (!IsRemoteClient || !(bool)player || value == null || count <= 0 || count > 100
+            || operation is not (NetworkRequestOperation.BookConsumeNetwork
             or NetworkRequestOperation.BookScrapNetwork)) return false;
         NetworkRemoteRequest request = NewRequest(player, operation);
-        request.Value = value.Clone(); request.Count = 1;
+        request.Value = value.Clone(); request.Count = count;
         return Send(player, request, false, false, false, callback);
     }
 

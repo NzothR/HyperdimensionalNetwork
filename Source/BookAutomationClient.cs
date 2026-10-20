@@ -18,12 +18,11 @@ internal static class BookAutomationClient
     private static readonly HashSet<string> Queued = new HashSet<string>(StringComparer.Ordinal);
     private static int _playerId = -1;
     private static bool _remoteSalePending;
-    private static float _nextOperationAt;
 
     internal static void OnNetworkChanged(EntityPlayerLocal player)
     {
         Pending.Clear(); Queued.Clear(); _playerId = player?.entityId ?? -1;
-        _remoteSalePending = false; _nextOperationAt = 0f;
+        _remoteSalePending = false;
         NetworkLog.Debug("Automatic book watch reset; waiting for new inventory changes. player=" + _playerId);
     }
 
@@ -48,9 +47,7 @@ internal static class BookAutomationClient
         RestockSettingsSnapshot settings = AutoRestockClient.CurrentSettings(player);
         if (settings == null || !settings.BookReadingEnabled || !settings.PersonalAutoRead || Pending.Count == 0
             || _remoteSalePending || NetworkRemoteClient.IsMutationPending || player.Progression == null
-            || player.IsDead() || !player.Spawned || player.inventory.IsHoldingItemActionRunning()
-            || Time.realtimeSinceStartup < _nextOperationAt) return;
-        _nextOperationAt = Time.realtimeSinceStartup + 0.1f;
+            || player.IsDead() || !player.Spawned || player.inventory.IsHoldingItemActionRunning()) return;
         Target target = Pending.Dequeue(); Queued.Remove(target.ToString());
         ItemStackGrid grid = target.Toolbelt ? player.inventory?.ItemGrid : player.bag?.ItemGrid;
         if (grid == null || target.Slot < 0 || target.Slot >= grid.Length) return;
@@ -60,7 +57,8 @@ internal static class BookAutomationClient
         {
             if (unread || settings.ReadBookPolicy == ReadBookPolicy.ReadAll)
             {
-                if (ReadPlayerSlot(player, target.Toolbelt, target.Slot, stack)) QueueSlot(target.Toolbelt, target.Slot);
+                if (ReadPlayerSlot(player, target.Toolbelt, target.Slot, stack,
+                    settings.ReadBookPolicy == ReadBookPolicy.ReadAll, 8) > 0) QueueSlot(target.Toolbelt, target.Slot);
                 return;
             }
             if (settings.ReadBookPolicy == ReadBookPolicy.Scrap)
@@ -111,25 +109,49 @@ internal static class BookAutomationClient
         return true;
     }
 
-    internal static bool ReadPlayerSlot(EntityPlayerLocal player, bool toolbelt, int slot, ItemStack stack)
+    internal static int RemainingUnread(EntityPlayer player, ItemValue value)
     {
-        if (!(bool)player || stack == null || stack.IsEmpty() || !IsBook(stack.itemValue)) return false;
+        if (!TryGetBookState(player, value, out bool unread) || !unread) return 0;
+        ItemClass item = value.ItemClass;
+        if (item.Actions?.OfType<ItemActionLearnRecipe>().Any() == true) return 1;
+        ProgressionValue progression = player.Progression?.GetProgressionValue(item.Unlocks);
+        if (progression?.ProgressionClass != null
+            && ((int)progression.ProgressionClass.Type == 5 || (int)progression.ProgressionClass.Type == 6))
+            return Math.Max(0, progression.ProgressionClass.MaxLevel - progression.Level);
+        return 1;
+    }
+
+    internal static int ReadPlayerSlot(EntityPlayerLocal player, bool toolbelt, int slot, ItemStack stack,
+        bool readAll, int budget)
+    {
+        if (!(bool)player || stack == null || stack.IsEmpty() || !IsBook(stack.itemValue)) return 0;
         ItemStackGrid grid = toolbelt ? player.inventory.ItemGrid : player.bag.ItemGrid;
-        if (slot < 0 || slot >= grid.Length || !grid[slot].itemValue.Equals(stack.itemValue) || grid[slot].count < 1) return false;
+        if (slot < 0 || slot >= grid.Length || !grid[slot].itemValue.Equals(stack.itemValue) || grid[slot].count < 1) return 0;
+        int read = 0;
         using (AutoRestockClient.SuppressInventoryEvents(player))
         {
-            ApplyReadEffects(player, stack.itemValue.Clone(), () =>
+            while (read < budget)
             {
-                ItemStack remaining = grid[slot].Clone(); remaining.count--;
-                if (toolbelt) player.inventory.SetItem(slot, remaining.count > 0 ? remaining : ItemStack.Empty.Clone());
-                else player.bag.SetSlot(slot, remaining.count > 0 ? remaining : ItemStack.Empty.Clone());
-            });
+                ItemStack current = grid[slot];
+                if (current == null || current.IsEmpty() || !current.itemValue.Equals(stack.itemValue)
+                    || !TryGetBookState(player, current.itemValue, out bool unread) || !readAll && !unread) break;
+                ApplyReadEffects(player, current.itemValue.Clone(), () =>
+                {
+                    ItemStack remaining = grid[slot].Clone(); remaining.count--;
+                    if (toolbelt) player.inventory.SetItem(slot, remaining.count > 0 ? remaining : ItemStack.Empty.Clone());
+                    else player.bag.SetSlot(slot, remaining.count > 0 ? remaining : ItemStack.Empty.Clone());
+                });
+                read++;
+            }
         }
-        AutoRestockClient.RefreshBaseline(player);
-        AutoRestockClient.RefreshInventoryViews(player);
-        NetworkLog.Debug("Book read from player inventory. player=" + player.entityId + "; item=" + stack.itemValue.type
-            + "; toolbelt=" + toolbelt + "; slot=" + slot);
-        return true;
+        if (read > 0)
+        {
+            AutoRestockClient.RefreshBaseline(player);
+            AutoRestockClient.RefreshInventoryViews(player);
+            NetworkLog.Debug("Books read from player inventory. player=" + player.entityId + "; item=" + stack.itemValue.type
+                + "; toolbelt=" + toolbelt + "; slot=" + slot + "; count=" + read);
+        }
+        return read;
     }
 
     internal static void ApplyReadEffects(EntityPlayerLocal player, ItemValue value, Action consume)

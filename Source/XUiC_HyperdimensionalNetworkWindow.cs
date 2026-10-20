@@ -16,7 +16,7 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     private XUiController _manualSaleButton;
     private XUiController _traderPayoutButton;
     private XUiController _booksButton;
-    private readonly Queue<ItemValue> _manualBooks = new Queue<ItemValue>();
+    private readonly Queue<ItemStack> _manualBooks = new Queue<ItemStack>();
     private bool _manualBooksBusy;
     private bool _manualBooksPending;
     private bool _manualBooksClosed;
@@ -177,6 +177,9 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
     {
         base.Update(_dt);
         if (xui?.playerUI?.windowManager?.IsWindowOpen("hyperdimensionalNetwork") != true) return;
+        if (_booksButton?.ViewComponent?.UiTransformIsHovered == true
+            && xui?.playerUI?.CursorController?.GetMouseButtonUp(UICamera.MouseButton.RightButton) == true)
+            OnManualBooksPressed(_booksButton, 1);
         if (_manualBooksBusy && !_manualBooksPending) ProcessNextManualBook();
         if (UnityEngine.Time.realtimeSinceStartup < _nextSettingsRefreshAt) return;
         _nextSettingsRefreshAt = UnityEngine.Time.realtimeSinceStartup + 5f;
@@ -290,8 +293,13 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
             if (_manualBookAction == 0 && !unread || _manualBookAction >= 2 && unread) continue;
             if (_manualBookAction == 2 && (_settings?.TraderEnabled != true || !TraderTransactionService.CanSell(entry.Value))) continue;
             if (_manualBookAction == 3 && CraftingManager.GetScrapableRecipe(entry.Value, 1) == null) continue;
-            long count = _manualBookAction == 0 ? 1 : Math.Min(entry.Count, 10000);
-            for (long i = 0; i < count; i++) _manualBooks.Enqueue(entry.Value.Clone());
+            long count = Math.Min(entry.Count, 10000);
+            while (count > 0)
+            {
+                int batch = (int)Math.Min(count, 100);
+                _manualBooks.Enqueue(new ItemStack(entry.Value.Clone(), batch));
+                count -= batch;
+            }
         }
     }
 
@@ -301,21 +309,24 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
         if (!(bool)player || _settings?.BookReadingEnabled != true) { FinishManualBooks(player, "BookReadingDisabled"); return; }
         while (_manualBooks.Count > 0)
         {
-            ItemValue value = _manualBooks.Dequeue();
+            ItemStack batch = _manualBooks.Dequeue();
+            ItemValue value = batch.itemValue;
             if (!BookAutomationClient.TryGetBookState(player, value, out bool unread)) continue;
             if (_manualBookAction == 0 && !unread || _manualBookAction >= 2 && unread) continue;
+            int count = _manualBookAction == 0 ? Math.Min(batch.count, BookAutomationClient.RemainingUnread(player, value)) : batch.count;
+            if (count <= 0) continue;
             _manualBooksPending = true;
             if (_manualBookAction == 2)
             {
                 if (NetworkRemoteClient.IsRemoteClient)
                 {
-                    if (!NetworkRemoteClient.RequestTraderVoidSell(player, value, 1, true, false,
-                        XUiC_ItemStack.StackLocationTypes.ToolBelt, 0, result => OnManualBookResult(player, value, result)))
-                        _manualBooksPending = false;
+                    if (!NetworkRemoteClient.RequestTraderVoidSell(player, value, count, true, false,
+                        XUiC_ItemStack.StackLocationTypes.ToolBelt, 0, result => OnManualBookResult(player, value, count, result)))
+                        FinishManualBooks(player, "BookRequestUnavailable");
                 }
-                else OnManualBookResult(player, value, TraderTransactionService.ExecuteVoidSell(player, null,
+                else OnManualBookResult(player, value, count, TraderTransactionService.ExecuteVoidSell(player, null,
                     new NetworkRemoteRequest { EntityId = player.entityId, RequestId = DateTime.UtcNow.Ticks,
-                        Operation = NetworkRequestOperation.TraderVoidSell, Value = value.Clone(), Count = 1,
+                        Operation = NetworkRequestOperation.TraderVoidSell, Value = value.Clone(), Count = count,
                         TraderNetworkSource = true, TraderPersonalPayout = false }));
             }
             else
@@ -324,29 +335,29 @@ public sealed class XUiC_HyperdimensionalNetworkWindow : XUiController
                     ? NetworkRequestOperation.BookScrapNetwork : NetworkRequestOperation.BookConsumeNetwork;
                 if (NetworkRemoteClient.IsRemoteClient)
                 {
-                    if (!NetworkRemoteClient.RequestBookNetwork(player, operation, value,
-                        result => OnManualBookResult(player, value, result))) _manualBooksPending = false;
+                    if (!NetworkRemoteClient.RequestBookNetwork(player, operation, value, count,
+                        result => OnManualBookResult(player, value, count, result))) FinishManualBooks(player, "BookRequestUnavailable");
                 }
-                else OnManualBookResult(player, value, BookNetworkService.Execute(player,
+                else OnManualBookResult(player, value, count, BookNetworkService.Execute(player,
                     new NetworkRemoteRequest { EntityId = player.entityId, RequestId = DateTime.UtcNow.Ticks,
-                        Operation = operation, Value = value.Clone(), Count = 1 }));
+                        Operation = operation, Value = value.Clone(), Count = count }));
             }
             return;
         }
         FinishManualBooks(player, null);
     }
 
-    private void OnManualBookResult(EntityPlayerLocal player, ItemValue value, NetworkRemoteResult result)
+    private void OnManualBookResult(EntityPlayerLocal player, ItemValue value, int count, NetworkRemoteResult result)
     {
         _manualBooksPending = false;
         if (!_manualBooksBusy) return;
         if (!result.Success) { FinishManualBooks(player, result.Error); return; }
         if (_manualBookAction <= 1)
         {
-            try { BookAutomationClient.ApplyReadEffects(player, value, null); }
+            try { for (int i = 0; i < count; i++) BookAutomationClient.ApplyReadEffects(player, value, null); }
             catch (Exception ex) { NetworkLog.Error("Manual network book effect failed after debit. player=" + player.entityId + "; item=" + value.type + "; exception=" + ex); }
         }
-        _manualBookCompleted++;
+        _manualBookCompleted += count;
         NetworkLog.Debug("Manual network book processed. player=" + player.entityId + "; action=" + _manualBookAction
             + "; item=" + value.type + "; completed=" + _manualBookCompleted);
         _grid?.Reload();

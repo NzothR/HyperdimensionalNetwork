@@ -6,26 +6,30 @@ internal static class BookNetworkService
 {
     internal static NetworkRemoteResult Execute(EntityPlayer player, NetworkRemoteRequest request)
     {
-        if (!(bool)player || request?.Value == null || request.Count != 1 || !BookAutomationClient.IsBook(request.Value))
+        if (!(bool)player || request?.Value == null || request.Count <= 0 || request.Count > 100
+            || !BookAutomationClient.IsBook(request.Value))
             return Failure(request, "InvalidBook");
         if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.BookReadingEnabled))
             return Failure(request, "BookReadingDisabled");
-        if (NetworkStorage.GetCount(player, request.Value) <= 0) return Failure(request, "BookUnavailable");
+        if (NetworkStorage.GetCount(player, request.Value) < request.Count) return Failure(request, "BookUnavailable");
         if (request.Operation == NetworkRequestOperation.BookConsumeNetwork)
         {
-            if (NetworkStorage.Remove(player, request.Value, 1) != 1) return Failure(request, "BookUnavailable");
-            NetworkLog.Debug("Network book consumed for manual reading. player=" + player.entityId + "; item=" + request.Value.type);
-            return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Value = request.Value.Clone(), Amount = 1 };
+            if (NetworkStorage.Remove(player, request.Value, request.Count) != request.Count) return Failure(request, "BookUnavailable");
+            NetworkLog.Debug("Network books consumed for manual reading. player=" + player.entityId + "; item=" + request.Value.type
+                + "; count=" + request.Count);
+            return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Value = request.Value.Clone(), Amount = request.Count };
         }
         if (request.Operation != NetworkRequestOperation.BookScrapNetwork) return Failure(request, "UnsupportedOperation");
         if (!BookAutomationClient.TryGetBookState(player, request.Value, out bool unread) || unread)
             return Failure(request, "BookNotRead");
         if (!TryCalculateVanillaScrap(player, request.Value, out ItemValue output, out int outputCount))
             return Failure(request, "BookNotScrappable");
-        if (NetworkStorage.Remove(player, request.Value, 1) != 1) return Failure(request, "BookUnavailable");
+        if (outputCount > int.MaxValue / request.Count) return Failure(request, "ScrapOutputTooLarge");
+        outputCount *= request.Count;
+        if (NetworkStorage.Remove(player, request.Value, request.Count) != request.Count) return Failure(request, "BookUnavailable");
         if (!NetworkStorage.AddStack(player, new ItemStack(output.Clone(), outputCount)))
         {
-            if (!NetworkStorage.AddStack(player, new ItemStack(request.Value.Clone(), 1)))
+            if (!NetworkStorage.AddStack(player, new ItemStack(request.Value.Clone(), request.Count)))
                 NetworkLog.Error("Manual network book scrap could not restore its source after failed output credit. player=" + player.entityId
                     + "; item=" + request.Value.type);
             return Failure(request, "ScrapOutputUnavailable");
