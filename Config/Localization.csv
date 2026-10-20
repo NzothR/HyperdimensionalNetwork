@@ -228,3 +228,25 @@ HyperdimensionalNetworkCraftingChainNodeError,Output missing or queue changed. D
 HyperdimensionalNetworkCraftingChainFuelInsufficient,Workstation stopped: fuel depleted.,工作站已停止：燃料不足。
 HyperdimensionalNetworkCraftingChainWorkstationStopped,Workstation stopped: check fuel and operating state.,工作站已停止：请检查燃料和运行状态。
 HyperdimensionalNetworkManualBooksResult,Books processed,已处理书籍
+HyperdimensionalNetworkForgeFeedOpen,Feed nearby forges from backpack and network,从背包和网络给附近锻造炉补料
+HyperdimensionalNetworkForgeFeedTitle,Nearby forge feeding,附近锻造炉补料
+HyperdimensionalNetworkForgeFeedFill,Fill each forge to,每座炉补至
+HyperdimensionalNetworkForgeFeedStation,Nearby forges,附近的锻造炉
+HyperdimensionalNetworkForgeFeedExecute,Feed evenly,均匀投料
+HyperdimensionalNetworkForgeFeedHelp,Choose materials then feed the nearby forges,选择材料后给附近锻造炉均匀投料
+HyperdimensionalNetworkForgeFeedNone,No forge in range,范围内没有可用锻造炉
+HyperdimensionalNetworkForgeFeedNoMaterials,No smeltable material found,未发现可熔炼原料
+HyperdimensionalNetworkForgeFeedInvalidFill,Enter a target from 0 to 100000; 0 means the forge cap,请输入 0 至 100000 的目标值；0 表示炉子上限
+HyperdimensionalNetworkForgeFeedSelect,Select at least one material,请至少选择一种材料
+HyperdimensionalNetworkForgeFeedWorking,Feeding nearby forges...,正在给附近锻造炉投料…
+HyperdimensionalNetworkForgeFeedBusy,Another inventory operation is in progress,另一项库存操作正在进行
+HyperdimensionalNetworkForgeFeedDone,Fed {0} items into nearby forges,已向附近锻造炉投入 {0} 件原料
+HyperdimensionalNetworkForgeFeedFailed,Forge feed failed:,锻造炉补料失败：
+HyperdimensionalNetworkForgeFeedPreviewFailed,Could not read nearby forges,无法读取附近锻造炉
+HyperdimensionalNetworkForgeFeedSyncFailed,Forge feed succeeded but backpack sync failed; reopen the backpack,炉子投料成功但背包同步失败，请重新打开背包
+HyperdimensionalNetworkForgeFeedErrorNoForgeFeedNeeded,No eligible material or free melt slot,没有可投入的原料或空闲熔炼格
+HyperdimensionalNetworkForgeFeedErrorNoNearbyForge,No forge in range,范围内没有锻造炉
+HyperdimensionalNetworkForgeFeedErrorBackpackUnavailable,Backpack is unavailable,背包暂时不可用
+HyperdimensionalNetworkForgeFeedErrorForgeMaterialsChanged,Material stock changed; try again,原料数量已变化，请重试
+HyperdimensionalNetworkForgeFeedErrorForgeNetworkCommitFailed,Network material could not be reserved,网络原料预留失败
+HyperdimensionalNetworkForgeFeedErrorForgeFeedFailed,Forge update failed and was rolled back,炉子更新失败且已回滚

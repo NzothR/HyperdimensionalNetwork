@@ -50,7 +50,8 @@ internal enum NetworkRequestOperation : byte
     DepositEntityBagAll = 39,
     AutomationProcessSlot = 40,
     BookConsumeNetwork = 45,
-    BookScrapNetwork = 46
+    BookScrapNetwork = 46,
+    ForgeFeed = 47
 }
 
 internal enum NetworkMembershipNotice : byte { None = 0, Invite = 1, Prepare = 2, Completed = 3, Changed = 4, InviteInvalidated = 5 }
@@ -722,6 +723,19 @@ internal static class NetworkRemoteClient
         request.Value = value.Clone();
         request.Count = count;
         return Send(localPlayer, request, false, toBackpack, !toBackpack, callback);
+    }
+
+    public static bool RequestForgeFeed(EntityPlayerLocal player, IEnumerable<string> categories, int fill,
+        Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player || categories == null || fill < 0 || fill > 100000) return false;
+        string selected = string.Join(",", categories.Where(category => !string.IsNullOrWhiteSpace(category))
+            .Distinct(StringComparer.OrdinalIgnoreCase).Take(ForgeFeedService.MaximumMaterials));
+        if (selected.Length == 0 || Encoding.UTF8.GetByteCount(selected) > 256) return false;
+        NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.ForgeFeed);
+        request.Category = selected;
+        request.Count = fill;
+        return Send(player, request, false, true, false, callback);
     }
 
     public static bool ReturnWithdrawal(EntityPlayer player, long originalRequestId, ItemValue value, int count, Action<NetworkRemoteResult> callback)

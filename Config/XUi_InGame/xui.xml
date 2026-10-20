@@ -15,5 +15,8 @@
     <window_group name="hyperdimensionalTraderRules">
       <window name="windowHyperdimensionalTraderRules" />
     </window_group>
+    <window_group name="hyperdimensionalForgeFeed">
+      <window name="windowHyperdimensionalForgeFeed" />
+    </window_group>
   </append>
 </configs>

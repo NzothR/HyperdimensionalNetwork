@@ -232,6 +232,8 @@ internal static class NetworkRpcServer
             case NetworkRequestOperation.BookConsumeNetwork:
             case NetworkRequestOperation.BookScrapNetwork:
                 return BookNetworkService.Execute(player, request);
+            case NetworkRequestOperation.ForgeFeed:
+                return ForgeFeedService.Execute(world, player, sender?.latestPlayerData, request);
             case NetworkRequestOperation.MembershipInvite:
             case NetworkRequestOperation.MembershipAcceptInvite:
             case NetworkRequestOperation.MembershipDeclineInvite:
@@ -1066,7 +1068,7 @@ internal static class NetworkRpcServer
         finally { NetworkStackCompatibility.ClearWriteMetadata(writeMetadata); }
     }
 
-    private static bool PlayerHoldsLootLock(int playerEntityId, ILockTarget target)
+    internal static bool PlayerHoldsLootLock(int playerEntityId, ILockTarget target)
     {
         LockManager manager = LockManager.Instance;
         return manager != null && (HasLock(manager.singleLocks, playerEntityId, target) || HasLock(manager.sharedLocks, playerEntityId, target));
