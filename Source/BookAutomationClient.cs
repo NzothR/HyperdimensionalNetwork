@@ -147,7 +147,7 @@ internal static class BookAutomationClient
         if (read > 0)
         {
             AutoRestockClient.RefreshBaseline(player);
-            AutoRestockClient.RefreshInventoryViews(player);
+            AutoRestockClient.RefreshInventoryViews(player, refreshToolbelt: toolbelt);
             NetworkLog.Debug("Books read from player inventory. player=" + player.entityId + "; item=" + stack.itemValue.type
                 + "; toolbelt=" + toolbelt + "; slot=" + slot + "; count=" + read);
         }
@@ -221,7 +221,7 @@ internal static class BookAutomationClient
                     if (result.Success)
                     {
                         NetworkInventorySync.Apply(player, result, suppressRestockEvents: true);
-                        AutoRestockClient.RefreshInventoryViews(player);
+                        AutoRestockClient.RefreshInventoryViews(player, refreshToolbelt: target.Toolbelt);
                         NetworkLog.Debug("Automatic read book sold into player backpack. player=" + player.entityId
                             + "; source=" + target + "; item=" + stack.itemValue.type + "; proceeds=" + result.Amount);
                     }
@@ -237,7 +237,11 @@ internal static class BookAutomationClient
                 ? XUiC_ItemStack.StackLocationTypes.ToolBelt : XUiC_ItemStack.StackLocationTypes.Backpack,
             Slot = target.Slot, TraderPersonalPayout = true, TraderAutomation = true
         });
-        if (sold.Success) { AutoRestockClient.RefreshBaseline(player); AutoRestockClient.RefreshInventoryViews(player); }
+        if (sold.Success)
+        {
+            AutoRestockClient.RefreshBaseline(player);
+            AutoRestockClient.RefreshInventoryViews(player, refreshToolbelt: target.Toolbelt);
+        }
         else NetworkLog.Debug("Local automatic read book sale skipped. player=" + player.entityId + "; error=" + sold.Error);
     }
 
