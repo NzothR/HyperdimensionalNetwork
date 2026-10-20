@@ -45,7 +45,6 @@ internal static class BackpackQuickDepositPatch
 
     private static bool TryDeposit(XUiC_ItemStack instance, bool half)
     {
-        if (!half && TryQuickTrash(instance)) return true;
         if (instance?.xui?.playerUI?.windowManager == null
             || instance.xui.playerUI.windowManager.IsInputActive()
             || !instance.xui.playerUI.windowManager.IsWindowOpen("hyperdimensionalNetwork")) return false;
@@ -97,33 +96,6 @@ internal static class BackpackQuickDepositPatch
         else if (sourceGrid is XUiC_Toolbelt toolbelt) toolbelt.PlayerInventory_OnToolbeltItemsChanged();
 
         NetworkLog.Debug("Shift deposit completed. source=" + sourceGrid.GetType().Name + "; item=" + deposit.itemValue.type + "; count=" + amount + "; half=" + half + "; revision=" + NetworkStorage.GetRevision(player));
-        return true;
-    }
-
-    private static bool TryQuickTrash(XUiC_ItemStack instance)
-    {
-        if (instance?.xui?.playerUI?.windowManager?.IsWindowOpen("hyperdimensionalTrash") != true
-            || instance.ItemStack == null || instance.ItemStack.IsEmpty()
-            || FindSourceGrid(instance) == null) return false;
-        XUiC_DragAndDropWindow drag = instance.xui.DragAndDropWindow;
-        XUiC_TrashGrid trash = instance.xui.GetChildByType<XUiC_TrashGrid>();
-        if (trash == null || trash.Pending || drag == null || drag.CurrentStack != null && !drag.CurrentStack.IsEmpty()) return false;
-        ItemStack[] slots = trash.GetSlots();
-        int target = -1;
-        for (int i = 0; i < slots.Length; i++)
-        {
-            if (slots[i] == null || slots[i].IsEmpty()) { target = i; break; }
-            if (NetworkStorage.NormalizeKey(slots[i].itemValue).Equals(NetworkStorage.NormalizeKey(instance.ItemStack.itemValue))
-                && slots[i].count + instance.ItemStack.count <= instance.ItemStack.itemValue.ItemClass.MaxCount)
-            { target = i; break; }
-        }
-        if (target < 0) return false;
-        instance.SwapItem();
-        instance.HandleClickComplete();
-        if (drag.CurrentStack == null || drag.CurrentStack.IsEmpty()) return false;
-        bool placed = trash.Put(target, false);
-        NetworkLog.Debug("Shift-click manual trash transfer. source=" + instance.SlotNumber + "; target=" + target
-            + "; item=" + instance.ItemStack?.itemValue?.type + "; queued=" + placed);
         return true;
     }
 

@@ -49,10 +49,6 @@ internal enum NetworkRequestOperation : byte
     MembershipAcknowledgePrepare = 38,
     DepositEntityBagAll = 39,
     AutomationProcessSlot = 40,
-    TrashOpen = 41,
-    TrashPut = 42,
-    TrashTake = 43,
-    TrashClose = 44,
     BookConsumeNetwork = 45,
     BookScrapNetwork = 46
 }
@@ -79,13 +75,6 @@ internal sealed class TraderOffer
     public int InventoryIndex;
 }
 
-internal sealed class TrashSlotEntry
-{
-    public int Slot;
-    public ItemValue Value;
-    public int Count;
-}
-
 internal enum NetworkConsumptionSource : byte
 {
     PlayerInventory = 0,
@@ -108,7 +97,6 @@ internal sealed class NetworkRemoteResult
     public int UpdatedSourceCount;
     public ItemValue Value;
     public List<StoredEntry> Entries = new List<StoredEntry>();
-    public List<TrashSlotEntry> TrashSlots = new List<TrashSlotEntry>();
     public byte[] BagData;
     public byte[] InventoryData;
     public byte[] EntityBagData;
@@ -692,19 +680,6 @@ internal static class NetworkRemoteClient
         request.Value = value.Clone(); request.Count = count; request.Slot = slot;
         request.SourceLocation = toolbelt ? XUiC_ItemStack.StackLocationTypes.ToolBelt : XUiC_ItemStack.StackLocationTypes.Backpack;
         return Send(player, request, toolbelt, !toolbelt, false, callback);
-    }
-
-    internal static bool RequestTrash(EntityPlayerLocal player, NetworkRequestOperation operation, int slot, ItemValue value,
-        int count, XUiC_ItemStack.StackLocationTypes sourceLocation, Action<NetworkRemoteResult> callback)
-    {
-        if (!IsRemoteClient || !(bool)player || operation is not (NetworkRequestOperation.TrashOpen or NetworkRequestOperation.TrashPut
-            or NetworkRequestOperation.TrashTake or NetworkRequestOperation.TrashClose)) return false;
-        NetworkRemoteRequest request = NewRequest(player, operation);
-        request.Slot = slot; request.Value = value?.Clone(); request.Count = count; request.SourceLocation = sourceLocation;
-        return Send(player, request,
-            operation == NetworkRequestOperation.TrashPut && sourceLocation == XUiC_ItemStack.StackLocationTypes.ToolBelt,
-            operation == NetworkRequestOperation.TrashPut && sourceLocation == XUiC_ItemStack.StackLocationTypes.Backpack,
-            operation is NetworkRequestOperation.TrashPut or NetworkRequestOperation.TrashTake, callback);
     }
 
     internal static bool RequestBookNetwork(EntityPlayerLocal player, NetworkRequestOperation operation, ItemValue value,

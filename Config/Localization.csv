@@ -137,6 +137,7 @@ HyperdimensionalNetworkTraderRulesRunRequested,Rule execution started,已开始�
 HyperdimensionalNetworkAutomationSettings,Automation settings,自动化设置
 HyperdimensionalNetworkTrashOpen,Open trash container,打开垃圾桶
 HyperdimensionalNetworkTrashWindow,Trash (destroy on close),垃圾桶（关闭时销毁）
+HyperdimensionalNetworkTrashCapacityUnsupported,Trash cannot display all backpack slots. Check the debug log.,垃圾桶无法显示全部背包格，请查看调试日志。
 HyperdimensionalNetworkManualBooksHelp,Left: read unread books; Shift+left: read all; Right: sell read books; Shift+right: scrap read books,左键阅读未读书；Shift+左键全部阅读；右键售出已读书；Shift+右键分解已读书
 HyperdimensionalNetworkTraderRuleToggle,Enable / disable,启用/停用
 HyperdimensionalNetworkTraderRuleRun,Run all now,立即执行全部

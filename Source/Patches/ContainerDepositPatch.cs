@@ -26,10 +26,7 @@ internal static class ContainerDepositPatch
         {
             EntityPlayerLocal player = __instance.xui?.playerUI?.entityPlayer;
             if (!(bool)player || !AutoRestockClient.IsFeatureEnabled(player, NetworkFeatureSetting.TrashEnabled)) return;
-            GUIWindowManager manager = player.playerUI?.windowManager;
-            if (manager == null) return;
-            if (manager.IsWindowOpen("hyperdimensionalTrash")) manager.Close("hyperdimensionalTrash");
-            else manager.Open("hyperdimensionalTrash", _bModal: true);
+            ManualTrashService.Toggle(__instance.xui);
         };
     }
 

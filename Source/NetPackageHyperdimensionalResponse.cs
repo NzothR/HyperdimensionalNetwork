@@ -51,16 +51,6 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
             if (count <= 0) throw new InvalidDataException("Invalid item count in network page response.");
             _result.Entries.Add(new StoredEntry { Value = value, Count = count });
         }
-        int trashCount = reader.ReadInt32();
-        if (trashCount < 0 || trashCount > 48) throw new InvalidDataException("Invalid trash slot count: " + trashCount);
-        for (int i = 0; i < trashCount; i++)
-        {
-            int slot = reader.ReadInt32();
-            ItemValue value = new ItemValue(); value.Read(reader);
-            int count = reader.ReadInt32();
-            if (slot < 0 || slot >= 48 || count <= 0) throw new InvalidDataException("Invalid trash slot entry.");
-            _result.TrashSlots.Add(new TrashSlotEntry { Slot = slot, Value = value, Count = count });
-        }
         _result.BagData = ReadBoundedBlob(reader);
         _result.InventoryData = ReadBoundedBlob(reader);
         _result.EntityBagData = ReadBoundedBlob(reader);
@@ -162,16 +152,6 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
                 binary.Write(entry.Count);
             }
         }
-        int trashCount = result.TrashSlots?.Count ?? 0;
-        if (trashCount > 48) throw new InvalidDataException("Too many trash slots in response.");
-        binary.Write(trashCount);
-        if (result.TrashSlots != null)
-            foreach (TrashSlotEntry entry in result.TrashSlots)
-            {
-                if (entry == null || entry.Slot < 0 || entry.Slot >= 48 || entry.Value == null || entry.Count <= 0)
-                    throw new InvalidDataException("Invalid trash slot in response.");
-                binary.Write(entry.Slot); entry.Value.Write(writer); binary.Write(entry.Count);
-            }
         WriteBoundedBlob(binary, result.BagData);
         WriteBoundedBlob(binary, result.InventoryData);
         WriteBoundedBlob(binary, result.EntityBagData);
@@ -270,7 +250,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         int ruleTextBytes = _result?.TraderRules?.Sum(rule => Encoding.UTF8.GetByteCount(rule?.Category ?? string.Empty)
             + Encoding.UTF8.GetByteCount(rule?.ExcludedCategories ?? string.Empty)
             + Encoding.UTF8.GetByteCount(rule?.ExcludedItemTypes ?? string.Empty)) ?? 0;
-        return 162 + entries * 512 + (_result?.TrashSlots?.Count ?? 0) * 520 + offers * 640 + rules * 136 + ruleTextBytes + bytes + valueBytes + Encoding.UTF8.GetByteCount(_result?.Error ?? string.Empty)
+        return 162 + entries * 512 + offers * 640 + rules * 136 + ruleTextBytes + bytes + valueBytes + Encoding.UTF8.GetByteCount(_result?.Error ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_result?.NetworkId ?? string.Empty) + Encoding.UTF8.GetByteCount(_result?.TraderSessionId ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_result?.TraderRunMessage ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_result?.TraderRunRuleId ?? string.Empty)
