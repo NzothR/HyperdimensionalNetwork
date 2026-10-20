@@ -15,7 +15,7 @@
     <window_group name="hyperdimensionalTraderRules">
       <window name="windowHyperdimensionalTraderRules" />
     </window_group>
-    <window_group name="hyperdimensionalTrash" open_backpack_on_open="true" close_compass_on_open="true">
+    <window_group name="hyperdimensionalTrash" close_compass_on_open="true">
       <window name="windowHyperdimensionalTrash" />
     </window_group>
   </append>

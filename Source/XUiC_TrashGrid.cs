@@ -161,7 +161,6 @@ public sealed class XUiC_TrashSlot : XUiC_ItemStack
 {
     private XUiC_TrashGrid _grid;
     private int _slot;
-    private bool _leftDown, _rightDown;
     internal void Bind(XUiC_TrashGrid grid, int slot) { _grid = grid; _slot = slot; }
     public override void SwapItem() { if (_grid?.Put(_slot, false) != true) _grid?.Take(_slot, false); }
     public override void HandleDropOne() { if (_grid?.Put(_slot, true) != true) _grid?.Take(_slot, true); }
@@ -177,13 +176,11 @@ public sealed class XUiC_TrashSlot : XUiC_ItemStack
     {
         if (!xui || !isOver || _grid?.Pending == true) return false;
         CursorControllerAbs cursor = xui.playerUI.CursorController;
-        if (cursor.GetMouseButtonDown(UICamera.MouseButton.LeftButton)) _leftDown = true;
-        if (cursor.GetMouseButtonDown(UICamera.MouseButton.RightButton)) _rightDown = true;
         if (xui.DragAndDropWindow?.CurrentStack == null || xui.DragAndDropWindow.CurrentStack.IsEmpty()) return false;
         if (cursor.GetMouseButtonUp(UICamera.MouseButton.LeftButton))
-        { bool pressed = _leftDown; _leftDown = false; if (pressed) return _grid.Put(_slot, false); }
+        { return _grid.Put(_slot, false); }
         if (cursor.GetMouseButtonUp(UICamera.MouseButton.RightButton))
-        { bool pressed = _rightDown; _rightDown = false; if (pressed) return _grid.Put(_slot, true); }
+        { return _grid.Put(_slot, true); }
         return false;
     }
 }
