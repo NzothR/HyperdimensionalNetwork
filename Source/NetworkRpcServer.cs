@@ -1221,6 +1221,7 @@ internal static class NetworkRpcServer
             AutoRestockEnabled = result.AutoRestockEnabled,
             RestockTargetMode = result.RestockTargetMode,
             IsNetworkAdministrator = result.IsNetworkAdministrator,
+            HasNetworkInventoryAutoSellRule = result.HasNetworkInventoryAutoSellRule,
             AutoRestockCooldownMs = result.AutoRestockCooldownMs,
             ReplenishmentEnabled = result.ReplenishmentEnabled,
             AmmoBankEnabled = result.AmmoBankEnabled,
@@ -1281,7 +1282,8 @@ internal static class NetworkRpcServer
             && left.MaximumSpend == right.MaximumSpend && left.Scheduled == right.Scheduled && left.ScheduledHour == right.ScheduledHour
             && left.IntervalDays == right.IntervalDays && left.LastScheduledDay == right.LastScheduledDay
             && left.Scope == right.Scope && left.Category == right.Category
-            && left.ExcludedCategories == right.ExcludedCategories && left.ExcludedItemTypes == right.ExcludedItemTypes;
+            && left.ExcludedCategories == right.ExcludedCategories && left.ExcludedItemTypes == right.ExcludedItemTypes
+            && left.AutoSellSource == right.AutoSellSource;
     }
 
     private static NetworkRemoteResult Failure(NetworkRemoteRequest request, string error)

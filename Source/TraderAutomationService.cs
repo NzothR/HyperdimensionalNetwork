@@ -10,6 +10,7 @@ internal enum TraderAutomationRuleKind : byte { AutoSell = 1, AutoBuy = 2, AutoD
 internal enum TraderQualityMatchMode : byte { Any = 0, Exact = 1, Greater = 2, GreaterOrEqual = 3, Less = 4, LessOrEqual = 5 }
 internal enum TraderRuleComparison : byte { Greater = 0, GreaterOrEqual = 1, Equal = 2, LessOrEqual = 3, Less = 4, Ignore = 5 }
 internal enum TraderRuleScope : byte { SingleItem = 0, Category = 1 }
+internal enum TraderAutoSellSource : byte { NetworkDeposits = 0, BackpackAndToolbelt = 1, Both = 2 }
 
 internal sealed class TraderAutomationRule
 {
@@ -19,6 +20,7 @@ internal sealed class TraderAutomationRule
     public bool Enabled = true;
     public int ItemType;
     public TraderRuleScope Scope;
+    public TraderAutoSellSource AutoSellSource;
     public string Category = string.Empty;
     public string ExcludedCategories = string.Empty;
     public string ExcludedItemTypes = string.Empty;
@@ -66,7 +68,7 @@ internal static class TraderAutomationService
         public string RuleId = string.Empty;
     }
     private const int FileMagic = 0x31525448; // HTR1
-    private const int FileVersion = 4;
+    private const int FileVersion = 5;
     private const int MaximumNetworks = 100000;
     private const int MaximumRulesPerNetwork = 2048;
     private static readonly object Sync = new object();
@@ -150,6 +152,9 @@ internal static class TraderAutomationService
             RequestId = request?.RequestId ?? 0,
             Success = true,
             IsNetworkAdministrator = isAdmin,
+            HasNetworkInventoryAutoSellRule = NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled)
+                && GetRules(player).Any(rule => rule.Enabled && rule.Kind == TraderAutomationRuleKind.AutoSell
+                    && IncludesPlayerInventory(rule.AutoSellSource)),
             TraderRules = (isAdmin ? GetRules(player) : new List<TraderAutomationRule>())
                 .Concat(PersonalAutomationRuleService.GetRules(player)).ToList()
         };
@@ -274,7 +279,8 @@ internal static class TraderAutomationService
         }
         string networkId = PlayerNetworkDirectory.GetNetworkId(player);
         if (string.IsNullOrEmpty(networkId)) { error = "NetworkUnavailable"; return false; }
-        bool scanExisting = rule.Kind == TraderAutomationRuleKind.AutoSell && rule.Enabled;
+        bool scanExisting = rule.Kind == TraderAutomationRuleKind.AutoSell && rule.Enabled
+            && IncludesNetworkDeposits(rule.AutoSellSource);
         lock (Sync)
         {
             if (!EnsureLoaded()) { error = "TraderRulesUnavailable"; return false; }
@@ -298,7 +304,7 @@ internal static class TraderAutomationService
             Rules[networkId] = updated;
             if (Save())
             {
-                NetworkLog.Debug("Trader automation rule saved. player=" + player.entityId + "; network=" + networkId + "; rule=" + rule.Id + "; type=" + rule.Kind + "; scope=" + rule.Scope + "; item=" + rule.ItemType + "; category=" + rule.Category + "; excludedItems=" + rule.ExcludedItemTypes + "; excludedCategories=" + rule.ExcludedCategories + "; maximumCount=" + rule.MaximumCount + "; zeroMeansUnlimited=" + AllowsUnlimitedMaximumCount(rule));
+                NetworkLog.Debug("Trader automation rule saved. player=" + player.entityId + "; network=" + networkId + "; rule=" + rule.Id + "; type=" + rule.Kind + "; scope=" + rule.Scope + "; autoSellSource=" + rule.AutoSellSource + "; item=" + rule.ItemType + "; category=" + rule.Category + "; excludedItems=" + rule.ExcludedItemTypes + "; excludedCategories=" + rule.ExcludedCategories + "; maximumCount=" + rule.MaximumCount + "; zeroMeansUnlimited=" + AllowsUnlimitedMaximumCount(rule));
             }
             else
             {
@@ -383,7 +389,8 @@ internal static class TraderAutomationService
             List<TraderAutomationRule> sellRules;
             lock (Sync)
                 sellRules = Rules.TryGetValue(networkId, out List<TraderAutomationRule> rules)
-                    ? rules.Where(rule => rule.Enabled && rule.Kind == TraderAutomationRuleKind.AutoSell).Select(rule => rule.Clone()).ToList()
+                    ? rules.Where(rule => rule.Enabled && rule.Kind == TraderAutomationRuleKind.AutoSell
+                        && IncludesNetworkDeposits(rule.AutoSellSource)).Select(rule => rule.Clone()).ToList()
                     : new List<TraderAutomationRule>();
             if (sellRules.Count == 0) return;
             Dictionary<string, long> remainingByRule = sellRules.ToDictionary(rule => rule.Id,
@@ -767,6 +774,12 @@ internal static class TraderAutomationService
 
     private static void ExecuteSellRule(EntityPlayer player, TraderAutomationRule rule, string reason)
     {
+        if (rule == null || !IncludesNetworkDeposits(rule.AutoSellSource))
+        {
+            NetworkLog.Debug("Network inventory sale skipped because the rule source excludes network items. player="
+                + player?.entityId + "; rule=" + rule?.Id + "; source=" + rule?.AutoSellSource + "; reason=" + reason);
+            return;
+        }
         string networkId = PlayerNetworkDirectory.GetNetworkId(player);
         if (string.IsNullOrEmpty(networkId)) return;
         lock (Sync) { if (!ProcessingDeposits.Add(networkId)) return; ActiveRuleIds[networkId] = rule.Id; }
@@ -829,6 +842,19 @@ internal static class TraderAutomationService
         return Compare((int)value.Quality, comparison, rule.Quality);
     }
 
+    internal static bool IncludesNetworkDeposits(TraderAutoSellSource source)
+        => source is TraderAutoSellSource.NetworkDeposits or TraderAutoSellSource.Both;
+
+    internal static bool IncludesPlayerInventory(TraderAutoSellSource source)
+        => source is TraderAutoSellSource.BackpackAndToolbelt or TraderAutoSellSource.Both;
+
+    internal static bool MatchesNetworkCountRequirement(EntityPlayer player, TraderAutomationRule rule)
+    {
+        if (rule == null || rule.NetworkCountComparison == TraderRuleComparison.Ignore) return true;
+        long count = NetworkStorage.GetEntries(player).Where(entry => Matches(rule, entry.Value)).Sum(entry => entry.Count);
+        return Compare(count, rule.NetworkCountComparison, rule.MinimumNetworkCount);
+    }
+
     internal static bool HasTraderCategory(ItemValue value, string category)
     {
         return !string.IsNullOrEmpty(category)
@@ -858,6 +884,7 @@ internal static class TraderAutomationService
         error = string.Empty;
         if (rule == null || rule.ItemType < 0 || !Enum.IsDefined(typeof(TraderAutomationRuleKind), rule.Kind)
             || !Enum.IsDefined(typeof(TraderRuleScope), rule.Scope)
+            || !Enum.IsDefined(typeof(TraderAutoSellSource), rule.AutoSellSource)
             || !Enum.IsDefined(typeof(TraderQualityMatchMode), rule.QualityMode) || !Enum.IsDefined(typeof(TraderRuleComparison), rule.NetworkCountComparison)
             || !Enum.IsDefined(typeof(TraderRuleComparison), rule.CurrencyCountComparison) || rule.Quality < 0 || rule.Quality > 6
             || rule.MaximumCount < 0 || rule.MaximumCount > 1000000
@@ -901,10 +928,16 @@ internal static class TraderAutomationService
             using BinaryReader reader = new BinaryReader(stream);
             if (reader.ReadInt32() != FileMagic) throw new InvalidDataException("Unrecognized trader rule file header.");
             int version = reader.ReadInt32();
-            if (version < 1 || version > FileVersion) throw new InvalidDataException("Unsupported trader rule file version: " + version);
+            if (version != FileVersion)
+            {
+                reader.Dispose();
+                File.Delete(path);
+                Rules.Clear();
+                NetworkLog.Debug("Incompatible saved trader rules were deleted. savedVersion=" + version + "; requiredVersion=" + FileVersion);
+                return true;
+            }
             int networkCount = reader.ReadInt32();
             if (networkCount < 0 || networkCount > MaximumNetworks) throw new InvalidDataException("Invalid trader rule network count.");
-            bool migratedIgnoredCountDefaults = false;
             for (int i = 0; i < networkCount; i++)
             {
                 string networkId = new Guid(reader.ReadBytes(16)).ToString("N");
@@ -919,39 +952,31 @@ internal static class TraderAutomationService
                         Kind = (TraderAutomationRuleKind)reader.ReadByte(),
                         Enabled = reader.ReadBoolean(),
                         ItemType = reader.ReadInt32(),
-                        QualityMode = version >= 2 ? (TraderQualityMatchMode)reader.ReadByte() : ReadLegacyQualityMode(reader.ReadByte()),
+                        QualityMode = (TraderQualityMatchMode)reader.ReadByte(),
                         Quality = reader.ReadInt32(),
                         MaximumCount = reader.ReadInt32(),
                         MinimumNetworkCount = reader.ReadInt32(),
-                        NetworkCountComparison = version >= 2 ? (TraderRuleComparison)reader.ReadByte() : TraderRuleComparison.GreaterOrEqual,
-                        MinimumCurrencyCount = version >= 2 ? reader.ReadInt32() : 0,
-                        CurrencyCountComparison = version >= 2 ? (TraderRuleComparison)reader.ReadByte() : TraderRuleComparison.GreaterOrEqual,
+                        NetworkCountComparison = (TraderRuleComparison)reader.ReadByte(),
+                        MinimumCurrencyCount = reader.ReadInt32(),
+                        CurrencyCountComparison = (TraderRuleComparison)reader.ReadByte(),
                         MaximumSpend = reader.ReadInt32(),
                         Scheduled = reader.ReadBoolean(),
                         ScheduledHour = reader.ReadInt32(),
                         IntervalDays = reader.ReadInt32(),
                         LastScheduledDay = reader.ReadInt32()
                     };
-                    if (version >= 3)
-                    {
-                        rule.Scope = (TraderRuleScope)reader.ReadByte();
-                        rule.Category = reader.ReadString();
-                        rule.ExcludedCategories = reader.ReadString();
-                        rule.ExcludedItemTypes = reader.ReadString();
-                    }
-                    else rule.Scope = rule.ItemType > 0 ? TraderRuleScope.SingleItem : TraderRuleScope.Category;
-                    if (version < 4 && rule.NetworkCountComparison == TraderRuleComparison.GreaterOrEqual && rule.MinimumNetworkCount == 0)
-                    {
-                        rule.NetworkCountComparison = TraderRuleComparison.Ignore;
-                        migratedIgnoredCountDefaults = true;
-                    }
+                    rule.Scope = (TraderRuleScope)reader.ReadByte();
+                    rule.Category = reader.ReadString();
+                    rule.ExcludedCategories = reader.ReadString();
+                    rule.ExcludedItemTypes = reader.ReadString();
+                    rule.AutoSellSource = (TraderAutoSellSource)reader.ReadByte();
                     if (!Validate(rule, out string error)) throw new InvalidDataException("Invalid saved trader rule: " + error);
                     rules.Add(rule);
                 }
                 Rules.Add(networkId, rules);
             }
             if (stream.Position != stream.Length) throw new InvalidDataException("Unexpected trailing trader rule data.");
-            NetworkLog.Debug("Trader rules loaded. networks=" + Rules.Count + "; ignoredCountDefaultsMigrated=" + migratedIgnoredCountDefaults + "; path=" + path);
+            NetworkLog.Debug("Trader rules loaded. networks=" + Rules.Count + "; version=" + FileVersion + "; path=" + path);
             return true;
         }
         catch (Exception ex)
@@ -987,6 +1012,7 @@ internal static class TraderAutomationService
                         writer.Write(rule.ScheduledHour); writer.Write(rule.IntervalDays); writer.Write(rule.LastScheduledDay);
                         writer.Write((byte)rule.Scope); writer.Write(rule.Category ?? string.Empty);
                         writer.Write(rule.ExcludedCategories ?? string.Empty); writer.Write(rule.ExcludedItemTypes ?? string.Empty);
+                        writer.Write((byte)rule.AutoSellSource);
                     }
                 }
                 writer.Flush(); stream.Flush(true);
@@ -1002,11 +1028,4 @@ internal static class TraderAutomationService
         }
     }
 
-    private static TraderQualityMatchMode ReadLegacyQualityMode(byte value) => value switch
-    {
-        0 => TraderQualityMatchMode.Any,
-        1 => TraderQualityMatchMode.Exact,
-        2 => TraderQualityMatchMode.GreaterOrEqual,
-        _ => (TraderQualityMatchMode)value
-    };
 }

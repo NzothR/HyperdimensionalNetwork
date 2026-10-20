@@ -157,7 +157,7 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
             + Encoding.UTF8.GetByteCount(_request?.TraderRuleId ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_request?.MembershipTargetPlayerId ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_request?.MembershipOperationId ?? string.Empty)
-            + (_request?.TraderRule == null ? 0 : 104 + Encoding.UTF8.GetByteCount(_request.TraderRule.Category ?? string.Empty)
+            + (_request?.TraderRule == null ? 0 : 105 + Encoding.UTF8.GetByteCount(_request.TraderRule.Category ?? string.Empty)
                 + Encoding.UTF8.GetByteCount(_request.TraderRule.ExcludedCategories ?? string.Empty)
                 + Encoding.UTF8.GetByteCount(_request.TraderRule.ExcludedItemTypes ?? string.Empty))
             + valueBytes + requirementsBytes + slotBytes + 4 + (_request?.ForgePositions?.Count ?? 0) * 12;
@@ -173,6 +173,7 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
             Scheduled = reader.ReadBoolean(), ScheduledHour = reader.ReadInt32(), IntervalDays = reader.ReadInt32(), LastScheduledDay = reader.ReadInt32(),
             Scope = (TraderRuleScope)reader.ReadByte(), Category = ReadBoundedString(reader, 128),
             ExcludedCategories = ReadBoundedString(reader, 1024), ExcludedItemTypes = ReadBoundedString(reader, 1024),
+            AutoSellSource = (TraderAutoSellSource)reader.ReadByte(),
             Personal = reader.ReadBoolean()
         };
 
@@ -184,6 +185,7 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         writer.Write(rule.MaximumSpend); writer.Write(rule.Scheduled); writer.Write(rule.ScheduledHour); writer.Write(rule.IntervalDays); writer.Write(rule.LastScheduledDay);
         writer.Write((byte)rule.Scope); writer.Write(rule.Category ?? string.Empty);
         writer.Write(rule.ExcludedCategories ?? string.Empty); writer.Write(rule.ExcludedItemTypes ?? string.Empty);
+        writer.Write((byte)rule.AutoSellSource);
         writer.Write(rule.Personal);
     }
 

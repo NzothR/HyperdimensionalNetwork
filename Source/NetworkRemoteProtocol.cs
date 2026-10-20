@@ -124,6 +124,7 @@ internal sealed class NetworkRemoteResult
     public TrashScope PersonalTrashScope = TrashScope.Backpack;
     public bool PersonalAutoRead = true;
     public ReadBookPolicy ReadBookPolicy = ReadBookPolicy.Sell;
+    public bool HasNetworkInventoryAutoSellRule;
     public string TraderSessionId = string.Empty;
     public List<TraderOffer> TraderOffers = new List<TraderOffer>();
     public List<TraderAutomationRule> TraderRules = new List<TraderAutomationRule>();

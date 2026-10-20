@@ -19,6 +19,31 @@ internal static class InventoryAutomationService
         bool locked = !toolbelt && IsLocked(original, request.Slot);
         RestockSettingsSnapshot settings = RestockSettingsService.Get(player);
         List<TraderAutomationRule> personal = PersonalAutomationRuleService.GetRules(player);
+        TraderAutomationRule sale = settings.TraderEnabled && NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled)
+            && !locked ? TraderAutomationService.GetRules(player).FirstOrDefault(rule => rule.Enabled
+                && rule.Kind == TraderAutomationRuleKind.AutoSell
+                && TraderAutomationService.IncludesPlayerInventory(rule.AutoSellSource)
+                && TraderAutomationService.Matches(rule, request.Value)
+                && TraderAutomationService.MatchesNetworkCountRequirement(player, rule)) : null;
+        if (sale != null)
+        {
+            NetworkRemoteRequest saleRequest = new NetworkRemoteRequest
+            {
+                EntityId = request.EntityId, RequestId = request.RequestId, Operation = NetworkRequestOperation.TraderVoidSell,
+                Value = request.Value.Clone(), Count = BoundedCount(request.Count, sale.MaximumCount),
+                SourceLocation = request.SourceLocation, Slot = request.Slot, TraderAutomation = true
+            };
+            NetworkRemoteResult sold = TraderTransactionService.ExecuteVoidSell(player, playerData, saleRequest);
+            if (sold.Success)
+            {
+                NetworkLog.Debug("Automatic trader sale completed from remote player inventory. player=" + player.entityId
+                    + "; rule=" + sale.Id + "; sourceSlot=" + request.Slot + "; toolbelt=" + toolbelt
+                    + "; item=" + request.Value.type + "; count=" + saleRequest.Count + "; proceeds=" + sold.Amount);
+                return sold;
+            }
+            NetworkLog.Debug("Automatic trader sale from remote player inventory was skipped. player=" + player.entityId
+                + "; rule=" + sale.Id + "; sourceSlot=" + request.Slot + "; item=" + request.Value.type + "; error=" + sold.Error);
+        }
         if (settings.PersonalAutoTrash && settings.TrashEnabled && ScopeIncludes(settings.PersonalTrashScope, toolbelt, locked))
         {
             TraderAutomationRule trash = personal.FirstOrDefault(rule => rule.Enabled && rule.Kind == TraderAutomationRuleKind.AutoTrash

@@ -59,6 +59,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         _result.AutoRestockEnabled = reader.ReadBoolean();
         _result.RestockTargetMode = (RestockTargetMode)reader.ReadByte();
         _result.IsNetworkAdministrator = reader.ReadBoolean();
+        _result.HasNetworkInventoryAutoSellRule = reader.ReadBoolean();
         _result.AutoRestockCooldownMs = reader.ReadInt32();
         _result.ReplenishmentEnabled = reader.ReadBoolean();
         _result.AmmoBankEnabled = reader.ReadBoolean();
@@ -103,6 +104,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
                 Scheduled = reader.ReadBoolean(), ScheduledHour = reader.ReadInt32(), IntervalDays = reader.ReadInt32(), LastScheduledDay = reader.ReadInt32(),
                 Scope = (TraderRuleScope)reader.ReadByte(), Category = ReadBoundedString(reader, 128),
                 ExcludedCategories = ReadBoundedString(reader, 1024), ExcludedItemTypes = ReadBoundedString(reader, 1024),
+                AutoSellSource = (TraderAutoSellSource)reader.ReadByte(),
                 Personal = reader.ReadBoolean()
             });
         _result.TraderRunProgressAvailable = reader.ReadBoolean();
@@ -161,6 +163,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         binary.Write(result.AutoRestockEnabled);
         binary.Write((byte)result.RestockTargetMode);
         binary.Write(result.IsNetworkAdministrator);
+        binary.Write(result.HasNetworkInventoryAutoSellRule);
         binary.Write(result.AutoRestockCooldownMs);
         binary.Write(result.ReplenishmentEnabled);
         binary.Write(result.AmmoBankEnabled);
@@ -206,6 +209,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
                 binary.Write(rule.MaximumSpend); binary.Write(rule.Scheduled); binary.Write(rule.ScheduledHour); binary.Write(rule.IntervalDays); binary.Write(rule.LastScheduledDay);
                 binary.Write((byte)rule.Scope); binary.Write(rule.Category ?? string.Empty);
                 binary.Write(rule.ExcludedCategories ?? string.Empty); binary.Write(rule.ExcludedItemTypes ?? string.Empty);
+                binary.Write((byte)rule.AutoSellSource);
                 binary.Write(rule.Personal);
             }
         binary.Write(result.TraderRunProgressAvailable);
@@ -252,7 +256,7 @@ public sealed class NetPackageHyperdimensionalResponse : NetPackage
         int ruleTextBytes = _result?.TraderRules?.Sum(rule => Encoding.UTF8.GetByteCount(rule?.Category ?? string.Empty)
             + Encoding.UTF8.GetByteCount(rule?.ExcludedCategories ?? string.Empty)
             + Encoding.UTF8.GetByteCount(rule?.ExcludedItemTypes ?? string.Empty)) ?? 0;
-        return 162 + entries * 512 + offers * 640 + rules * 136 + ruleTextBytes + bytes + valueBytes + Encoding.UTF8.GetByteCount(_result?.Error ?? string.Empty)
+        return 163 + entries * 512 + offers * 640 + rules * 137 + ruleTextBytes + bytes + valueBytes + Encoding.UTF8.GetByteCount(_result?.Error ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_result?.Warning ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_result?.NetworkId ?? string.Empty) + Encoding.UTF8.GetByteCount(_result?.TraderSessionId ?? string.Empty)
             + Encoding.UTF8.GetByteCount(_result?.TraderRunMessage ?? string.Empty)
