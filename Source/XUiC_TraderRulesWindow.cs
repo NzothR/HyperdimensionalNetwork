@@ -862,6 +862,10 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         {
             ItemClass item = classes[type];
             if (item == null) continue;
+            // A helper block represents its material's selectable shape family.
+            // Individual AutoShape variants are generated from that helper in the game.
+            if (item.IsBlock() && type < Block.list.Length
+                && Block.list[type]?.AutoShapeType == EAutoShapeType.Shape) continue;
             float economic = item.IsBlock() && type < Block.list.Length ? Block.list[type]?.EconomicValue ?? 0f : item.EconomicValue;
             if (economic <= 0f) continue;
             _pickerTypes.Add(type);
@@ -1031,6 +1035,14 @@ public sealed class XUiC_TraderRulesWindow : XUiController
                         || PinyinSearch.Matches(document.InternalName, search)) matches.Add(type);
                 }
             }
+            matches.Sort((left, right) =>
+            {
+                PickerSearchDocument a = documentsByType[left], b = documentsByType[right];
+                int rank = SearchRank(a, search).CompareTo(SearchRank(b, search));
+                if (rank != 0) return rank;
+                rank = string.Compare(a.DisplayName, b.DisplayName, StringComparison.CurrentCultureIgnoreCase);
+                return rank != 0 ? rank : left.CompareTo(right);
+            });
             return matches;
         });
         NetworkLog.Debug("Trader rule picker pinyin search started. query=" + search
@@ -1107,6 +1119,18 @@ public sealed class XUiC_TraderRulesWindow : XUiController
         int count = itemMode ? _visibleTypes.Count : _pickerCategories.Count(category => search.Length == 0
             || PinyinSearch.Matches(category.DisplayName, search)) + (_pickerMode == PickerMode.TargetCategory ? 1 : 0);
         return Math.Max(1, (count + PickerRows - 1) / PickerRows);
+    }
+
+    private static int SearchRank(PickerSearchDocument item, string search)
+    {
+        if (string.IsNullOrEmpty(search)) return 0;
+        if (string.Equals(item.DisplayName, search, StringComparison.CurrentCultureIgnoreCase)
+            || string.Equals(item.InternalName, search, StringComparison.OrdinalIgnoreCase)) return 0;
+        if (item.DisplayName.StartsWith(search, StringComparison.CurrentCultureIgnoreCase)
+            || item.InternalName.StartsWith(search, StringComparison.OrdinalIgnoreCase)) return 1;
+        if (item.DisplayName.IndexOf(search, StringComparison.CurrentCultureIgnoreCase) >= 0
+            || item.InternalName.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0) return 2;
+        return 3;
     }
 
     private static bool IsLatinPinyinQuery(string search)
