@@ -91,7 +91,11 @@ internal static class ContainerDepositPatch
             {
                 bool moved = result.Success && result.Amount > 0;
                 if (!result.Success) NetworkLog.Debug("Remote loot deposit rejected. error=" + result.Error + "; requestId=" + result.RequestId);
-                else NetworkLog.Debug("Remote loot deposit confirmed. amount=" + result.Amount + "; requestId=" + result.RequestId);
+                else
+                {
+                    NetworkLog.Debug("Remote loot deposit confirmed. amount=" + result.Amount + "; requestId=" + result.RequestId);
+                    if (moved) RefreshRemoteLootContainer(grid);
+                }
                 XUiC_ContainerStandardControls remoteControls = window?.GetChildByType<XUiC_ContainerStandardControls>();
                 if (remoteControls?.MoveAllDone != null) remoteControls.MoveAllDone(true, moved);
                 NetworkLog.Debug("Quick deposit from container completed. moved=" + moved);
@@ -109,6 +113,26 @@ internal static class ContainerDepositPatch
         if (controls?.MoveAllDone != null) controls.MoveAllDone(true, moved);
         NetworkLog.Debug("Quick deposit from container completed. moved=" + moved);
         return moved;
+    }
+
+    private static void RefreshRemoteLootContainer(XUiC_LootContainer grid)
+    {
+        TEFeatureStorage storage = grid?.localTileEntity;
+        if (storage?.ItemGrid == null) return;
+        PackedBoolArray lockedSlots = storage.ItemGrid.SlotLocks;
+        int cleared = 0;
+        for (int i = 0; i < storage.ItemGrid.Length; i++)
+        {
+            if (lockedSlots != null && i < lockedSlots.Length && lockedSlots[i]) continue;
+            ItemStack stack = storage.ItemGrid[i];
+            if (stack == null || stack.IsEmpty()) continue;
+            // The server has already committed the transfer. Update only the local mirror;
+            // SetModified would send a stale client-side tile entity back to the server.
+            storage.UpdateSlot(i, ItemStack.Empty.Clone());
+            cleared++;
+        }
+        NetworkLog.Debug("Remote loot container mirror refreshed after confirmed deposit. position="
+            + storage.ToWorldPos() + "; slotsCleared=" + cleared);
     }
 
     internal static bool DepositEntityBagFromWindow(XUiC_BagContainer bagContainer, Entity bagEntity)
