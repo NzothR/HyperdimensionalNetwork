@@ -70,6 +70,10 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         _request.MembershipTargetPlayerId = ReadBoundedString(reader, 128);
         _request.MembershipOperationId = ReadBoundedString(reader, 64);
         _request.MembershipCandidatePage = reader.ReadInt32();
+        int forgeCount = reader.ReadInt32();
+        if (forgeCount < 0 || forgeCount > ForgeFeedService.MaximumForges)
+            throw new InvalidDataException("Invalid forge feed selection count: " + forgeCount);
+        for (int i = 0; i < forgeCount; i++) _request.ForgePositions.Add(StreamUtils.ReadVector3i(reader));
     }
 
     public override void write(PooledBinaryWriter writer)
@@ -120,6 +124,11 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
         binary.Write(_request.MembershipTargetPlayerId ?? string.Empty);
         binary.Write(_request.MembershipOperationId ?? string.Empty);
         binary.Write(_request.MembershipCandidatePage);
+        int forgeCount = _request.ForgePositions?.Count ?? 0;
+        if (forgeCount > ForgeFeedService.MaximumForges) throw new InvalidDataException("Too many selected forge positions: " + forgeCount);
+        binary.Write(forgeCount);
+        if (_request.ForgePositions != null)
+            foreach (Vector3i position in _request.ForgePositions) StreamUtils.Write(writer, position);
     }
 
     public override void ProcessPackage(World world, GameManager callbacks)
@@ -151,7 +160,7 @@ public sealed class NetPackageHyperdimensionalRequest : NetPackage
             + (_request?.TraderRule == null ? 0 : 104 + Encoding.UTF8.GetByteCount(_request.TraderRule.Category ?? string.Empty)
                 + Encoding.UTF8.GetByteCount(_request.TraderRule.ExcludedCategories ?? string.Empty)
                 + Encoding.UTF8.GetByteCount(_request.TraderRule.ExcludedItemTypes ?? string.Empty))
-            + valueBytes + requirementsBytes + slotBytes;
+            + valueBytes + requirementsBytes + slotBytes + 4 + (_request?.ForgePositions?.Count ?? 0) * 12;
     }
 
     private static TraderAutomationRule ReadTraderRule(BinaryReader reader)

@@ -56,11 +56,15 @@ internal static class ForgeFeedService
                 if ((forge.ToWorldCenterPos() - player.position).sqrMagnitude > rangeSquared) continue;
                 if (world.GetLandClaimOwner(position, owner) == EnumLandClaimOwner.Other) continue;
                 BlockValue block = world.GetBlock(position);
+                string localizedName = block.Block?.GetLocalizedBlockName();
+                if (string.IsNullOrWhiteSpace(localizedName)
+                    || string.Equals(localizedName, block.Block?.GetBlockName(), StringComparison.OrdinalIgnoreCase))
+                    localizedName = Localization.Get("HyperdimensionalNetworkForgeFeedForgeName");
                 found.Add(new ForgeFeedStation
                 {
                     Workstation = forge,
                     Position = position,
-                    Name = block.Block?.GetBlockName() ?? "Forge",
+                    Name = localizedName,
                     PlannedInput = ItemStack.Clone(forge.Input)
                 });
             }
@@ -159,6 +163,19 @@ internal static class ForgeFeedService
         if (selected.Count == 0 || selected.Count > MaximumMaterials) return Failure(request, "InvalidForgeMaterials");
         List<ForgeFeedStation> forges = FindNearby(world, player);
         if (forges.Count == 0) return Failure(request, "NoNearbyForge");
+        if (request.ForgePositions == null || request.ForgePositions.Count == 0
+            || request.ForgePositions.Count > MaximumForges
+            || request.ForgePositions.Distinct().Count() != request.ForgePositions.Count)
+            return Failure(request, "InvalidForgeSelection");
+        HashSet<Vector3i> selectedForgePositions = new HashSet<Vector3i>(request.ForgePositions);
+        forges = forges.Where(forge => selectedForgePositions.Contains(forge.Position)).ToList();
+        if (forges.Count != selectedForgePositions.Count)
+        {
+            NetworkLog.Debug("Forge feed rejected invalid or stale selection. player=" + player.entityId
+                + "; requested=" + string.Join(";", request.ForgePositions)
+                + "; available=" + string.Join(";", FindNearby(world, player).Select(forge => forge.Position)));
+            return Failure(request, "InvalidForgeSelection");
+        }
         List<ForgeFeedMaterial> materials = BuildMaterials(forges);
         if (selected.Any(category => materials.All(material => !string.Equals(material.Category, category, StringComparison.OrdinalIgnoreCase))))
             return Failure(request, "InvalidForgeMaterials");
@@ -184,6 +201,13 @@ internal static class ForgeFeedService
         foreach (StoredEntry entry in network)
             if (IsPlainRaw(entry.Value))
                 available[entry.Value.type] = SaturatingAdd(available.TryGetValue(entry.Value.type, out int count) ? count : 0, entry.Count);
+        NetworkLog.Debug("Forge feed supplies checked. player=" + player.entityId + "; forges="
+            + string.Join(";", forges.Select(forge => forge.Position)) + "; bag="
+            + string.Join(",", available.Keys.OrderBy(type => type).Select(type => type + "x"
+                + plannedBag.Where(stack => stack != null && !stack.IsEmpty() && stack.itemValue.type == type
+                    && IsPlainRaw(stack.itemValue)).Sum(stack => stack.count))) + "; network="
+            + string.Join(",", network.Where(entry => entry.Count > 0 && IsPlainRaw(entry.Value))
+                .GroupBy(entry => entry.Value.type).Select(group => group.Key + "x" + group.Sum(entry => entry.Count))));
         Dictionary<int, int> plannedByType = new Dictionary<int, int>();
         int fill = request.Count == 0 ? int.MaxValue : request.Count;
         foreach (ForgeFeedMaterial material in materials)
@@ -305,6 +329,7 @@ internal static class ForgeFeedService
                 forge.SetModified();
             }
             NetworkLog.Debug("Forge feed committed. player=" + player.entityId + "; forges=" + forges.Count
+                + "; selected=" + string.Join(";", forges.Select(forge => forge.Position))
                 + "; categories=" + request.Category + "; bagItems=" + (total - networkRemovals.Sum(item => (int)item.Count))
                 + "; networkItems=" + networkRemovals.Sum(item => (int)item.Count) + "; total=" + total);
             return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Amount = total,

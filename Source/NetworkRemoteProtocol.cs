@@ -158,6 +158,7 @@ internal sealed class NetworkRemoteRequest
     public int Count;
     public int Slot;
     public Vector3i Position;
+    public List<Vector3i> ForgePositions = new List<Vector3i>();
     public int TargetEntityId;
     public NetworkConsumptionSource ConsumptionSource;
     public List<ItemStack> Requirements = new List<ItemStack>();
@@ -725,15 +726,17 @@ internal static class NetworkRemoteClient
         return Send(localPlayer, request, false, toBackpack, !toBackpack, callback);
     }
 
-    public static bool RequestForgeFeed(EntityPlayerLocal player, IEnumerable<string> categories, int fill,
+    public static bool RequestForgeFeed(EntityPlayerLocal player, IEnumerable<string> categories, IEnumerable<Vector3i> forgePositions, int fill,
         Action<NetworkRemoteResult> callback)
     {
-        if (!IsRemoteClient || !(bool)player || categories == null || fill < 0 || fill > 100000) return false;
+        if (!IsRemoteClient || !(bool)player || categories == null || forgePositions == null || fill < 0 || fill > 100000) return false;
         string selected = string.Join(",", categories.Where(category => !string.IsNullOrWhiteSpace(category))
             .Distinct(StringComparer.OrdinalIgnoreCase).Take(ForgeFeedService.MaximumMaterials));
-        if (selected.Length == 0 || Encoding.UTF8.GetByteCount(selected) > 256) return false;
+        List<Vector3i> selectedForges = forgePositions.Distinct().Take(ForgeFeedService.MaximumForges).ToList();
+        if (selected.Length == 0 || Encoding.UTF8.GetByteCount(selected) > 256 || selectedForges.Count == 0) return false;
         NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.ForgeFeed);
         request.Category = selected;
+        request.ForgePositions = selectedForges;
         request.Count = fill;
         return Send(player, request, false, true, false, callback);
     }

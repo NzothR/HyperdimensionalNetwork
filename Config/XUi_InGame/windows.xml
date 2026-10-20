@@ -1270,12 +1270,21 @@
         <sprite depth="1" pos="0,0" width="1000" height="580" sprite="menu_empty2px" type="sliced" fillcenter="false" color="48,125,160,255" />
         <label depth="3" pos="15,-9" width="200" height="30" font_size="20" text_key="HyperdimensionalNetworkForgeFeedFill" color="180,225,238,255" />
         <textfield depth="4" name="forgeFeedFillInput" pos="225,-6" width="115" height="36" validation="integer" character_limit="6" />
-        <simplebutton depth="4" name="btnForgeFeedPreset0" pos="355,-8" width="99" height="34" caption="1000" font_size="18" />
-        <simplebutton depth="4" name="btnForgeFeedPreset1" pos="463,-8" width="99" height="34" caption="2500" font_size="18" />
-        <simplebutton depth="4" name="btnForgeFeedPreset2" pos="571,-8" width="99" height="34" caption="5000" font_size="18" />
-        <simplebutton depth="4" name="btnForgeFeedPreset3" pos="679,-8" width="99" height="34" caption="10000" font_size="18" />
-        <simplebutton depth="4" name="btnForgeFeedPreset4" pos="787,-8" width="99" height="34" caption="MAX" font_size="18" />
-        <label depth="3" pos="12,-58" width="180" height="30" font_size="19" text_key="HyperdimensionalNetworkForgeFeedStation" color="180,225,238,255" />
+        <button depth="4" name="btnForgeFeedPreset0" pos="355,-8" width="99" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="54,60,67,255" hovercolor="79,100,115,255" selectedcolor="48,105,124,255" />
+        <label depth="5" pos="355,-8" width="99" height="34" font_size="18" justify="center" text="1000" color="245,245,245,255" />
+        <button depth="4" name="btnForgeFeedPreset1" pos="463,-8" width="99" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="54,60,67,255" hovercolor="79,100,115,255" selectedcolor="48,105,124,255" />
+        <label depth="5" pos="463,-8" width="99" height="34" font_size="18" justify="center" text="2500" color="245,245,245,255" />
+        <button depth="4" name="btnForgeFeedPreset2" pos="571,-8" width="99" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="54,60,67,255" hovercolor="79,100,115,255" selectedcolor="48,105,124,255" />
+        <label depth="5" pos="571,-8" width="99" height="34" font_size="18" justify="center" text="5000" color="245,245,245,255" />
+        <button depth="4" name="btnForgeFeedPreset3" pos="679,-8" width="99" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="54,60,67,255" hovercolor="79,100,115,255" selectedcolor="48,105,124,255" />
+        <label depth="5" pos="679,-8" width="99" height="34" font_size="18" justify="center" text="10000" color="245,245,245,255" />
+        <button depth="4" name="btnForgeFeedPreset4" pos="787,-8" width="99" height="34" style="press, hover" sprite="menu_empty3px" defaultcolor="54,60,67,255" hovercolor="79,100,115,255" selectedcolor="48,105,124,255" />
+        <label depth="5" pos="787,-8" width="99" height="34" font_size="18" justify="center" text="MAX" color="245,245,245,255" />
+        <label depth="3" pos="12,-58" width="90" height="30" font_size="19" text_key="HyperdimensionalNetworkForgeFeedStation" color="180,225,238,255" />
+        <button depth="4" name="btnForgeFeedSelectAll" pos="108,-58" width="40" height="30" style="press, hover" sprite="menu_empty3px" defaultcolor="26,60,78,255" hovercolor="49,103,125,255" />
+        <label depth="5" name="forgeFeedSelectAllLabel" pos="108,-58" width="40" height="30" font_size="15" justify="center" color="220,240,248,255" />
+        <button depth="4" name="btnForgeFeedInvert" pos="152,-58" width="40" height="30" style="press, hover" sprite="menu_empty3px" defaultcolor="26,60,78,255" hovercolor="49,103,125,255" />
+        <label depth="5" name="forgeFeedInvertLabel" pos="152,-58" width="40" height="30" font_size="15" justify="center" color="220,240,248,255" />
         <button depth="3" name="btnForgeFeedMaterial0" pos="200,-58" width="108" height="33" style="press, hover" sprite="menu_empty3px" defaultcolor="26,60,78,255" hovercolor="49,103,125,255" />
         <label depth="4" name="forgeFeedMaterial0" pos="200,-63" width="108" height="28" font_size="17" justify="center" color="200,235,245,255" />
         <label depth="4" name="forgeFeedSupply0" pos="200,-96" width="108" height="24" font_size="14" justify="center" color="150,205,220,255" />
@@ -1298,6 +1307,7 @@
         <label depth="4" name="forgeFeedMaterial6" pos="872,-63" width="108" height="28" font_size="17" justify="center" color="200,235,245,255" />
         <label depth="4" name="forgeFeedSupply6" pos="872,-96" width="108" height="24" font_size="14" justify="center" color="150,205,220,255" />
         <sprite depth="2" pos="10,-133" width="980" height="39" sprite="menu_empty" color="19,40,56,245" />
+        <button depth="3" name="btnForgeFeedForge0" pos="10,-133" width="180" height="39" style="press, hover" sprite="menu_empty" defaultcolor="19,40,56,245" hovercolor="40,76,94,255" selectedcolor="43,102,124,255" />
         <label depth="4" name="forgeFeedName0" pos="16,-137" width="180" height="31" font_size="16" color="190,225,237,255" />
         <label depth="4" name="forgeFeedCell0_0" pos="200,-137" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <label depth="4" name="forgeFeedCell0_1" pos="312,-137" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
@@ -1307,6 +1317,7 @@
         <label depth="4" name="forgeFeedCell0_5" pos="760,-137" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <label depth="4" name="forgeFeedCell0_6" pos="872,-137" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <sprite depth="2" pos="10,-175" width="980" height="39" sprite="menu_empty" color="15,31,45,245" />
+        <button depth="3" name="btnForgeFeedForge1" pos="10,-175" width="180" height="39" style="press, hover" sprite="menu_empty" defaultcolor="15,31,45,245" hovercolor="40,76,94,255" selectedcolor="43,102,124,255" />
         <label depth="4" name="forgeFeedName1" pos="16,-179" width="180" height="31" font_size="16" color="190,225,237,255" />
         <label depth="4" name="forgeFeedCell1_0" pos="200,-179" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <label depth="4" name="forgeFeedCell1_1" pos="312,-179" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
@@ -1316,6 +1327,7 @@
         <label depth="4" name="forgeFeedCell1_5" pos="760,-179" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <label depth="4" name="forgeFeedCell1_6" pos="872,-179" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <sprite depth="2" pos="10,-217" width="980" height="39" sprite="menu_empty" color="19,40,56,245" />
+        <button depth="3" name="btnForgeFeedForge2" pos="10,-217" width="180" height="39" style="press, hover" sprite="menu_empty" defaultcolor="19,40,56,245" hovercolor="40,76,94,255" selectedcolor="43,102,124,255" />
         <label depth="4" name="forgeFeedName2" pos="16,-221" width="180" height="31" font_size="16" color="190,225,237,255" />
         <label depth="4" name="forgeFeedCell2_0" pos="200,-221" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <label depth="4" name="forgeFeedCell2_1" pos="312,-221" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
@@ -1325,6 +1337,7 @@
         <label depth="4" name="forgeFeedCell2_5" pos="760,-221" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <label depth="4" name="forgeFeedCell2_6" pos="872,-221" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <sprite depth="2" pos="10,-259" width="980" height="39" sprite="menu_empty" color="15,31,45,245" />
+        <button depth="3" name="btnForgeFeedForge3" pos="10,-259" width="180" height="39" style="press, hover" sprite="menu_empty" defaultcolor="15,31,45,245" hovercolor="40,76,94,255" selectedcolor="43,102,124,255" />
         <label depth="4" name="forgeFeedName3" pos="16,-263" width="180" height="31" font_size="16" color="190,225,237,255" />
         <label depth="4" name="forgeFeedCell3_0" pos="200,-263" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <label depth="4" name="forgeFeedCell3_1" pos="312,-263" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
@@ -1334,6 +1347,7 @@
         <label depth="4" name="forgeFeedCell3_5" pos="760,-263" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <label depth="4" name="forgeFeedCell3_6" pos="872,-263" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <sprite depth="2" pos="10,-301" width="980" height="39" sprite="menu_empty" color="19,40,56,245" />
+        <button depth="3" name="btnForgeFeedForge4" pos="10,-301" width="180" height="39" style="press, hover" sprite="menu_empty" defaultcolor="19,40,56,245" hovercolor="40,76,94,255" selectedcolor="43,102,124,255" />
         <label depth="4" name="forgeFeedName4" pos="16,-305" width="180" height="31" font_size="16" color="190,225,237,255" />
         <label depth="4" name="forgeFeedCell4_0" pos="200,-305" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <label depth="4" name="forgeFeedCell4_1" pos="312,-305" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
@@ -1343,6 +1357,7 @@
         <label depth="4" name="forgeFeedCell4_5" pos="760,-305" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <label depth="4" name="forgeFeedCell4_6" pos="872,-305" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <sprite depth="2" pos="10,-343" width="980" height="39" sprite="menu_empty" color="15,31,45,245" />
+        <button depth="3" name="btnForgeFeedForge5" pos="10,-343" width="180" height="39" style="press, hover" sprite="menu_empty" defaultcolor="15,31,45,245" hovercolor="40,76,94,255" selectedcolor="43,102,124,255" />
         <label depth="4" name="forgeFeedName5" pos="16,-347" width="180" height="31" font_size="16" color="190,225,237,255" />
         <label depth="4" name="forgeFeedCell5_0" pos="200,-347" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <label depth="4" name="forgeFeedCell5_1" pos="312,-347" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
@@ -1352,6 +1367,7 @@
         <label depth="4" name="forgeFeedCell5_5" pos="760,-347" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <label depth="4" name="forgeFeedCell5_6" pos="872,-347" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <sprite depth="2" pos="10,-385" width="980" height="39" sprite="menu_empty" color="19,40,56,245" />
+        <button depth="3" name="btnForgeFeedForge6" pos="10,-385" width="180" height="39" style="press, hover" sprite="menu_empty" defaultcolor="19,40,56,245" hovercolor="40,76,94,255" selectedcolor="43,102,124,255" />
         <label depth="4" name="forgeFeedName6" pos="16,-389" width="180" height="31" font_size="16" color="190,225,237,255" />
         <label depth="4" name="forgeFeedCell6_0" pos="200,-389" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <label depth="4" name="forgeFeedCell6_1" pos="312,-389" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
@@ -1361,6 +1377,7 @@
         <label depth="4" name="forgeFeedCell6_5" pos="760,-389" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <label depth="4" name="forgeFeedCell6_6" pos="872,-389" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <sprite depth="2" pos="10,-427" width="980" height="39" sprite="menu_empty" color="15,31,45,245" />
+        <button depth="3" name="btnForgeFeedForge7" pos="10,-427" width="180" height="39" style="press, hover" sprite="menu_empty" defaultcolor="15,31,45,245" hovercolor="40,76,94,255" selectedcolor="43,102,124,255" />
         <label depth="4" name="forgeFeedName7" pos="16,-431" width="180" height="31" font_size="16" color="190,225,237,255" />
         <label depth="4" name="forgeFeedCell7_0" pos="200,-431" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <label depth="4" name="forgeFeedCell7_1" pos="312,-431" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
@@ -1370,7 +1387,8 @@
         <label depth="4" name="forgeFeedCell7_5" pos="760,-431" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <label depth="4" name="forgeFeedCell7_6" pos="872,-431" width="108" height="31" font_size="17" justify="center" color="220,235,245,255" />
         <label depth="4" name="forgeFeedStatus" pos="15,-483" width="960" height="31" font_size="18" color="180,225,238,255" />
-        <simplebutton depth="4" name="btnForgeFeedExecute" pos="750,-526" width="220" height="40" caption_key="HyperdimensionalNetworkForgeFeedExecute" font_size="21" />
+        <button depth="4" name="btnForgeFeedExecute" pos="750,-526" width="220" height="40" style="press, hover" sprite="menu_empty3px" defaultcolor="54,60,67,255" hovercolor="79,100,115,255" selectedcolor="48,105,124,255" />
+        <label depth="5" pos="750,-526" width="220" height="40" font_size="21" justify="center" text_key="HyperdimensionalNetworkForgeFeedExecute" color="245,245,245,255" />
       </rect>
     </window>
   </append>

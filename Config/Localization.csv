@@ -244,6 +244,11 @@ HyperdimensionalNetworkForgeFeedDone,Fed {0} items into nearby forges,已向附�
 HyperdimensionalNetworkForgeFeedFailed,Forge feed failed:,锻造炉补料失败：
 HyperdimensionalNetworkForgeFeedPreviewFailed,Could not read nearby forges,无法读取附近锻造炉
 HyperdimensionalNetworkForgeFeedSyncFailed,Forge feed succeeded but backpack sync failed; reopen the backpack,炉子投料成功但背包同步失败，请重新打开背包
+HyperdimensionalNetworkForgeFeedForgeName,Forge,锻造炉
+HyperdimensionalNetworkForgeFeedSelectAll,All,全选
+HyperdimensionalNetworkForgeFeedInvert,Invert,反选
+HyperdimensionalNetworkForgeFeedSelectForge,Select at least one forge,请至少选择一座锻造炉
+HyperdimensionalNetworkForgeFeedErrorInvalidForgeSelection,Selected forge list changed; reopen the panel,锻造炉选择已变化，请重新打开面板
 HyperdimensionalNetworkForgeFeedErrorNoForgeFeedNeeded,No eligible material or free melt slot,没有可投入的原料或空闲熔炼格
 HyperdimensionalNetworkForgeFeedErrorNoNearbyForge,No forge in range,范围内没有锻造炉
 HyperdimensionalNetworkForgeFeedErrorBackpackUnavailable,Backpack is unavailable,背包暂时不可用
