@@ -20,6 +20,7 @@ internal static class NetworkRpcServer
     private static readonly HashSet<string> ReturnedWithdrawals = new HashSet<string>(StringComparer.Ordinal);
     private static readonly Dictionary<string, List<StorageAddition>> ReturnedAuthorizations = new Dictionary<string, List<StorageAddition>>(StringComparer.Ordinal);
     private static readonly Dictionary<string, int> ReturnedAmmoBankUnits = new Dictionary<string, int>(StringComparer.Ordinal);
+    private static readonly Dictionary<string, int> ReturnedScrapUnits = new Dictionary<string, int>(StringComparer.Ordinal);
     private const int MaximumCachedRequests = 512;
 
     public static void ProcessRequest(World world, EntityPlayer player, ClientInfo sender, NetworkRemoteRequest request)
@@ -56,7 +57,8 @@ internal static class NetworkRpcServer
                 result = ProcessMutation(world, player, sender, request);
             }
             else if ((request.Operation == NetworkRequestOperation.ReturnAuthorization
-                || request.Operation == NetworkRequestOperation.ReturnWithdrawal || request.Operation == NetworkRequestOperation.AmmoBankRefund)
+                || request.Operation == NetworkRequestOperation.ReturnWithdrawal || request.Operation == NetworkRequestOperation.AmmoBankRefund
+                || request.Operation == NetworkRequestOperation.ReturnNetworkScrap)
                 && NetworkMembershipService.IsPlayerBlocked(player))
             {
                 using (NetworkMembershipService.EnterInternalNetworkScope(networkId))
@@ -170,6 +172,7 @@ internal static class NetworkRpcServer
                 ReturnedWithdrawals.Remove(oldest);
                 ReturnedAuthorizations.Remove(oldest);
                 ReturnedAmmoBankUnits.Remove(oldest);
+                ReturnedScrapUnits.Remove(oldest);
             }
             NetworkLog.Debug("Network transaction processed. player=" + player.entityId + "; network=" + result.NetworkId + "; requestId=" + request.RequestId + "; operation=" + request.Operation + "; success=" + result.Success + "; amount=" + result.Amount + "; revision=" + result.Revision + "; error=" + result.Error);
             return result;
@@ -214,6 +217,12 @@ internal static class NetworkRpcServer
                 return AmmoBankService.ExecuteRemoteReload(player, request);
             case NetworkRequestOperation.AmmoBankRefund:
                 return ReturnAmmoBankSupply(player, request);
+            case NetworkRequestOperation.ScrapNetworkItem:
+                return NetworkScrapService.Execute(player, request);
+            case NetworkRequestOperation.ReturnNetworkScrap:
+                return ReturnNetworkScrap(player, request);
+            case NetworkRequestOperation.DropNetworkItem:
+                return NetworkInventoryActionBridge.DropOnWorld(world, player, request);
             case NetworkRequestOperation.TraderVoidSell:
                 return TraderTransactionService.ExecuteVoidSell(player, sender?.latestPlayerData, request);
             case NetworkRequestOperation.TraderOpenMarket:
@@ -270,6 +279,27 @@ internal static class NetworkRpcServer
             return Failure(request, "AmmoRefundFailed");
         ReturnedAmmoBankUnits[originalKey] = returned + request.Count;
         NetworkLog.Debug("Unused ammo bank supply returned to network. player=" + player.entityId + "; originalRequestId=" + request.OriginalRequestId + "; amount=" + request.Count);
+        return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Amount = request.Count };
+    }
+
+    private static NetworkRemoteResult ReturnNetworkScrap(EntityPlayer player, NetworkRemoteRequest request)
+    {
+        if (request.OriginalRequestId <= 0 || request.Value == null || request.Count <= 0)
+            return Failure(request, "InvalidScrapRefund");
+        string originalKey = request.EntityId + ":" + request.OriginalRequestId;
+        if (!CompletedRequests.TryGetValue(originalKey, out CachedRequest original)
+            || original.Request.Operation != NetworkRequestOperation.ScrapNetworkItem || !original.Result.Success
+            || original.Request.Value == null
+            || !NetworkStorage.NormalizeKey(original.Request.Value).Equals(NetworkStorage.NormalizeKey(request.Value)))
+            return Failure(request, "ScrapRefundNotAuthorized");
+        int returned = ReturnedScrapUnits.TryGetValue(originalKey, out int totalReturned) ? totalReturned : 0;
+        if (request.Count > original.Result.Amount - returned)
+            return Failure(request, "ScrapRefundExceedsDebit");
+        if (!NetworkStorage.AddStack(player, new ItemStack(original.Request.Value.Clone(), request.Count)))
+            return Failure(request, "ScrapRefundFailed");
+        ReturnedScrapUnits[originalKey] = returned + request.Count;
+        NetworkLog.Debug("Unqueued network scrap materials returned. player=" + player.entityId + "; originalRequestId="
+            + request.OriginalRequestId + "; item=" + original.Request.Value.type + "; count=" + request.Count);
         return new NetworkRemoteResult { RequestId = request.RequestId, Success = true, Amount = request.Count };
     }
 
@@ -593,6 +623,7 @@ internal static class NetworkRpcServer
             Success = true,
             Value = request.Value.Clone(),
             Amount = removed,
+            UpdatedSourceCount = placements.Count > 0 ? placements[0].Key : -1,
             BagData = updatedBag.ToArray()
         };
     }

@@ -51,7 +51,10 @@ internal enum NetworkRequestOperation : byte
     AutomationProcessSlot = 40,
     BookConsumeNetwork = 45,
     BookScrapNetwork = 46,
-    ForgeFeed = 47
+    ForgeFeed = 47,
+    ScrapNetworkItem = 48,
+    ReturnNetworkScrap = 49,
+    DropNetworkItem = 50
 }
 
 internal enum NetworkMembershipNotice : byte { None = 0, Invite = 1, Prepare = 2, Completed = 3, Changed = 4, InviteInvalidated = 5 }
@@ -727,6 +730,39 @@ internal static class NetworkRemoteClient
         return Send(localPlayer, request, false, toBackpack, !toBackpack, callback);
     }
 
+    public static bool ScrapNetworkItem(EntityPlayerLocal player, ItemValue value, int sourceStackCount, int count,
+        Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player || value == null || value.type <= 0 || sourceStackCount <= 0
+            || count <= 0 || count > sourceStackCount) return false;
+        NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.ScrapNetworkItem);
+        request.Value = value.Clone();
+        request.Slot = sourceStackCount;
+        request.Count = count;
+        return Send(player, request, false, false, false, callback);
+    }
+
+    public static bool ReturnNetworkScrap(EntityPlayerLocal player, long originalRequestId, ItemValue value, int count,
+        Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player || originalRequestId <= 0 || value == null || count <= 0) return false;
+        NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.ReturnNetworkScrap);
+        request.OriginalRequestId = originalRequestId;
+        request.Value = value.Clone();
+        request.Count = count;
+        return Send(player, request, false, false, false, callback);
+    }
+
+    public static bool DropNetworkItem(EntityPlayerLocal player, ItemValue value, int count,
+        Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player || value == null || value.type <= 0 || count <= 0) return false;
+        NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.DropNetworkItem);
+        request.Value = value.Clone();
+        request.Count = count;
+        return Send(player, request, false, false, false, callback);
+    }
+
     public static bool RequestForgeFeed(EntityPlayerLocal player, IEnumerable<string> categories, IEnumerable<Vector3i> forgePositions, int fill,
         Action<NetworkRemoteResult> callback)
     {
@@ -1044,6 +1080,7 @@ internal static class NetworkRemoteClient
         {
             if (NetworkMembershipClient.IsPreparing && request.Operation != NetworkRequestOperation.ReturnAuthorization
                 && request.Operation != NetworkRequestOperation.ReturnWithdrawal && request.Operation != NetworkRequestOperation.AmmoBankRefund
+                && request.Operation != NetworkRequestOperation.ReturnNetworkScrap
                 && request.Operation != NetworkRequestOperation.MembershipAcknowledgePrepare)
                 return false;
             bool mutation = request.Operation != NetworkRequestOperation.QueryPage
