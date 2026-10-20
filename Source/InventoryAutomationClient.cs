@@ -36,8 +36,8 @@ internal static class InventoryAutomationClient
     {
         if (!(bool)player) return;
         if (_playerId != player.entityId) OnNetworkChanged(player);
-        _hasInventoryRules = rules?.Any(rule => rule.Enabled &&
-            (rule.Kind == TraderAutomationRuleKind.AutoSell || rule.Personal && rule.Kind is TraderAutomationRuleKind.AutoDeposit or TraderAutomationRuleKind.AutoTrash)) == true;
+        _hasInventoryRules = rules?.Any(rule => rule.Enabled && rule.Personal
+            && rule.Kind is TraderAutomationRuleKind.AutoDeposit or TraderAutomationRuleKind.AutoTrash) == true;
         _rulesLoaded = true;
         _nextQueryAt = Time.realtimeSinceStartup + 15f;
         if (!_hasInventoryRules) { Pending.Clear(); Queued.Clear(); }
@@ -110,28 +110,9 @@ internal static class InventoryAutomationClient
 
     private static void ProcessLocal(EntityPlayerLocal player, Target target, ItemStack stack)
     {
-        RestockSettingsSnapshot settings = RestockSettingsService.Get(player);
         bool locked = !target.Toolbelt && player.bag?.LockedSlots != null && target.Slot < player.bag.LockedSlots.Length
             && player.bag.LockedSlots[target.Slot];
-        TraderAutomationRule sale = settings.TraderEnabled && !locked && TraderTransactionService.CanSell(stack.itemValue)
-            ? TraderAutomationService.GetRules(player).FirstOrDefault(rule => rule.Enabled && rule.Kind == TraderAutomationRuleKind.AutoSell
-                && TraderAutomationService.Matches(rule, stack.itemValue)) : null;
-        if (sale != null)
-        {
-            int count = sale.MaximumCount == 0 ? stack.count : Math.Min(stack.count, sale.MaximumCount);
-            NetworkRemoteResult sold = TraderTransactionService.ExecuteVoidSell(player, null, new NetworkRemoteRequest
-            {
-                EntityId = player.entityId, RequestId = DateTime.UtcNow.Ticks, Operation = NetworkRequestOperation.TraderVoidSell,
-                Value = stack.itemValue.Clone(), Count = count, SourceLocation = target.Toolbelt
-                    ? XUiC_ItemStack.StackLocationTypes.ToolBelt : XUiC_ItemStack.StackLocationTypes.Backpack,
-                Slot = target.Slot, TraderAutomation = true
-            });
-            if (sold.Success)
-            {
-                AutoRestockClient.RefreshBaseline(player); AutoRestockClient.RefreshInventoryViews(player);
-                return;
-            }
-        }
+        RestockSettingsSnapshot settings = RestockSettingsService.Get(player);
         List<TraderAutomationRule> rules = PersonalAutomationRuleService.GetRules(player);
         if (settings.TrashEnabled && settings.PersonalAutoTrash
             && InventoryAutomationService.ScopeIncludes(settings.PersonalTrashScope, target.Toolbelt, locked))

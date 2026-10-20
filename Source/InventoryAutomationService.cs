@@ -19,29 +19,6 @@ internal static class InventoryAutomationService
         bool locked = !toolbelt && IsLocked(original, request.Slot);
         RestockSettingsSnapshot settings = RestockSettingsService.Get(player);
         List<TraderAutomationRule> personal = PersonalAutomationRuleService.GetRules(player);
-        List<TraderAutomationRule> network = TraderAutomationService.GetRules(player);
-        TraderAutomationRule sale = NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TraderEnabled)
-            ? network.FirstOrDefault(rule => rule.Enabled && rule.Kind == TraderAutomationRuleKind.AutoSell
-                && TraderAutomationService.Matches(rule, request.Value) && TraderTransactionService.CanSell(request.Value)) : null;
-        if (sale != null && !locked)
-        {
-            NetworkRemoteRequest saleRequest = new NetworkRemoteRequest
-            {
-                EntityId = player.entityId, RequestId = request.RequestId, Operation = NetworkRequestOperation.TraderVoidSell,
-                Value = request.Value.Clone(), Count = BoundedCount(request.Count, sale.MaximumCount),
-                SourceLocation = request.SourceLocation, Slot = request.Slot, TraderAutomation = true
-            };
-            NetworkRemoteResult sold = TraderTransactionService.ExecuteVoidSell(player, playerData, saleRequest);
-            if (sold.Success)
-            {
-                NetworkLog.Debug("Inventory automation sold before trash/deposit. player=" + player.entityId + "; slot=" + request.Slot
-                    + "; toolbelt=" + toolbelt + "; rule=" + sale.Id + "; count=" + saleRequest.Count);
-                return sold;
-            }
-            NetworkLog.Debug("Inventory automation sale unavailable; trying trash/deposit. player=" + player.entityId
-                + "; rule=" + sale.Id + "; error=" + sold.Error);
-        }
-
         if (settings.PersonalAutoTrash && settings.TrashEnabled && ScopeIncludes(settings.PersonalTrashScope, toolbelt, locked))
         {
             TraderAutomationRule trash = personal.FirstOrDefault(rule => rule.Enabled && rule.Kind == TraderAutomationRuleKind.AutoTrash
