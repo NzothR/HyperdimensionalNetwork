@@ -558,7 +558,9 @@ public sealed class XUiC_TraderMarketWindow : XUiController
             ItemStack itemStack = new ItemStack(offer.Value, offer.Count);
             if (_typeIcons[i]?.ViewComponent is XUiV_Sprite typeIcon)
             {
-                typeIcon.SpriteName = XUiBindingHelper.GetItemTypeIconValue(xui, itemStack);
+                string itemTypeIcon = XUiBindingHelper.GetItemTypeIconValue(xui, itemStack);
+                typeIcon.SpriteName = string.IsNullOrEmpty(itemTypeIcon)
+                    ? string.Empty : "ui_game_symbol_" + itemTypeIcon;
                 typeIcon.Color = XUiBindingHelper.GetItemTypeIconTintColor(xui, itemStack);
                 SetVisible(_typeIcons[i], !string.IsNullOrEmpty(typeIcon.SpriteName));
             }

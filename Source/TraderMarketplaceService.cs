@@ -210,14 +210,18 @@ internal static class TraderMarketplaceService
             MemoryStream oldBagData = playerData?.bagData;
             MemoryStream oldToolbeltData = playerData?.inventoryData;
 
-            bool playerInventoryChanged = fromPersonal > 0 || productToBackpack;
-            bool playerDebited = !playerInventoryChanged || ApplyPlayerInventory(player, playerData, updatedBag, updatedToolbelt);
+            bool bagChanged = !SnapshotsEqual(originalBag, updatedBag);
+            bool toolbeltChanged = !SnapshotsEqual(originalToolbelt, updatedToolbelt);
+            bool playerInventoryChanged = bagChanged || toolbeltChanged;
+            bool playerDebited = !playerInventoryChanged || ApplyPlayerInventory(player, playerData,
+                updatedBag, updatedToolbelt, bagChanged, toolbeltChanged);
             int networkDebited = !playerDebited || fromNetwork == 0 ? 0 : NetworkStorage.Remove(player, currency, fromNetwork);
             bool productDelivered = playerDebited && networkDebited == fromNetwork
                 && (productToBackpack || NetworkStorage.AddStack(player, new ItemStack(stock.itemValue.Clone(), request.Count)));
             if (!playerDebited || networkDebited != fromNetwork || !productDelivered)
             {
-                if (playerInventoryChanged) RestorePlayerInventory(player, playerData, originalBag, originalToolbelt, oldBagData, oldToolbeltData);
+                if (playerInventoryChanged) RestorePlayerInventory(player, playerData, originalBag, originalToolbelt,
+                    oldBagData, oldToolbeltData, bagChanged, toolbeltChanged);
                 if (networkDebited > 0 && !NetworkStorage.AddStack(player, new ItemStack(currency.Clone(), networkDebited)))
                     NetworkLog.Error("Trader purchase could not restore partially debited network currency. player=" + player.entityId + "; amount=" + networkDebited);
                 NetworkLog.Error("Trader purchase transaction did not commit; player and network currency rollback was attempted. player=" + player.entityId
@@ -237,8 +241,8 @@ internal static class TraderMarketplaceService
                 Success = true,
                 Amount = request.Count,
                 Value = stock.itemValue.Clone(),
-                BagData = playerInventoryChanged ? updatedBag.ToArray() : null,
-                InventoryData = playerInventoryChanged ? updatedToolbelt.ToArray() : null,
+                BagData = bagChanged ? updatedBag.ToArray() : null,
+                InventoryData = toolbeltChanged ? updatedToolbelt.ToArray() : null,
                 TraderSessionId = session.Token,
                 TraderOffers = BuildOffers(session, player, request.TraderAutomation)
             };
@@ -779,28 +783,53 @@ internal static class TraderMarketplaceService
         return new MemoryStream(output.ToArray(), writable: false);
     }
 
-    private static bool ApplyPlayerInventory(EntityPlayer player, PlayerDataFile data, MemoryStream bag, MemoryStream toolbelt)
+    private static bool ApplyPlayerInventory(EntityPlayer player, PlayerDataFile data, MemoryStream bag,
+        MemoryStream toolbelt, bool applyBag, bool applyToolbelt)
     {
         try
         {
-            NetworkRpcServer.ApplyPlayerInventorySnapshot(player, bag, false);
-            NetworkRpcServer.ApplyPlayerInventorySnapshot(player, toolbelt, true);
-            if (data != null) { data.bagData = bag; data.inventoryData = toolbelt; data.bModifiedSinceLastSave = true; }
+            if (applyBag) NetworkRpcServer.ApplyPlayerInventorySnapshot(player, bag, false);
+            if (applyToolbelt) NetworkRpcServer.ApplyPlayerInventorySnapshot(player, toolbelt, true);
+            if (data != null)
+            {
+                if (applyBag) data.bagData = bag;
+                if (applyToolbelt) data.inventoryData = toolbelt;
+                data.bModifiedSinceLastSave = true;
+            }
+            NetworkLog.Debug("Trader purchase applied changed personal inventory snapshots. player=" + player.entityId
+                + "; bag=" + applyBag + "; toolbelt=" + applyToolbelt);
             return true;
         }
         catch (Exception ex) { NetworkLog.Error("Trader purchase payment could not be applied to player inventory. player=" + player.entityId + "; exception=" + ex); return false; }
     }
 
     private static void RestorePlayerInventory(EntityPlayer player, PlayerDataFile data, MemoryStream bag, MemoryStream toolbelt,
-        MemoryStream oldBagData, MemoryStream oldToolbeltData)
+        MemoryStream oldBagData, MemoryStream oldToolbeltData, bool restoreBag, bool restoreToolbelt)
     {
         try
         {
-            NetworkRpcServer.ApplyPlayerInventorySnapshot(player, bag, false);
-            NetworkRpcServer.ApplyPlayerInventorySnapshot(player, toolbelt, true);
-            if (data != null) { data.bagData = oldBagData; data.inventoryData = oldToolbeltData; data.bModifiedSinceLastSave = true; }
+            if (restoreBag) NetworkRpcServer.ApplyPlayerInventorySnapshot(player, bag, false);
+            if (restoreToolbelt) NetworkRpcServer.ApplyPlayerInventorySnapshot(player, toolbelt, true);
+            if (data != null)
+            {
+                if (restoreBag) data.bagData = oldBagData;
+                if (restoreToolbelt) data.inventoryData = oldToolbeltData;
+                data.bModifiedSinceLastSave = true;
+            }
         }
         catch (Exception ex) { NetworkLog.Error("Trader purchase payment rollback could not restore player inventory. player=" + player.entityId + "; exception=" + ex); }
+    }
+
+    private static bool SnapshotsEqual(MemoryStream left, MemoryStream right)
+    {
+        if (ReferenceEquals(left, right)) return true;
+        if (left == null || right == null) return left == right;
+        byte[] leftBytes = left.ToArray();
+        byte[] rightBytes = right.ToArray();
+        if (leftBytes.Length != rightBytes.Length) return false;
+        for (int i = 0; i < leftBytes.Length; i++)
+            if (leftBytes[i] != rightBytes[i]) return false;
+        return true;
     }
 
     private static NetworkRemoteResult Failure(NetworkRemoteRequest request, string error)
