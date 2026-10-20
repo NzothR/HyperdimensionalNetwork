@@ -8,7 +8,9 @@ public sealed class HyperdimensionalNetworkModApi : IModApi
     public void InitMod(Mod mod)
     {
         NetworkLog.Info("Mod initialization started. Version=0.1.0; storage=journal-v1.");
-        new Harmony("NANA.HyperdimensionalNetwork").PatchAll(Assembly.GetExecutingAssembly());
+        Harmony harmony = new Harmony("NANA.HyperdimensionalNetwork");
+        harmony.PatchAll(Assembly.GetExecutingAssembly());
+        KfAnimationReloadAdapter.Install(harmony);
         ModEvents.GameStartDone.RegisterHandler(OnGameStartDone);
         ModEvents.GameUpdate.RegisterHandler(OnGameUpdate);
         ModEvents.WorldShuttingDown.RegisterHandler(OnWorldShuttingDown);
