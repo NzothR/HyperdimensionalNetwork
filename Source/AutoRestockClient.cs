@@ -290,10 +290,8 @@ internal static class AutoRestockClient
         if (grid == null || index < 0 || index >= grid.Length) return;
         if (snapshot == null || snapshot.Length != grid.Length)
         {
-            BindGrid(state, toolbelt, grid);
-            state.HasSnapshot = true;
-            NetworkLog.Debug("Automatic restock ignored a slot event while rebuilding its inventory baseline. player=" + state.Player.entityId + "; toolbelt=" + toolbelt);
-            return;
+            ResizeSnapshot(state, toolbelt);
+            snapshot = toolbelt ? state.ToolbeltSnapshot : state.BackpackSnapshot;
         }
 
         ItemStack current = CloneStack(grid[index]);
@@ -462,7 +460,12 @@ internal static class AutoRestockClient
     {
         ItemStackGrid grid = toolbelt ? state.ToolbeltGrid : state.BackpackGrid;
         ItemStack[] snapshot = toolbelt ? state.ToolbeltSnapshot : state.BackpackSnapshot;
-        if (grid == null || snapshot == null || snapshot.Length != grid.Length) return;
+        if (grid == null) return;
+        if (snapshot == null || snapshot.Length != grid.Length)
+        {
+            ResizeSnapshot(state, toolbelt);
+            snapshot = toolbelt ? state.ToolbeltSnapshot : state.BackpackSnapshot;
+        }
         for (int index = 0; index < grid.Length; index++)
         {
             ItemStack current = grid[index];
@@ -472,6 +475,21 @@ internal static class AutoRestockClient
                 + "; after=" + (current?.count ?? 0) + "; item=" + (current?.itemValue?.type ?? 0));
             OnSlotChanged(state, toolbelt, index);
         }
+    }
+
+    private static void ResizeSnapshot(PlayerState state, bool toolbelt)
+    {
+        ItemStackGrid grid = toolbelt ? state.ToolbeltGrid : state.BackpackGrid;
+        ItemStack[] snapshot = toolbelt ? state.ToolbeltSnapshot : state.BackpackSnapshot;
+        if (grid == null) return;
+        int previousLength = snapshot?.Length ?? 0;
+        if (snapshot == null) snapshot = CaptureGrid(grid);
+        else Array.Resize(ref snapshot, grid.Length);
+        if (toolbelt) state.ToolbeltSnapshot = snapshot;
+        else state.BackpackSnapshot = snapshot;
+        state.HasSnapshot = true;
+        NetworkLog.Debug("Automatic restock inventory snapshot resized. player=" + state.Player.entityId
+            + "; toolbelt=" + toolbelt + "; before=" + previousLength + "; after=" + grid.Length);
     }
 
     private static ItemStack[] CaptureGrid(ItemStackGrid grid)
