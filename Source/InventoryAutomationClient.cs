@@ -22,13 +22,14 @@ internal static class InventoryAutomationClient
     private static bool _queryPending;
     private static bool _mutationPending;
     private static bool _hasInventoryRules;
+    private static bool _scanRequested;
     private static float _nextQueryAt;
 
     internal static void OnNetworkChanged(EntityPlayerLocal player)
     {
         Pending.Clear(); Queued.Clear(); _playerId = player?.entityId ?? -1;
         _rulesLoaded = false; _queryPending = false; _mutationPending = false;
-        _hasInventoryRules = false; _nextQueryAt = 0f;
+        _hasInventoryRules = false; _scanRequested = false; _nextQueryAt = 0f;
     }
 
     internal static void SetRules(EntityPlayerLocal player, IEnumerable<TraderAutomationRule> rules)
@@ -40,16 +41,16 @@ internal static class InventoryAutomationClient
         _rulesLoaded = true;
         _nextQueryAt = Time.realtimeSinceStartup + 15f;
         if (!_hasInventoryRules) { Pending.Clear(); Queued.Clear(); }
+        else if (_scanRequested) { QueueInventory(player); _scanRequested = false; }
         NetworkLog.Debug("Inventory automation rule watch updated. player=" + player.entityId + "; active=" + _hasInventoryRules);
     }
 
     internal static void OnSlotChanged(EntityPlayerLocal player, bool toolbelt, int slot, ItemStack previous, ItemStack current)
     {
-        if (!(bool)player || !_rulesLoaded || !_hasInventoryRules || current == null || current.IsEmpty()) return;
-        if (BookAutomationClient.ShouldOwnItem(player, current.itemValue)) return;
-        bool newItem = previous == null || previous.IsEmpty() || !previous.itemValue.Equals(current.itemValue);
-        if (!newItem && current.count <= previous.count) return;
-        QueueSlot(toolbelt, slot);
+        if (!(bool)player) return;
+        if (!_rulesLoaded) { _scanRequested = true; return; }
+        if (!_hasInventoryRules) return;
+        QueueInventory(player);
     }
 
     internal static void RunNow(EntityPlayerLocal player)
@@ -58,8 +59,7 @@ internal static class InventoryAutomationClient
         if (_playerId != player.entityId) OnNetworkChanged(player);
         _hasInventoryRules = true;
         _rulesLoaded = true;
-        for (int i = 0; i < (player.bag?.ItemGrid?.Length ?? 0); i++) QueueSlot(false, i);
-        for (int i = 0; i < (player.inventory?.ItemGrid?.Length ?? 0); i++) QueueSlot(true, i);
+        QueueInventory(player);
         NetworkLog.Debug("Manual inventory automation scan queued. player=" + player.entityId + "; slots=" + Pending.Count);
     }
 
@@ -173,6 +173,14 @@ internal static class InventoryAutomationClient
                 }
             }
         }
+    }
+
+    private static void QueueInventory(EntityPlayerLocal player)
+    {
+        for (int i = 0; i < (player.bag?.ItemGrid?.Length ?? 0); i++) QueueSlot(false, i);
+        for (int i = 0; i < (player.inventory?.ItemGrid?.Length ?? 0); i++) QueueSlot(true, i);
+        NetworkLog.Debug("Inventory automation scanned all player slots after an inventory change. player=" + player.entityId
+            + "; queued=" + Pending.Count);
     }
 
     private static void QueueSlot(bool toolbelt, int slot)
