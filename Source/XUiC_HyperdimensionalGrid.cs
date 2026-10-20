@@ -130,6 +130,11 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
     {
         if (NetworkRemoteClient.IsRemoteClient && _mutationPending) return true;
         if (mouseStack == null || mouseStack.IsEmpty()) return false;
+        if (!NetworkItemPolicy.CanEnterOrDestroy(mouseStack.itemValue))
+        {
+            NetworkLog.Debug("Network cursor deposit rejected for a non-droppable item. item=" + mouseStack.itemValue.type);
+            return true;
+        }
         int requested = single ? 1 : Math.Max(1, mouseStack.count);
         ItemStack insertion = mouseStack.Clone();
         insertion.count = requested;
@@ -169,6 +174,11 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
         if (NetworkRemoteClient.IsRemoteClient && _mutationPending) return true;
         StoredEntry entry = GetVisibleEntry(visibleIndex);
         if (entry == null) return false;
+        if (!NetworkItemPolicy.CanEnterOrDestroy(entry.Value))
+        {
+            NetworkLog.Debug("Legacy non-droppable network item routed directly to backpack. item=" + entry.Value.type);
+            return TakeToPlayer(visibleIndex);
+        }
         XUiC_DragAndDropWindow drag = xui?.DragAndDropWindow;
         if (drag == null || (drag.CurrentStack != null && !drag.CurrentStack.IsEmpty())) return false;
         int request = GetTakeCount(entry, half);
@@ -442,6 +452,7 @@ public sealed class XUiC_HyperdimensionalGrid : XUiC_ItemStackGrid
             itemControllers[i].ForceSetItemStack(projection);
             XUiC_HyperdimensionalSlot slot = itemControllers[i] as XUiC_HyperdimensionalSlot;
             slot?.SetVisibleIndex(i);
+            slot?.ClearProjectedQuestLock();
         }
     }
 

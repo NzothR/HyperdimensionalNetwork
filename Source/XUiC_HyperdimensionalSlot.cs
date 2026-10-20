@@ -22,7 +22,15 @@ public sealed class XUiC_HyperdimensionalSlot : XUiC_ItemStack
 
     public override void Update(float _dt)
     {
+        // The projected grid uses ToolBelt for vanilla item interaction, but its items
+        // are in network storage. Vanilla's quest lock must not trap them there.
+        if (QuestLock) QuestLock = false;
         if (!TryHandleMousePut()) base.Update(_dt);
+    }
+
+    internal void ClearProjectedQuestLock()
+    {
+        if (QuestLock) QuestLock = false;
     }
 
     public override void SwapItem() { if (!Put(false)) Take(false); }

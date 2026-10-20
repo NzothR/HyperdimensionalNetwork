@@ -50,6 +50,11 @@ internal static class BackpackQuickDepositPatch
             || !instance.xui.playerUI.windowManager.IsWindowOpen("hyperdimensionalNetwork")) return false;
         ItemStack source = instance.ItemStack;
         if (source == null || source.IsEmpty()) return false;
+        if (!NetworkItemPolicy.CanEnterOrDestroy(source.itemValue))
+        {
+            NetworkLog.Debug("Quick deposit skipped for a non-droppable item. item=" + source.itemValue.type);
+            return true;
+        }
         XUiC_DragAndDropWindow drag = instance.xui.DragAndDropWindow;
         if (drag?.CurrentStack != null && !drag.CurrentStack.IsEmpty()) return false;
 

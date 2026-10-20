@@ -126,6 +126,7 @@ internal static class ContainerDepositPatch
             if (lockedSlots != null && i < lockedSlots.Length && lockedSlots[i]) continue;
             ItemStack stack = storage.ItemGrid[i];
             if (stack == null || stack.IsEmpty()) continue;
+            if (!NetworkItemPolicy.CanEnterOrDestroy(stack.itemValue)) continue;
             // The server has already committed the transfer. Update only the local mirror;
             // SetModified would send a stale client-side tile entity back to the server.
             storage.UpdateSlot(i, ItemStack.Empty.Clone());
@@ -211,6 +212,7 @@ internal static class ContainerDepositPatch
             if (slots[i] == null) continue;
             ItemStack stack = slots[i]?.ItemStack;
             if (stack == null || stack.IsEmpty()) continue;
+            if (!NetworkItemPolicy.CanEnterOrDestroy(stack.itemValue)) continue;
             additions.Add(new StorageAddition { Value = stack.itemValue.Clone(), Count = stack.count });
             changed.Add(slots[i]);
             replacement.Add(ItemStack.Empty.Clone());

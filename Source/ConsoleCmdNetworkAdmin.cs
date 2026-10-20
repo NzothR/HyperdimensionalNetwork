@@ -9,7 +9,7 @@ public sealed class ConsoleCmdNetworkAdmin : ConsoleCmdAbstract
     public override string[] getCommands() => new[] { "hdn-network-admin" };
     public override string getDescription() => "Server administrator maintenance for Hyperdimensional Network.";
     public override string getHelp() =>
-        "Usage: hdn-network-admin <help|move-items <sourceNetworkId> <targetNetworkId>|clear <networkId> --confirm|player-info <PlayerId>|list-players [offset] [count]|set-admin <PlayerId>|trader-sessions|trader-force-close <sessionId>>";
+        "Usage: hdn-network-admin <help|move-items <sourceNetworkId> <targetNetworkId>|clear <networkId> --confirm|cleanup-quest-item <networkId> <itemName> <count> --confirm|player-info <PlayerId>|list-players [offset] [count]|set-admin <PlayerId>|trader-sessions|trader-force-close <sessionId>>";
 
     public override void Execute(List<string> parameters, CommandSenderInfo senderInfo)
     {
@@ -28,6 +28,7 @@ public sealed class ConsoleCmdNetworkAdmin : ConsoleCmdAbstract
         {
             case "move-items": MoveItems(parameters); return;
             case "clear": ClearNetwork(parameters); return;
+            case "cleanup-quest-item": CleanupQuestItem(parameters); return;
             case "player-info": PlayerInfo(parameters); return;
             case "list-players": ListPlayers(parameters); return;
             case "set-admin": SetAdministrator(parameters); return;
@@ -89,6 +90,26 @@ public sealed class ConsoleCmdNetworkAdmin : ConsoleCmdAbstract
             NetworkLog.Info("Server inventory cleared. network=" + networkId + "; variants=" + clearedVariants);
             Write("Cleared " + clearedVariants + " item variants. Network ID and membership are unchanged.");
         }
+    }
+
+    private static void CleanupQuestItem(List<string> parameters)
+    {
+        if (parameters.Count != 5 || !Eq(parameters[4], "--confirm")
+            || !int.TryParse(parameters[3], out int count) || count < 1 || count > 64)
+        { Write("Usage: hdn-network-admin cleanup-quest-item <networkId> <itemName> <count 1..64> --confirm"); return; }
+        if (!PlayerNetworkDirectory.TryGetNetwork(parameters[1], out PlayerNetworkRecord network))
+        { Write("Network was not found."); return; }
+        ItemValue item = ItemClass.GetItem(parameters[2]);
+        if (item?.ItemClass?.IsQuestItem != true || NetworkItemPolicy.CanEnterOrDestroy(item))
+        { Write("The item must be a non-droppable quest item."); return; }
+        EntityPlayer actor = GameManager.Instance?.World?.Players?.list?.FirstOrDefault(player => (bool)player
+            && string.Equals(PlayerNetworkDirectory.GetNetworkId(player), network.NetworkId, StringComparison.OrdinalIgnoreCase));
+        if (!(bool)actor) { Write("A member of this network must be online."); return; }
+        int removed = QuestNetworkItemService.RemoveMatching(actor, item, count);
+        NetworkLog.Debug("Administrator cleaned legacy quest item. network=" + network.NetworkId + "; item="
+            + item.type + "; requested=" + count + "; removed=" + removed);
+        Write(removed > 0 ? "Removed " + removed + " legacy quest item(s) from the network."
+            : "No matching quest item was removed; check the item name and network stock.");
     }
 
     private static void PlayerInfo(List<string> parameters)

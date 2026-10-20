@@ -452,7 +452,7 @@ internal static class TraderAutomationService
         if (rules.Count == 0) return;
         foreach (StorageAddition addition in additions)
         {
-            if (addition?.Value == null || addition.Count <= 0) continue;
+            if (addition?.Value == null || addition.Count <= 0 || !NetworkItemPolicy.CanEnterOrDestroy(addition.Value)) continue;
             TraderAutomationRule rule = rules.FirstOrDefault(candidate => Matches(candidate, addition.Value));
             if (rule == null) continue;
             long available = NetworkStorage.GetCount(player, addition.Value);
@@ -468,7 +468,8 @@ internal static class TraderAutomationService
     {
         if (!NetworkFeatureSettingsService.IsEnabled(player, NetworkFeatureSetting.TrashEnabled)) return;
         long remaining = rule.MaximumCount == 0 ? long.MaxValue : rule.MaximumCount;
-        foreach (StoredEntry entry in NetworkStorage.GetEntries(player).Where(entry => Matches(rule, entry.Value)))
+        foreach (StoredEntry entry in NetworkStorage.GetEntries(player).Where(entry => Matches(rule, entry.Value)
+            && NetworkItemPolicy.CanEnterOrDestroy(entry.Value)))
         {
             if (remaining <= 0) break;
             int count = (int)Math.Min(Math.Min(remaining, entry.Count), int.MaxValue);
@@ -844,7 +845,7 @@ internal static class TraderAutomationService
 
     internal static bool Matches(TraderAutomationRule rule, ItemValue value)
     {
-        if (value?.ItemClass == null) return false;
+        if (!NetworkItemPolicy.CanEnterOrDestroy(value)) return false;
         if (rule.Scope == TraderRuleScope.SingleItem && rule.ItemType != value.type) return false;
         if (rule.Scope == TraderRuleScope.Category && !string.IsNullOrEmpty(rule.Category)
             && !rule.Category.Split('|').Any(category => HasTraderCategory(value, category))) return false;

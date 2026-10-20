@@ -54,7 +54,8 @@ internal enum NetworkRequestOperation : byte
     ForgeFeed = 47,
     ScrapNetworkItem = 48,
     ReturnNetworkScrap = 49,
-    DropNetworkItem = 50
+    DropNetworkItem = 50,
+    QuestTurnInItem = 51
 }
 
 internal enum NetworkMembershipNotice : byte { None = 0, Invite = 1, Prepare = 2, Completed = 3, Changed = 4, InviteInvalidated = 5 }
@@ -729,6 +730,18 @@ internal static class NetworkRemoteClient
         request.Value = value.Clone();
         request.Count = count;
         return Send(localPlayer, request, false, toBackpack, !toBackpack, callback);
+    }
+
+    internal static bool RequestQuestTurnIn(EntityPlayerLocal player, Quest quest, ItemValue value, int count,
+        Action<NetworkRemoteResult> callback)
+    {
+        if (!IsRemoteClient || !(bool)player || quest == null || value == null || count <= 0) return false;
+        NetworkRemoteRequest request = NewRequest(player, NetworkRequestOperation.QuestTurnInItem);
+        request.Category = quest.ID;
+        request.Slot = quest.QuestCode;
+        request.Value = value.Clone();
+        request.Count = count;
+        return Send(player, request, false, false, false, callback);
     }
 
     public static bool ScrapNetworkItem(EntityPlayerLocal player, ItemValue value, int sourceStackCount, int count,

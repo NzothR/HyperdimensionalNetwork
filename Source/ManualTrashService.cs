@@ -7,6 +7,8 @@ namespace HyperdimensionalNetwork;
 internal static class ManualTrashService
 {
     private static Bag _activeBag;
+    private static bool _windowOpen;
+    internal static bool IsOpen => _windowOpen;
 
     internal static void Toggle(XUi xui)
     {
@@ -25,7 +27,7 @@ internal static class ManualTrashService
         XUiV_Grid backpackGrid = xui.GetChildByType<XUiC_Backpack>()?.GetChildById("inventory")?.ViewComponent as XUiV_Grid;
         int columns = Math.Max(1, Math.Min(10, backpackGrid?.Columns ?? 8));
         int rows = (capacity + columns - 1) / columns;
-        Bag temporary = new Bag(new Vector2i(capacity, 1), XUiC_ItemStack.StackLocationTypes.LootContainer, null);
+        Bag temporary = _activeBag ?? new Bag(new Vector2i(capacity, 1), XUiC_ItemStack.StackLocationTypes.LootContainer, null);
         LootContainer definition = new LootContainer { size = new Vector2i(columns, rows) };
         XUiC_BagContainer container = xui.FindWindowGroupByName("bagStorage")?.GetChildByType<XUiC_BagContainer>();
         int visibleSlots = container?.GetItemStackControllers()?.Length ?? 0;
@@ -48,10 +50,12 @@ internal static class ManualTrashService
             XUiC_BagStorageWindowGroup.Open(xui, player, temporary, definition,
                 Localization.Get("HyperdimensionalNetworkTrashWindow"), null,
                 () => OnClosed(xui, player, temporary));
+            _windowOpen = true;
         }
         catch (Exception ex)
         {
             _activeBag = null;
+            _windowOpen = false;
             XUiController networkDeposit = container?.GetChildById("btnHyperdimensionalLootAll");
             if (networkDeposit?.ViewComponent != null) networkDeposit.ViewComponent.IsVisible = true;
             NetworkLog.Error("Vanilla manual trash window failed to open. player=" + player.entityId + "; exception=" + ex);
@@ -61,15 +65,30 @@ internal static class ManualTrashService
 
     private static void OnClosed(XUi xui, EntityPlayerLocal player, Bag temporary)
     {
+        _windowOpen = false;
         int destroyed = 0;
-        foreach (ItemStack stack in temporary.ItemGrid.items)
-            if (stack != null && !stack.IsEmpty()) destroyed += stack.count;
-        temporary.Clear();
-        if (ReferenceEquals(_activeBag, temporary)) _activeBag = null;
+        int protectedCount = 0;
+        for (int i = 0; i < temporary.ItemGrid.Length; i++)
+        {
+            ItemStack stack = temporary.ItemGrid[i];
+            if (stack == null || stack.IsEmpty()) continue;
+            if (!NetworkItemPolicy.CanEnterOrDestroy(stack.itemValue))
+            {
+                ItemStack protectedStack = stack.Clone();
+                if (player.bag.AddItem(protectedStack) || player.inventory.AddItem(protectedStack))
+                    temporary.ItemGrid.SetItem(i, ItemStack.Empty.Clone());
+                else protectedCount += stack.count;
+                continue;
+            }
+            destroyed += stack.count;
+            temporary.ItemGrid.SetItem(i, ItemStack.Empty.Clone());
+        }
+        if (ReferenceEquals(_activeBag, temporary) && protectedCount == 0) _activeBag = null;
         XUiController networkDeposit = xui.FindWindowGroupByName("bagStorage")?.GetChildByType<XUiC_BagContainer>()
             ?.GetChildById("btnHyperdimensionalLootAll");
         if (networkDeposit?.ViewComponent != null) networkDeposit.ViewComponent.IsVisible = true;
-        NetworkLog.Debug("Vanilla manual trash closed and cleared. player=" + player.entityId + "; destroyed=" + destroyed);
+        NetworkLog.Debug("Vanilla manual trash closed. player=" + player.entityId + "; destroyed=" + destroyed
+            + "; protectedRetained=" + protectedCount);
         ThreadManager.StartCoroutine(RestoreBackpack(xui, player));
     }
 

@@ -202,6 +202,8 @@ internal static class NetworkRpcServer
                 return ReturnWithdrawal(player, sender?.latestPlayerData, request);
             case NetworkRequestOperation.ConsumeRequirements:
                 return ConsumeRequirements(world, player, sender?.latestPlayerData, request);
+            case NetworkRequestOperation.QuestTurnInItem:
+                return QuestNetworkItemService.ExecuteTurnIn(player, request);
             case NetworkRequestOperation.VehicleRefuel:
                 return RefuelVehicle(world, player, sender?.latestPlayerData, request);
             case NetworkRequestOperation.VehicleRepair:
@@ -336,6 +338,7 @@ internal static class NetworkRpcServer
         if (playerData == null || playerData.dragAndDropItem == null || playerData.dragAndDropItem.IsEmpty() || request.Value == null || request.Count <= 0)
             return Failure(request, "CursorUnavailable");
         ItemStack cursor = playerData.dragAndDropItem;
+        if (!NetworkItemPolicy.CanEnterOrDestroy(cursor.itemValue)) return Failure(request, "NonDroppableItem");
         if (!NetworkStorage.NormalizeKey(cursor.itemValue).Equals(NetworkStorage.NormalizeKey(request.Value)) || cursor.count < request.Count)
             return Failure(request, "CursorChanged");
 
@@ -371,6 +374,7 @@ internal static class NetworkRpcServer
             ? TryUpdateToolbelt(playerData.inventoryData, request.Slot, request.Value, request.Count, out source, out updated)
             : TryUpdateBag(playerData.bagData, request.Slot, request.Value, request.Count, out source, out updated);
         if (!parsed) return Failure(request, "PlayerInventoryChanged");
+        if (!NetworkItemPolicy.CanEnterOrDestroy(source.itemValue)) return Failure(request, "NonDroppableItem");
 
         StorageAddition addition = new StorageAddition { Value = source.itemValue.Clone(), Count = request.Count };
         if (!CommitInventoryDeposit(player, playerData, addition, updated, toolbelt))
@@ -399,6 +403,7 @@ internal static class NetworkRpcServer
             if (bag.LockedSlots != null && i < bag.LockedSlots.Length && bag.LockedSlots[i]) continue;
             ItemStack stack = bag.ItemGrid[i];
             if (stack == null || stack.IsEmpty()) continue;
+            if (!NetworkItemPolicy.CanEnterOrDestroy(stack.itemValue)) continue;
             additions.Add(new StorageAddition { Value = stack.itemValue.Clone(), Count = stack.count });
             bag.ItemGrid.SetItem(i, ItemStack.Empty.Clone());
         }
@@ -439,6 +444,7 @@ internal static class NetworkRpcServer
             if (lockedSlots != null && i < lockedSlots.Length && lockedSlots[i]) continue;
             ItemStack stack = storage.ItemGrid[i];
             if (stack == null || stack.IsEmpty()) continue;
+            if (!NetworkItemPolicy.CanEnterOrDestroy(stack.itemValue)) continue;
             ItemStack clone = stack.Clone();
             originalStacks.Add(new KeyValuePair<int, ItemStack>(i, clone));
             additions.Add(new StorageAddition { Value = clone.itemValue.Clone(), Count = clone.count });
@@ -449,9 +455,8 @@ internal static class NetworkRpcServer
         bool committed = false;
         try
         {
-            for (int i = 0; i < storage.ItemGrid.Length; i++)
-                if ((lockedSlots == null || i >= lockedSlots.Length || !lockedSlots[i])
-                    && (storage.ItemGrid[i] == null || !storage.ItemGrid[i].IsEmpty())) storage.UpdateSlot(i, ItemStack.Empty.Clone());
+            foreach (KeyValuePair<int, ItemStack> original in originalStacks)
+                storage.UpdateSlot(original.Key, ItemStack.Empty.Clone());
             storage.SetModified();
             committed = true;
         }
@@ -495,6 +500,7 @@ internal static class NetworkRpcServer
             if (lockedSlots != null && i < lockedSlots.Length && lockedSlots[i]) continue;
             ItemStack stack = bag.ItemGrid[i];
             if (stack == null || stack.IsEmpty()) continue;
+            if (!NetworkItemPolicy.CanEnterOrDestroy(stack.itemValue)) continue;
             ItemStack clone = stack.Clone();
             originalStacks.Add(new KeyValuePair<int, ItemStack>(i, clone));
             additions.Add(new StorageAddition { Value = clone.itemValue.Clone(), Count = clone.count });
@@ -506,9 +512,8 @@ internal static class NetworkRpcServer
         bool committed = false;
         try
         {
-            for (int i = 0; i < bag.SlotCount; i++)
-                if ((lockedSlots == null || i >= lockedSlots.Length || !lockedSlots[i])
-                    && (bag.ItemGrid[i] == null || !bag.ItemGrid[i].IsEmpty())) bag.SetSlot(i, ItemStack.Empty.Clone());
+            foreach (KeyValuePair<int, ItemStack> original in originalStacks)
+                bag.SetSlot(original.Key, ItemStack.Empty.Clone());
             bag.ItemGrid.Touch();
             updatedBag = WriteEntityBag(bag);
             SynchronizeEntityBag(bagEntity);
@@ -567,6 +572,7 @@ internal static class NetworkRpcServer
         if (request.Value == null || request.Count <= 0) return Failure(request, "InvalidWithdrawal");
         if (request.Operation == NetworkRequestOperation.WithdrawCursor)
         {
+            if (!NetworkItemPolicy.CanEnterOrDestroy(request.Value)) return Failure(request, "NonDroppableItemUseBackpack");
             if (playerData == null || playerData.dragAndDropItem == null || !playerData.dragAndDropItem.IsEmpty())
                 return Failure(request, "CursorUnavailable");
             int removedFromNetwork = NetworkStorage.Remove(player, request.Value, request.Count);
