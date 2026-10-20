@@ -119,6 +119,10 @@ internal static class NetworkProfiler
         stoppedAt = at;
         finalGc = GcCounts();
         NetworkLog.Debug("Performance profile finished. areas=" + Counters.Count);
+        // ConsoleCmdAbstract.Output is visible in F1 but is not copied into the game log.
+        // Persist one compact report through DebugLog so live performance captures can be inspected later.
+        foreach (string line in ReportLocked(40).Split('\n'))
+            NetworkLog.Debug("Performance profile: " + line.TrimEnd('\r'));
     }
 
     private static string ReportLocked(int top)
